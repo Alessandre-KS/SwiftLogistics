@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TripwireJS — Enterprise Threat Containment Console</title>
+    <link rel="stylesheet" href="style.css?v=5.0.0">
+</head>
+<body>
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="top-nav">
+        <div class="nav-brand">
+            <div class="brand-badge" id="brandBadge">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+                <h1 class="brand-name">TripwireJS <span class="badge-version">Security Console</span></h1>
+                <p class="brand-store">SwiftLogistics Courier Services — Branch #04</p>
+            </div>
+        </div>
+
+        <!-- PRODUCTION SYSTEM STATUS -->
+        <div id="systemStatusPill" class="prod-status-badge badge-armed">
+            <span class="pulse-dot"></span>
+            <span id="systemStatusLabel">MONITORING ACTIVE — ZERO ANOMALIES</span>
+        </div>
+
+        <div class="nav-actions">
+            <button class="btn btn-sm btn-outline" onclick="openModal('thresholdSettingsModal')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Rate Thresholds
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="scrollToStaff()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Access Control
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="openModal('npcModal')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                NPC Compliance Dossier
+            </button>
+            <div class="user-chip">
+                <span class="user-avatar-tag">AN</span>
+                <span class="user-name">Aling Nena (Administrator)</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+
+        <!-- INCIDENT / STATUS BANNER -->
+        <section id="heroBanner" class="hero-alert-banner hero-safe-banner">
+            <div class="hero-content">
+                <div class="hero-status-indicator" id="heroStatusDot"></div>
+                <div class="hero-text-block">
+                    <h2 class="hero-title" id="heroTitle">System Baseline: Normal Operations</h2>
+                    <p class="hero-desc" id="heroDesc">
+                        All client queries are within designated velocity thresholds (max 30 req / 5s). Layer-7 sentry inspection and Cloud Firestore default-deny enforcement active.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3 SUMMARY METRIC CARDS -->
+        <section class="metrics-row">
+            <!-- CARD 1: DATABASE INTEGRITY -->
+            <div class="metric-box">
+                <div class="metric-top">
+                    <span class="metric-label">Database Integrity</span>
+                </div>
+                <div class="metric-number text-success" id="statSafetyRate">100% Intact</div>
+                <p class="metric-sub" id="statSafetySub">5,000 of 5,000 records protected</p>
+                <div class="simple-progress">
+                    <div class="progress-bar-safe" id="statSafeBar" style="width: 100%;"></div>
+                    <div class="progress-bar-danger" id="statDangerBar" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <!-- CARD 2: EXPOSED RECORDS (BLAST RADIUS) -->
+            <div class="metric-box" id="boxExposed">
+                <div class="metric-top">
+                    <span class="metric-label" id="labelExposed">Exposed Records Prior to Containment</span>
+                </div>
+                <div class="metric-number text-success" id="statExposed">0 Records</div>
+                <p class="metric-sub" id="statExposedSub">Zero unauthorized access attempts detected</p>
+                <div style="margin-top: 6px;">
+                    <button class="metric-action-link" id="btnViewVictimsCard" onclick="openModal('victimListModal')" style="display: none;">
+                        Inspect Forensic Audit Log &rarr;
+                    </button>
+                </div>
+            </div>
+
+            <!-- CARD 3: MITIGATION LATENCY -->
+            <div class="metric-box">
+                <div class="metric-top">
+                    <span class="metric-label">Mitigation Latency</span>
+                </div>
+                <div class="metric-number text-primary" id="statSpeed">0 ms Overhead</div>
+                <p class="metric-sub" id="statSpeedSub">Real-time client-side rate limit + Cloud kill-switch</p>
+            </div>
+        </section>
+
+        <!-- TWO COLUMN LAYOUT: ACTIONS & AUDIT LOG -->
+        <div class="two-column-layout">
+
+            <!-- LEFT COLUMN: REMEDIATION WORKFLOW -->
+            <section class="panel-box">
+                <div class="panel-head">
+                    <div>
+                        <h3 class="panel-title" id="panelTitle">Operational Controls</h3>
+                        <p class="panel-caption" id="panelCaption">Security posture and breach containment status.</p>
+                    </div>
+                </div>
+
+                <div id="actionContainer" class="remediation-list">
+                    <!-- Dynamic actions inserted by app.js -->
+                </div>
+
+                <div class="unlock-footer" id="unlockFooter" style="display: none;">
+                    <span style="font-size: 13px; color: var(--text-muted);">Identity verified by administrator?</span>
+                    <button class="btn btn-sm btn-outline" id="btnRestore" onclick="handleRestore()">
+                        Re-activate Maria Santos (usr_maria)
+                    </button>
+                </div>
+            </section>
+
+            <!-- RIGHT COLUMN: EVENT TELEMETRY & AUDIT TRAIL -->
+            <section class="panel-box">
+                <div class="panel-head">
+                    <div>
+                        <h3 class="panel-title" id="activityTitle">Telemetry & Audit Trail</h3>
+                        <p class="panel-caption" id="activityCaption">Real-time query velocity and authorization events.</p>
+                    </div>
+                </div>
+
+                <div class="telemetry-log-list" id="logList">
+                    <!-- Events populated dynamically by app.js -->
+                </div>
+
+                <div class="protection-specs-summary" id="protectionBox">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-title); text-transform: uppercase; letter-spacing: 0.5px;">Active Policy Thresholds</span>
+                        <button class="btn btn-sm btn-outline" style="padding: 2px 8px; font-size: 11px;" onclick="openModal('thresholdSettingsModal')">Configure</button>
+                    </div>
+                    <div class="specs-grid">
+                        <div class="specs-item">
+                            <span class="specs-label">Burst Velocity Limit:</span>
+                            <span class="specs-val">30 requests / 5 seconds (6.0 req/s)</span>
+                        </div>
+                        <div class="specs-item">
+                            <span class="specs-label">Daily Shift Quota:</span>
+                            <span class="specs-val">50 parcel lookups / staff / day</span>
+                        </div>
+                        <div class="specs-item">
+                            <span class="specs-label">Canary Trap Record:</span>
+                            <span class="specs-val font-mono">TRK-0000 (Decoy Honeypot)</span>
+                        </div>
+                        <div class="specs-item">
+                            <span class="specs-label">SMS Alert Routing:</span>
+                            <span class="specs-val font-mono">0917-829-9821 (Semaphore PH)</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- STAFF ACCOUNTS & ACCESS CONTROLS -->
+        <section class="staff-panel" id="staffSection">
+            <div class="panel-head">
+                <div>
+                    <h3 class="panel-title">Identity & Access Management (Staff Accounts)</h3>
+                    <p class="panel-caption">Role-based permissions and active credential status across Cloud Firestore.</p>
+                </div>
+                <button class="btn btn-sm btn-outline" onclick="showToast('Employee invitation generated.')">
+                    Provision Account
+                </button>
+            </div>
+
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Role & Scope</th>
+                        <th>Account Status</th>
+                        <th>Query Velocity</th>
+                        <th>Access Governance</th>
+                    </tr>
+                </thead>
+                <tbody id="staffTableBody">
+                    <!-- Populated dynamically by app.js -->
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <!-- MODAL 1: BEFORE / AFTER EVALUATION MATRIX -->
+    <div id="comparisonModal" class="modal-backdrop hidden">
+        <div class="modal-card modal-large">
+            <div class="modal-top">
+                <div>
+                    <h3 class="modal-heading">Containment Architecture Performance Analysis</h3>
+                    <p class="modal-sub">Empirical validation of Layer-7 Sentry containment vs. traditional unmitigated breach</p>
+                </div>
+                <button class="modal-x" onclick="closeModal('comparisonModal')">&times;</button>
+            </div>
+
+            <div class="modal-scroll-body">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th class="col-before">Baseline (Normal Operations)</th>
+                            <th class="col-after">Mitigated (TripwireJS Sentry)</th>
+                            <th class="col-bad">Unmitigated MSME Baseline</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Data Loss (Blast Radius)</td>
+                            <td class="text-success">0 records (0%)</td>
+                            <td class="text-success">31 records (0.62%)</td>
+                            <td class="text-danger">5,000 records (100% database dump)</td>
+                        </tr>
+                        <tr>
+                            <td>Containment Latency</td>
+                            <td>Monitoring active</td>
+                            <td class="text-primary">18 milliseconds (Automated token kill)</td>
+                            <td class="text-danger">Undetected (Weeks to months)</td>
+                        </tr>
+                        <tr>
+                            <td>Credential State</td>
+                            <td>Active & valid</td>
+                            <td>Quarantined immediately across Cloud</td>
+                            <td class="text-danger">Active indefinitely until manually revoked</td>
+                        </tr>
+                        <tr>
+                            <td>Incident Notification</td>
+                            <td>Monitoring</td>
+                            <td>Automated SMS notification dispatched</td>
+                            <td class="text-danger">Discovered via external leak or extortion</td>
+                        </tr>
+                        <tr>
+                            <td>RA 10173 Compliance Status</td>
+                            <td>Compliant</td>
+                            <td>72-Hour Formal Dossier Generated</td>
+                            <td class="text-danger">Gross Negligence Liability (Up to ₱5M)</td>
+                        </tr>
+                        <tr>
+                            <td>Infrastructure Cost</td>
+                            <td>PHP 0.00 (Firebase Spark Tier)</td>
+                            <td>PHP 0.00 (Firebase Spark Tier)</td>
+                            <td>Enterprise WAFs: ₱500,000+ / annum</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="modal-bot">
+                <button class="btn btn-outline" onclick="closeModal('comparisonModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: NPC GOVERNMENT REPORT -->
+    <div id="npcModal" class="modal-backdrop hidden">
+        <div class="modal-card modal-large">
+            <div class="modal-top">
+                <div>
+                    <h3 class="modal-heading">National Privacy Commission (NPC) Breach Notification Dossier</h3>
+                    <p class="modal-sub">Republic Act No. 10173 / NPC Circular 16-03 Mandatory 72-Hour Security Incident Report</p>
+                </div>
+                <button class="modal-x" onclick="closeModal('npcModal')">&times;</button>
+            </div>
+
+            <div class="modal-scroll-body">
+                <div class="doc-box">
+                    <h4 class="doc-section-head">Section 1: Personal Information Controller (PIC) Information</h4>
+                    <table class="simple-doc-table">
+                        <tr>
+                            <td>Organization Name:</td>
+                            <td><strong>SwiftLogistics Courier Services PH (Branch #04)</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Incident Detection Timestamp:</td>
+                            <td id="npcIncidentDiscovery">Live Monitoring (No active breach)</td>
+                        </tr>
+                        <tr>
+                            <td>Mitigation Latency:</td>
+                            <td id="npcContainmentTime">18 ms (Automated Session Token Invalidation)</td>
+                        </tr>
+                    </table>
+
+                    <h4 class="doc-section-head">Section 2: Blast Radius & Impact Assessment</h4>
+                    <table class="simple-doc-table">
+                        <tr>
+                            <td>Total Registered Data Subjects:</td>
+                            <td>5,000 records</td>
+                        </tr>
+                        <tr>
+                            <td>Exposed Customer Records:</td>
+                            <td id="npcExposed">0 records (0%)</td>
+                        </tr>
+                        <tr>
+                            <td>Preserved Customer Records:</td>
+                            <td id="npcPreserved">5,000 records (100%)</td>
+                        </tr>
+                        <tr>
+                            <td>Data Classifications Accessed:</td>
+                            <td>Recipient name, masked phone number, delivery municipality. No passwords, credentials, or financial accounts stored or exposed.</td>
+                        </tr>
+                    </table>
+
+                    <h4 class="doc-section-head">Section 3: Incident Mitigation & Corrective Actions</h4>
+                    <ul class="doc-checklist">
+                        <li>Automated session token revocation executed across Google Cloud infrastructure in 18ms.</li>
+                        <li>Compromised staff credential isolated and placed into quarantine status.</li>
+                        <li>SMS advisory dispatched to affected data subjects in accordance with Section 20.</li>
+                        <li>Cryptographic forensic log retained in Cloud Firestore threat telemetry storage.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="modal-bot">
+                <button class="btn btn-outline" onclick="closeModal('npcModal')">Close Preview</button>
+                <button class="btn btn-primary" onclick="downloadNpcReport()">Export Compliance Dossier (JSON / Text)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: CUSTOMER ADVISORY DISPATCH (RA 10173 SEC. 20) -->
+    <div id="smsModal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-top">
+                <div>
+                    <h3 class="modal-heading">Data Subject Breach Notification (SMS Advisory)</h3>
+                    <p class="modal-sub">Compliance with RA 10173 Section 20 (Mandatory Notification of Affected Data Subjects)</p>
+                </div>
+                <button class="modal-x" onclick="closeModal('smsModal')">&times;</button>
+            </div>
+
+            <div class="modal-scroll-body">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                    Review the regulatory notification dispatch content prior to broadcast via Semaphore PH Gateway:
+                </p>
+
+                <div class="sms-preview-card">
+                    <div class="sms-preview-header">Message Payload Preview (Sender: SwiftLogistics)</div>
+                    <div class="sms-preview-body" id="smsModalMessage">
+                        SwiftLogistics Security Advisory: An automated query anomaly was detected and terminated within 18ms by our security layer. Your account records remain protected. No passwords or financial credentials were exposed. Ref: TripwireJS-INC-001.
+                    </div>
+                </div>
+
+                <div class="sms-quick-stats">
+                    <div>Target Recipients: <strong id="smsModalRecipientsCount">0 Data Subjects</strong></div>
+                    <div>Gateway Routing: <strong>Semaphore PH (Developer API Tier)</strong></div>
+                </div>
+            </div>
+
+            <div class="modal-bot">
+                <button class="btn btn-outline" onclick="closeModal('smsModal')">Cancel</button>
+                <button class="btn btn-primary" id="btnConfirmSmsSend" onclick="confirmSmsSend()">Broadcast Advisories</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: AFFECTED RECORDS ROSTER (FORENSIC AUDIT LIST) -->
+    <div id="victimListModal" class="modal-backdrop hidden">
+        <div class="modal-card modal-large">
+            <div class="modal-top">
+                <div>
+                    <h3 class="modal-heading">Forensic Incident Roster</h3>
+                    <p class="modal-sub">Exact records accessed prior to token invalidation (RA 10173 Section 20 Scope)</p>
+                </div>
+                <button class="modal-x" onclick="closeModal('victimListModal')">&times;</button>
+            </div>
+
+            <div class="modal-scroll-body">
+                <p id="victimExplainerText" style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                    Records accessed prior to token invalidation:
+                </p>
+
+                <div class="victim-table-wrapper">
+                    <table class="victim-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Tracking ID</th>
+                                <th>Recipient</th>
+                                <th>Masked Mobile</th>
+                                <th>Exposed Attributes</th>
+                                <th>Notification Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="victimTableBody">
+                            <!-- Populated dynamically by app.js -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-bot">
+                <button class="btn btn-outline" onclick="closeModal('victimListModal')">Close</button>
+                <button class="btn btn-primary" onclick="exportVictimCsv()">Export Forensic Log (CSV)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: PROTECTION SENSITIVITY & THRESHOLDS SETTINGS -->
+    <div id="thresholdSettingsModal" class="modal-backdrop hidden">
+        <div class="modal-card modal-large">
+            <div class="modal-top">
+                <div>
+                    <h3 class="modal-heading">Detection Thresholds & Rate Limiting Policy</h3>
+                    <p class="modal-sub">Sliding-window rate enforcement parameters for SwiftLogistics Branch #04</p>
+                </div>
+                <button class="modal-x" onclick="closeModal('thresholdSettingsModal')">&times;</button>
+            </div>
+
+            <div class="modal-scroll-body">
+                <div class="settings-section">
+                    <div class="settings-section-head">
+                        <span class="settings-title">Query Velocity Threshold (Burst Rate Limiter)</span>
+                        <span class="specs-val font-mono" id="badgeBurst">30 queries / 5s (6.0 req/s)</span>
+                    </div>
+                    <p class="settings-desc">
+                        Maximum read operations permitted within a 5-second sliding window. Requests exceeding this threshold immediately trigger credential quarantine.
+                    </p>
+                    <div class="slider-control-row">
+                        <input type="range" class="range-slider" id="sliderBurst" min="10" max="60" step="5" value="30">
+                        <div class="slider-ticks">
+                            <span>10 (Strict)</span>
+                            <span>30 (Standard)</span>
+                            <span>60 (Permissive)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-head">
+                        <span class="settings-title">Shift Lookup Ceiling (Daily Quota)</span>
+                        <span class="specs-val font-mono" id="badgeDaily">50 lookups / staff / day</span>
+                    </div>
+                    <p class="settings-desc">
+                        Cumulative customer records permitted per staff session per 8-hour shift to prevent low-velocity exfiltration.
+                    </p>
+                    <div class="slider-control-row">
+                        <input type="range" class="range-slider" id="sliderDaily" min="20" max="150" step="5" value="50">
+                        <div class="slider-ticks">
+                            <span>20 records</span>
+                            <span>50 records</span>
+                            <span>150 records</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <label class="switch-label">
+                        <div>
+                            <span class="settings-title">Honeypot Decoy Trap (Canary Record)</span>
+                            <p class="settings-desc" style="margin-bottom: 0; margin-top: 4px;">
+                                Maintains hidden canary document <code>TRK-0000</code> in Firestore. Any query touching this ID triggers immediate containment.
+                            </p>
+                        </div>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="toggleCanary" checked>
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="settings-section" style="margin-bottom: 0;">
+                    <span class="settings-title">Administrator Emergency SMS Endpoint</span>
+                    <p class="settings-desc">
+                        Direct mobile number for immediate SMS alert delivery upon policy violation:
+                    </p>
+                    <input type="tel" class="settings-input font-mono" id="inputAlertPhone" value="0917-829-9821">
+                </div>
+            </div>
+
+            <div class="modal-bot">
+                <button class="btn btn-outline" onclick="resetProtectionSettings()">Reset Defaults</button>
+                <button class="btn btn-outline" onclick="closeModal('thresholdSettingsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveProtectionSettings()">Apply Policy Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST ALERT -->
+    <div id="friendlyToast" class="toast hidden"></div>
+
+    <!-- FIREBASE COMPAT SDK & REAL-TIME INCIDENT CONTROLLER -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="app.js?v=5.0.0"></script>
+</body>
+</html>

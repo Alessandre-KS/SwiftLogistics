@@ -1,0 +1,308 @@
+rules_version = '2';
+
+// ==============================================================================
+// TripwireJS: Production-Grade Cloud Firestore Security Rules
+// ==============================================================================
+// Project ID:   tripwirejs-capstone-9821
+// System:       TripwireJS (Data Breach Containment for MSMEs in the Philippines)
+// Legal Basis:  Republic Act 10173 (Data Privacy Act of 2012) & NPC Circular 16-03
+// Architecture: Assumed Breach & Zero-Trust Layer-7 API Gateway Mediation
+// ==============================================================================
+//
+// ACADEMIC CAPSTONE DEFENSE RATIONALE:
+// 1. Default-Deny Posture:
+//    Direct client-side access to customer Personally Identifiable Information (PII)
+//    is strictly prohibited. Under RA 10173 Section 20, personal information controllers
+//    must implement reasonable and appropriate organizational, physical, and technical
+//    measures for data protection. Allowing client-side SDK reads (e.g., getDocs)
+//    would allow compromised credentials or malicious scrapers to dump the entire database
+//    in a single unmetered query, bypassing application-level rate limits.
+//
+// 2. Gateway-Mediated Access:
+//    All legitimate customer queries must pass through serverless Cloud Functions
+//    utilizing the privileged Firebase Admin SDK. The Cloud Function enforces:
+//      - Session token validity and revocation status (checkRevoked: true)
+//      - Sliding-window velocity monitoring (max 30 queries / 5 seconds)
+//      - Decoy honeypot canary traps (instant severance upon accessing CUST-0000)
+//      - Automated blast-radius containment (<= 1.0% exposure limit)
+//
+// 3. Tamper-Proof Audit Logging:
+//    Threat logs (/threat_logs) provide an immutable, non-repudiable forensic trail
+//    for the mandatory National Privacy Commission (NPC) 72-Hour Breach Notification.
+//    Client writes are forbidden; only the trusted Cloud Functions backend can record incidents.
+//
+// ==============================================================================
+// Assumed Data Model
+// ==============================================================================
+//
+// Collection: /customer_records/{docId}
+// Document ID: Parcel or Customer ID (e.g., CUST-1001, TRK-8812)
+// Fields:
+//   - id: string (required) - Customer/Parcel identifier
+//   - trackingNo: string (required) - Shipment tracking code
+//   - name: string (required) - Customer Full Name (PII)
+//   - phone: string (required) - Customer Phone Number (PII, masked in UI)
+//   - city: string (required) - Destination City/Municipality
+//   - status: string (required) - Delivery status
+//   - package: string (required) - Package contents description
+//   - cod: string (required) - Cash-on-delivery amount
+//   - isCanary: bool (required) - True if honeypot decoy record
+// Access: CLIENT READ/WRITE STRICTLY FORBIDDEN (allow read, write: if false;).
+//
+// Collection: /threat_logs/{logId}
+// Document ID: Incident Identifier (e.g., INC-2026-0917 or auto-generated UUID)
+// Fields:
+//   - incidentId: string (required) - Unique incident reference code
+//   - timestamp: timestamp (required) - Incident containment timestamp
+//   - triggerType: string (required) - 'VELOCITY_RATE_LIMIT_EXCEEDED' | 'HONEYPOT_CANARY_TRIPPED'
+//   - staffId: string (required) - Firebase Auth UID of compromised credential
+//   - staffName: string (required) - Name of affected employee
+//   - queryCountAtContainment: int (required) - Number of queries prior to kill-switch
+//   - velocity: string (required) - Rate of request arrival (e.g., '10.2 req/s')
+//   - containmentTimeMs: int (required) - Cloud kill-switch latency in milliseconds
+//   - reason: string (required) - Technical summary of trigger cause
+//   - recordsExposed: int (required) - Count of records accessed
+//   - recordsProtected: int (required) - Count of database records shielded
+//   - percentSafe: string (required) - Containment percentage (e.g., '99.38%')
+// Access: Store Owner READ only. Client writes STRICTLY FORBIDDEN (Written via Admin SDK).
+//
+// Collection: /staff_accounts/{staffId}
+// Document ID: Firebase Auth UID of the staff member (e.g., usr_maria)
+// Fields:
+//   - uid: string (optional/required) - Firebase Auth UID (must match document ID)
+//   - name: string (required, 2-100 chars) - Staff full name
+//   - email: string (required, valid email) - Official staff email address
+//   - role: string (required, 2-60 chars) - Job role / assignment
+//   - active: bool (required) - Account operational status (false = quarantined)
+//   - isFlagged: bool (required) - True if flagged by automated breach sentry
+//   - velocity: string (optional, <= 60 chars) - Observed lookup frequency
+//   - updatedAt: timestamp (optional) - Timestamp of last profile update
+//   - createdAt: timestamp (optional, immutable) - Document creation timestamp
+// Access: Staff may read OWN document; Store Owner has full read/write access.
+//
+// Collection: /system_config/{configId}
+// Document ID: Config scope key (e.g., 'thresholds', 'protection_settings')
+// Fields:
+//   - burstLimit: int (required, 1-1000) - Max allowed queries per burst window
+//   - burstWindowSec: int (required, 1-300) - Sliding window duration in seconds
+//   - dailyQuota: int (required, 1-10000) - Daily query quota per staff account
+//   - canaryEnabled: bool (required) - Honeypot decoy active toggle
+//   - alertPhone: string (required, 7-20 chars) - Emergency SMS notification recipient
+//   - updatedAt: timestamp (optional) - Timestamp of modification
+//   - updatedBy: string (optional, <= 128 chars) - UID of modifying owner
+// Access: All authenticated staff can READ. Only Store Owner can WRITE.
+//
+// ==============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================================================
+    // Core Helper Functions
+    // ==========================================================================
+
+    // Verifies whether the request is authenticated via Firebase Authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Verifies whether the authenticated user owns the resource by matching UID
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Verifies whether the authenticated user possesses the 'owner' or 'admin' role
+    // Derived strictly from Firebase Auth Custom Claims (tamper-proof server-side token)
+    function isStoreOwner() {
+      return isAuthenticated() &&
+        (request.auth.token.role == 'owner' || request.auth.token.role == 'admin');
+    }
+
+    // Verifies required fields exist in request payload
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Enforces strict schema hygiene by ensuring no extraneous or unauthorized fields exist
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Ensures specified immutable fields remain unchanged during an update operation
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Validates string type and bounds (mitigates DoS / resource exhaustion attacks)
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validates optional string field type and bounds
+    function validOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is string &&
+         request.resource.data[field].size() >= minLen &&
+         request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validates standard email address format
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    // Validates standard phone number string format
+    function isValidPhone(phone) {
+      return phone is string &&
+        phone.size() >= 7 &&
+        phone.size() <= 20;
+    }
+
+    // ==========================================================================
+    // Domain Validators (Enforced on both CREATE and UPDATE)
+    // ==========================================================================
+
+    // Validates staff account document integrity
+    function isValidStaffAccount(data) {
+      let allowed = ['uid', 'name', 'email', 'role', 'active', 'isFlagged', 'velocity', 'updatedAt', 'createdAt'];
+      let required = ['name', 'email', 'role', 'active', 'isFlagged'];
+
+      return hasRequiredFields(required) &&
+        hasOnlyAllowedFields(allowed) &&
+        validStringLength('name', 2, 100) &&
+        isValidEmail(data.email) &&
+        data.email.size() <= 100 &&
+        validStringLength('role', 2, 60) &&
+        data.active is bool &&
+        data.isFlagged is bool &&
+        (!('uid' in data) || (data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128)) &&
+        (!('velocity' in data) || (data.velocity is string && data.velocity.size() <= 60)) &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+        (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // Validates system protection configuration integrity
+    function isValidSystemConfig(data) {
+      let allowed = ['burstLimit', 'burstWindowSec', 'dailyQuota', 'canaryEnabled', 'alertPhone', 'updatedAt', 'updatedBy'];
+      let required = ['burstLimit', 'burstWindowSec', 'dailyQuota', 'canaryEnabled', 'alertPhone'];
+
+      return hasRequiredFields(required) &&
+        hasOnlyAllowedFields(allowed) &&
+        data.burstLimit is int && data.burstLimit >= 1 && data.burstLimit <= 1000 &&
+        data.burstWindowSec is int && data.burstWindowSec >= 1 && data.burstWindowSec <= 300 &&
+        data.dailyQuota is int && data.dailyQuota >= 1 && data.dailyQuota <= 10000 &&
+        data.canaryEnabled is bool &&
+        isValidPhone(data.alertPhone) &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+        (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 128));
+    }
+
+    // ==========================================================================
+    // Collection Security Rules
+    // ==========================================================================
+
+    // --------------------------------------------------------------------------
+    // 1. Customer Records Collection (/customer_records)
+    // --------------------------------------------------------------------------
+    // Contains citizen PII (Names, Addresses, Contact Numbers, Delivery Packages).
+    //
+    // SECURITY DIRECTIVE: ZERO CLIENT READ / WRITE
+    // Direct client access is unconditionally denied. In compliance with RA 10173
+    // Section 20, all customer lookups must be mediated by the TripwireJS
+    // Serverless Cloud Functions API Gateway (`api/lookupCustomer`), where:
+    //  - Rate-limiting (30 queries/5s) is evaluated before data fetch.
+    //  - Decoy canary traps (CUST-0000) trigger instant token revocation.
+    //  - Masked customer profiles are returned instead of raw plaintext.
+    // --------------------------------------------------------------------------
+    match /customer_records/{docId} {
+      allow read, write: if false;
+    }
+
+    // --------------------------------------------------------------------------
+    // 2. Incident Threat Logs Collection (/threat_logs)
+    // --------------------------------------------------------------------------
+    // Immutable audit ledger of contained data breach incidents.
+    // Used for National Privacy Commission (NPC) Form 16-03 statutory filings.
+    //
+    // READ: Store Owner only (for audit analysis, dashboard forensics, NPC report).
+    // WRITE: Strictly forbidden from client SDK. Logs are generated exclusively
+    // by trusted Cloud Functions using the Firebase Admin SDK to guarantee
+    // forensic non-repudiation and prevent attacker tampering.
+    // --------------------------------------------------------------------------
+    match /threat_logs/{logId} {
+      allow read: if isStoreOwner();
+      allow write: if false;
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. Staff Accounts Collection (/staff_accounts)
+    // --------------------------------------------------------------------------
+    // Stores employee credentials metadata, operational status, and quarantine state.
+    //
+    // READ: Authenticated staff may read their own profile (e.g., to confirm
+    // active status). The store owner can read all staff records.
+    //
+    // WRITE (Create/Update/Delete): Restricted exclusively to the Store Owner.
+    // Staff cannot alter their own active status, unflag themselves, or escalate
+    // privileges.
+    // --------------------------------------------------------------------------
+    match /staff_accounts/{staffId} {
+      // Individual staff member can read own record; Store owner can read all records
+      allow read: if isOwner(staffId) || isStoreOwner();
+
+      // Only store owner can onboard new staff profiles
+      allow create: if isStoreOwner() &&
+        isValidStaffAccount(request.resource.data) &&
+        (!('uid' in request.resource.data) || request.resource.data.uid == staffId);
+
+      // Only store owner can update staff status (e.g. manual quarantine/restoration)
+      allow update: if isStoreOwner() &&
+        isValidStaffAccount(request.resource.data) &&
+        areImmutableFieldsUnchanged(['uid', 'createdAt']);
+
+      // Only store owner can delete staff records
+      allow delete: if isStoreOwner();
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. System Protection Configuration (/system_config)
+    // --------------------------------------------------------------------------
+    // Stores operational tripwire thresholds (burstLimit, window, canary toggle,
+    // emergency alert recipient phone).
+    //
+    // READ: Authenticated staff and owner may read system settings to reflect
+    // real-time radar thresholds on client dispatch dashboards.
+    //
+    // WRITE (Create/Update/Delete): Only Store Owner can adjust breach thresholds.
+    // --------------------------------------------------------------------------
+    match /system_config/{configId} {
+      // Authenticated staff and owner need to read protection thresholds
+      allow read: if isAuthenticated();
+
+      // Only store owner can initialize configuration documents
+      allow create: if isStoreOwner() &&
+        isValidSystemConfig(request.resource.data);
+
+      // Only store owner can adjust protection limits or emergency phone numbers
+      allow update: if isStoreOwner() &&
+        isValidSystemConfig(request.resource.data) &&
+        areImmutableFieldsUnchanged(['createdAt']);
+
+      // Only store owner can delete configuration profiles
+      allow delete: if isStoreOwner();
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. Global Default-Deny Fallback
+    // --------------------------------------------------------------------------
+    // Explicitly reject all reads and writes across any undefined collections,
+    // subcollections, or system metadata paths.
+    // --------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

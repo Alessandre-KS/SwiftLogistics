@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftLogistics Hub — Branch Dispatch & Parcel Management</title>
+    <link rel="stylesheet" href="style.css?v=5.0.0">
+</head>
+<body class="courier-body">
+
+    <div class="courier-app-wrapper">
+
+        <!-- ================================================================
+             LEFT DISPATCH SIDEBAR
+             ================================================================ -->
+        <aside class="courier-sidebar">
+            <div class="sidebar-header">
+                <div class="courier-brand-box">
+                    <div class="courier-icon-badge">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="1" y="3" width="15" height="13"></rect>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
+                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="courier-brand-title">SWIFTLOGISTICS</div>
+                        <div class="courier-brand-sub">Branch Dispatch Terminal</div>
+                    </div>
+                </div>
+
+                <div class="branch-station-badge">
+                    <span class="station-live-dot"></span>
+                    <span>Branch #04 • Lipa City Hub</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <div class="menu-category-label">Dispatch Operations</div>
+                <a href="#manifest" class="sidebar-nav-link active" onclick="filterManifest('ALL', document.querySelectorAll('.tab-btn')[0]); return false;">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    <span>Shipments Manifest</span>
+                    <span class="sidebar-count-pill" id="sidebarManifestPill">26</span>
+                </a>
+                <a href="#out-delivery" class="sidebar-nav-link" onclick="filterManifest('OUT', document.querySelectorAll('.tab-btn')[1]); return false;">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                    <span>Rider Dispatch (Carlo)</span>
+                </a>
+                <a href="#hub-sorting" class="sidebar-nav-link" onclick="filterManifest('HUB', document.querySelectorAll('.tab-btn')[2]); return false;">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/></svg>
+                    <span>Sorting Facility</span>
+                </a>
+                <a href="#delivered" class="sidebar-nav-link" onclick="filterManifest('DELIVERED', document.querySelectorAll('.tab-btn')[3]); return false;">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <span>Delivered History</span>
+                </a>
+
+                <div class="menu-category-label" style="margin-top: 24px;">Security Baseline</div>
+                <div class="sidebar-sentry-box">
+                    <div class="sentry-head">
+                        <span class="sentry-beacon"></span>
+                        <span class="sentry-tag">TripwireJS Sentry</span>
+                    </div>
+                    <div class="sentry-status" id="staffStatusText">STAFF SESSION: ACTIVE</div>
+                    <div class="sentry-compliance">RA 10173 • Zero-Trust Gateway</div>
+                </div>
+            </nav>
+
+            <!-- SIDEBAR FOOTER (USER PROFILE & SIGN OUT) -->
+            <div class="sidebar-user-footer">
+                <div class="user-profile-row">
+                    <div class="user-avatar-tag" id="navUserAvatar">MS</div>
+                    <div class="user-meta">
+                        <div class="user-meta-name" id="navUserName">Maria Santos (Dispatcher)</div>
+                        <div class="user-meta-sub">Counter Terminal #04</div>
+                    </div>
+                </div>
+                <button class="btn-courier-signout" onclick="signOutStaff()" title="Sign out of counter desk">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    Sign Out Terminal
+                </button>
+            </div>
+        </aside>
+
+        <!-- ================================================================
+             MAIN DISPATCH WORKSPACE
+             ================================================================ -->
+        <main class="courier-main-area">
+
+            <!-- TOP DISPATCH APP BAR -->
+            <header class="courier-topbar">
+                <div class="topbar-info">
+                    <div class="topbar-crumb">
+                        <span class="crumb-lead">SwiftLogistics Operations</span>
+                        <span class="crumb-slash">/</span>
+                        <span class="crumb-active">Lipa City Dispatch & Sorting Facility</span>
+                    </div>
+                    <div class="topbar-status-text">
+                        <span>Terminal 04 Active</span>
+                        <span class="dot-divider">•</span>
+                        <span>Shift A (Pasig-Batangas Trunkline)</span>
+                    </div>
+                </div>
+
+                <div class="topbar-actions">
+                    <!-- HIDDEN OR COMPACT STAFF STATUS BADGE FOR COMPATIBILITY -->
+                    <div class="prod-status-badge badge-armed" id="staffStatusBadge" style="display: none;">
+                        <span class="pulse-dot"></span>
+                        <span>STAFF SESSION: ACTIVE</span>
+                    </div>
+
+                    <button class="btn-courier-primary" onclick="openBookParcelModal()">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Manifest New Waybill
+                    </button>
+                </div>
+            </header>
+
+            <div class="courier-workspace-body">
+
+                <!-- 5 OPERATIONAL KPI SUMMARY CARDS -->
+                <section class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-top">
+                            <span class="kpi-label">Active Shipments</span>
+                            <span class="kpi-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                            </span>
+                        </div>
+                        <div class="kpi-num" id="kpiTotalParcels">0</div>
+                        <p class="kpi-sub">Total manifested in Branch #04</p>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-top">
+                            <span class="kpi-label">Out for Delivery</span>
+                            <span class="kpi-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                            </span>
+                        </div>
+                        <div class="kpi-num" style="color: #EA580C;" id="kpiOutDelivery">0</div>
+                        <p class="kpi-sub">Assigned to field couriers</p>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-top">
+                            <span class="kpi-label">At Hub / Sorting</span>
+                            <span class="kpi-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/></svg>
+                            </span>
+                        </div>
+                        <div class="kpi-num" style="color: #D97706;" id="kpiAtHub">0</div>
+                        <p class="kpi-sub">Ready for dispatch sorting</p>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-top">
+                            <span class="kpi-label">Delivered & Signed</span>
+                            <span class="kpi-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            </span>
+                        </div>
+                        <div class="kpi-num" style="color: #059669;" id="kpiDelivered">0</div>
+                        <p class="kpi-sub">Recipient confirmed delivered</p>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-top">
+                            <span class="kpi-label">COD Value</span>
+                            <span class="kpi-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            </span>
+                        </div>
+                        <div class="kpi-num" style="color: #0F172A;" id="kpiTotalCod">₱0.00</div>
+                        <p class="kpi-sub">Cash on delivery collection</p>
+                    </div>
+                </section>
+
+                <!-- QUICK WAYBILL BARCODE SCANNER / SEARCH PANEL -->
+                <section class="courier-search-panel">
+                    <div class="search-panel-header">
+                        <div class="search-panel-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h3"></path><path d="M20 7V4h-3"></path><path d="M4 17v3h3"></path><path d="M20 17v3h-3"></path><line x1="8" y1="12" x2="16" y2="12"></line><line x1="8" y1="8" x2="16" y2="8"></line><line x1="8" y1="16" x2="16" y2="16"></line></svg>
+                        </div>
+                        <div>
+                            <h3 class="search-panel-title">Waybill Scanner & Consignment Search</h3>
+                            <p class="search-panel-sub">Scan consignment barcode or enter tracking number to inspect shipment details.</p>
+                        </div>
+                    </div>
+
+                    <div class="search-input-group">
+                        <input 
+                            type="text" 
+                            id="searchQueryInput" 
+                            class="search-input-main font-mono" 
+                            placeholder="Scan Barcode or Enter Tracking ID (e.g. TRK-1001)..."
+                            value=""
+                        >
+                        <button class="btn-courier-primary" onclick="lookupParcel(document.getElementById('searchQueryInput').value, true)">
+                            Lookup Waybill
+                        </button>
+                    </div>
+                </section>
+
+                <!-- EMPTY STATE PLACEHOLDER WHEN NO PARCEL SELECTED -->
+                <div id="noParcelSelectedCard" class="empty-waybill-card">
+                    <div class="empty-waybill-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                    </div>
+                    <strong class="empty-waybill-title">No Consignment Waybill Selected</strong>
+                    <p class="empty-waybill-sub">Scan a barcode or enter a tracking ID above to inspect recipient consignment details, or click <strong>Manifest New Waybill</strong>.</p>
+                </div>
+
+                <!-- CONSIGNMENT WAYBILL INSPECTION SHEET -->
+                <section class="parcel-card waybill-sheet" id="parcelResultCard" style="display: none;">
+                    <div class="waybill-sheet-header">
+                        <div>
+                            <span class="waybill-tag-label">CONSIGNMENT NOTE</span>
+                            <div class="parcel-track-num font-mono" id="cardTrackingNo">---</div>
+                        </div>
+                        <div class="waybill-actions">
+                            <button class="btn-courier-sm btn-courier-outline" onclick="openUpdateStatusModal(currentSelectedTracking)">
+                                Update Status
+                            </button>
+                            <span class="badge-active courier-status-pill" id="cardStatusBadge">
+                                Out for Delivery
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- DELIVERY JOURNEY TIMELINE TRACKER -->
+                    <div class="timeline-track" id="journeyTimeline">
+                        <div class="timeline-step completed" id="tStep1">
+                            <div class="step-node">1</div>
+                            <div class="step-title">Manifested</div>
+                            <div class="step-time">08:15 AM Hub</div>
+                        </div>
+                        <div class="timeline-step completed" id="tStep2">
+                            <div class="step-node">2</div>
+                            <div class="step-title">Sorting Center</div>
+                            <div class="step-time">10:30 AM Passed</div>
+                        </div>
+                        <div class="timeline-step active" id="tStep3">
+                            <div class="step-node">3</div>
+                            <div class="step-title">With Courier</div>
+                            <div class="step-time">01:45 PM In Transit</div>
+                        </div>
+                        <div class="timeline-step" id="tStep4">
+                            <div class="step-node">4</div>
+                            <div class="step-title">Delivered</div>
+                            <div class="step-time">Pending Sign</div>
+                        </div>
+                    </div>
+
+                    <!-- PARCEL INFORMATION GRID -->
+                    <div class="parcel-grid">
+                        <div class="parcel-info-cell">
+                            <span class="parcel-field-label">Recipient Consignee</span>
+                            <div class="parcel-field-val" id="cardCustomerName">---</div>
+                            <span class="parcel-sub-note">Verified UB-Lipa CITEC Data Subject</span>
+                        </div>
+
+                        <div class="parcel-info-cell">
+                            <span class="parcel-field-label">Contact Mobile</span>
+                            <div class="parcel-field-val font-mono" id="cardCustomerPhone" style="color: #EA580C;">0917-***-1146</div>
+                            <span class="parcel-sub-note success-note">RA 10173 Masking Enforced</span>
+                        </div>
+
+                        <div class="parcel-info-cell">
+                            <span class="parcel-field-label">Destination Address</span>
+                            <div class="parcel-field-val" id="cardCustomerCity">---</div>
+                            <span class="parcel-sub-note">Destination hub coverage: Batangas</span>
+                        </div>
+
+                        <div class="parcel-info-cell">
+                            <span class="parcel-field-label">Package Description & COD</span>
+                            <div class="parcel-field-val" id="cardPackageDetails">---</div>
+                            <span class="parcel-sub-note cod-note" id="cardCod">COD: ₱0.00</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- MANIFEST DISPATCH TABLE -->
+                <section class="manifest-card">
+                    <div class="manifest-toolbar">
+                        <div class="toolbar-left-group">
+                            <h3 class="manifest-title">Shipments Manifest</h3>
+                            <div class="tab-group">
+                                <button class="tab-btn active" onclick="filterManifest('ALL', this)">All (<span id="countAll">26</span>)</button>
+                                <button class="tab-btn" onclick="filterManifest('OUT', this)">Out for Delivery (<span id="countOut">12</span>)</button>
+                                <button class="tab-btn" onclick="filterManifest('HUB', this)">At Hub (<span id="countHub">8</span>)</button>
+                                <button class="tab-btn" onclick="filterManifest('DELIVERED', this)">Delivered (<span id="countDelivered">6</span>)</button>
+                            </div>
+                        </div>
+
+                        <div class="toolbar-right-group">
+                            <input 
+                                type="text" 
+                                id="tableFilterInput" 
+                                class="table-filter-input font-mono" 
+                                placeholder="Filter manifest table..." 
+                                oninput="handleTableFilter()"
+                            >
+                            <button class="btn-courier-sm btn-courier-outline" onclick="loadParcels()">
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="manifest-table-wrap">
+                        <table class="manifest-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Waybill / Barcode</th>
+                                    <th>Consignee</th>
+                                    <th>Masked Contact</th>
+                                    <th>Destination City</th>
+                                    <th>Package Details</th>
+                                    <th>COD Amount</th>
+                                    <th>Transit Status</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="manifestTableBody">
+                                <!-- Populated dynamically by app.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: BOOK NEW PARCEL -->
+    <div id="bookParcelModal" class="modal-overlay hidden" style="display: none;">
+        <div class="modal-content-card">
+            <div class="modal-header-bar">
+                <h3>Manifest New Shipment</h3>
+                <button class="btn-courier-sm btn-courier-outline" onclick="closeBookParcelModal()">✕</button>
+            </div>
+            <div class="modal-body-pad">
+                <form id="bookParcelForm" onsubmit="handleBookParcelSubmit(event)">
+                    <div class="form-group-row">
+                        <label class="form-label-custom">Recipient Consignee Name</label>
+                        <input type="text" id="newRecipName" class="form-input-custom" placeholder="e.g. Juan Dela Cruz" required>
+                    </div>
+
+                    <div class="form-group-row">
+                        <label class="form-label-custom">Contact Mobile Number</label>
+                        <input type="text" id="newRecipPhone" class="form-input-custom" placeholder="0917-123-4567" required>
+                    </div>
+
+                    <div class="form-group-row">
+                        <label class="form-label-custom">Destination City / Municipality</label>
+                        <input type="text" id="newRecipCity" class="form-input-custom" placeholder="e.g. Lipa City, Batangas" value="Lipa City, Batangas" required>
+                    </div>
+
+                    <div class="form-group-row">
+                        <label class="form-label-custom">Package Contents Description</label>
+                        <input type="text" id="newPackageDesc" class="form-input-custom" placeholder="e.g. Electronics & Computer Parts" required>
+                    </div>
+
+                    <div class="form-group-row">
+                        <label class="form-label-custom">Cash on Delivery (COD) Amount</label>
+                        <input type="text" id="newCodAmount" class="form-input-custom" placeholder="e.g. ₱1,500.00 or ₱0.00" value="₱850.00" required>
+                    </div>
+
+                    <div class="modal-footer-bar">
+                        <button type="button" class="btn-courier-sm btn-courier-outline" onclick="closeBookParcelModal()">Cancel</button>
+                        <button type="submit" class="btn-courier-primary">Save & Generate Waybill</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: UPDATE PARCEL STATUS -->
+    <div id="updateStatusModal" class="modal-overlay hidden" style="display: none;">
+        <div class="modal-content-card">
+            <div class="modal-header-bar">
+                <h3>Update Delivery Status</h3>
+                <button class="btn-courier-sm btn-courier-outline" onclick="closeUpdateStatusModal()">✕</button>
+            </div>
+            <div class="modal-body-pad">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+                    Updating consignment: <strong id="updateModalTrackingNo" class="font-mono">---</strong> (<span id="updateModalCustomerName"></span>)
+                </p>
+
+                <div class="form-group-row">
+                    <label class="form-label-custom">New Transit Status</label>
+                    <select id="updateStatusSelect" class="form-input-custom">
+                        <option value="Out for Delivery (Rider Carlo)">Out for Delivery (Rider Carlo)</option>
+                        <option value="Out for Delivery (Rider Juan)">Out for Delivery (Rider Juan)</option>
+                        <option value="Arrived at Hub #04">Arrived at Hub #04</option>
+                        <option value="In Transit from Sorting Center">In Transit from Sorting Center</option>
+                        <option value="Ready for Branch Pickup">Ready for Branch Pickup</option>
+                        <option value="Delivered & Signed">Delivered & Signed</option>
+                    </select>
+                </div>
+
+                <div class="modal-footer-bar">
+                    <button type="button" class="btn-courier-sm btn-courier-outline" onclick="closeUpdateStatusModal()">Cancel</button>
+                    <button type="button" class="btn-courier-primary" onclick="confirmStatusUpdate()">Confirm Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="friendlyToast" class="toast hidden" style="display: none;"></div>
+
+    <!-- FIREBASE COMPAT SDK & APP LOGIC -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- TRIPWIREJS LAYER-7 SENTRY SDK (VENDOR) -->
+    <script src="vendor/tripwire.js?v=2.1.0"></script>
+    <script src="app.js?v=4.1.0"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const session = getStaffSession();
+            if (!session) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            const nameEl = document.getElementById("navUserName");
+            const avatarEl = document.getElementById("navUserAvatar");
+            if (nameEl) nameEl.innerText = `${session.name} (${session.role})`;
+            if (avatarEl) {
+                avatarEl.innerText = (session.uid === "usr_carlo") ? "CR" : "MS";
+            }
+
+            // Initialize TripwireJS Sentry
+            if (typeof TripwireJS !== "undefined") {
+                TripwireJS.init({
+                    protectedCollection: "parcels",
+                    staffCollection: "staff",
+                    canaryId: "TRK-0000",
+                    burstLimit: 30,
+                    burstWindowSec: 5
+                });
+            }
+
+            await loadParcels();
+        });
+    </script>
+</body>
+</html>

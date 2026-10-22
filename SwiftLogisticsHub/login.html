@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftLogistics Hub — Dispatch Terminal Sign-In</title>
+    <link rel="stylesheet" href="style.css?v=5.0.0">
+</head>
+<body style="background: #F1F5F9; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+
+    <div class="login-screen">
+
+        <!-- LOGIN CARD -->
+        <div class="login-card">
+
+            <!-- HEADER BANNER -->
+            <div class="login-top-bar">
+                <div class="login-brand-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 8px; background: #EA580C; color: #FFF; margin: 0 auto 10px auto; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                </div>
+                <h2 class="login-brand-title">SWIFTLOGISTICS <span style="font-size: 11px; font-weight: 700; background: #1E293B; color: #F59E0B; padding: 2px 7px; border-radius: 4px; vertical-align: middle; border: 1px solid #334155;">Terminal 04</span></h2>
+                <p class="login-brand-sub">Branch #04 — Regional Dispatch & Sorting Facility (Lipa City)</p>
+            </div>
+
+            <!-- LOGIN FORM BODY -->
+            <div class="login-body">
+                <div id="loginAlertBox" class="pill-chip chip-warning hidden" style="display: none; width: 100%; box-sizing: border-box; margin-bottom: 16px; padding: 10px 14px; font-size: 12px; text-align: left;">
+                    <span id="loginAlertText"></span>
+                </div>
+
+                <form id="staffLoginForm" onsubmit="handleStaffLogin(event)">
+                    <div class="form-group-row">
+                        <label class="form-label-custom">Employee ID or Email</label>
+                        <input 
+                            type="text" 
+                            id="staffIdInput" 
+                            class="form-input-custom font-mono" 
+                            placeholder="e.g. maria.santos@swiftlogistics.ph" 
+                            value="maria.santos@swiftlogistics.ph"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group-row">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label class="form-label-custom" style="margin: 0;">Password</label>
+                            <span style="font-size: 11px; color: var(--color-primary); cursor: pointer;" onclick="quickFillPassword()">Use Default</span>
+                        </div>
+                        <input 
+                            type="password" 
+                            id="staffPasswordInput" 
+                            class="form-input-custom" 
+                            placeholder="Enter password..." 
+                            value="password123"
+                            required
+                        >
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 12px; color: var(--text-muted);">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="rememberTerminalCheck" checked> Remember terminal
+                        </label>
+                        <span>Branch Counter #04</span>
+                    </div>
+
+                    <button type="submit" id="btnSubmitLogin" class="btn-courier-primary" style="width: 100%; justify-content: center; padding: 11px; font-size: 13.5px; font-weight: 700;">
+                        Sign In to Dispatch Counter
+                    </button>
+                </form>
+
+                <!-- OPERATOR PROFILES -->
+                <div class="quick-demo-box" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-subtle);">
+                    <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                        Quick Switch Operator Profiles:
+                    </div>
+                    
+                    <button type="button" class="demo-account-btn" onclick="quickLoginAs('maria')" style="width: 100%; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; text-align: left;">
+                        <div>
+                            <strong style="display: block; font-size: 12.5px; color: var(--text-title);">Maria Santos</strong>
+                            <span style="font-size: 11px; color: var(--text-muted);">Branch Dispatcher (Counter Terminal)</span>
+                        </div>
+                        <span style="font-size: 11px; font-weight: 600; color: var(--color-primary);">Select</span>
+                    </button>
+
+                    <button type="button" class="demo-account-btn" onclick="quickLoginAs('carlo')" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; text-align: left;">
+                        <div>
+                            <strong style="display: block; font-size: 12.5px; color: var(--text-title);">Carlo Reyes</strong>
+                            <span style="font-size: 11px; color: var(--text-muted);">Delivery Rider (Field Operations)</span>
+                        </div>
+                        <span style="font-size: 11px; font-weight: 600; color: var(--color-primary);">Select</span>
+                    </button>
+                </div>
+
+                <!-- FOOTER -->
+                <div class="login-footer-info" style="margin-top: 16px; text-align: center; font-size: 11.5px; color: var(--text-muted);">
+                    <p style="margin: 0;">
+                        Cloud Endpoint: <strong class="font-mono">swiftlogistics-hub-9821</strong>
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- FIREBASE COMPAT SDK & APP LOGIC -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="app.js?v=4.0.0"></script>
+    <script>
+        function quickFillPassword() {
+            document.getElementById("staffPasswordInput").value = "password123";
+        }
+
+        function showAlert(msg) {
+            const box = document.getElementById("loginAlertBox");
+            const text = document.getElementById("loginAlertText");
+            text.innerText = msg;
+            box.style.display = "block";
+            box.classList.remove("hidden");
+        }
+
+        async function handleStaffLogin(e) {
+            if (e) e.preventDefault();
+            const staffId = document.getElementById("staffIdInput").value.trim();
+            const pass = document.getElementById("staffPasswordInput").value.trim();
+            const btn = document.getElementById("btnSubmitLogin");
+
+            btn.disabled = true;
+            btn.innerText = "Authenticating...";
+
+            const res = await signInStaff(staffId, pass);
+            if (res.success) {
+                window.location.href = "index.html";
+            } else {
+                btn.disabled = false;
+                btn.innerText = "Sign In to Dispatch Counter";
+                showAlert(res.message);
+            }
+        }
+
+        function quickLoginAs(userType) {
+            if (userType === 'maria') {
+                document.getElementById("staffIdInput").value = "maria.santos@swiftlogistics.ph";
+                document.getElementById("staffPasswordInput").value = "password123";
+                handleStaffLogin();
+            } else if (userType === 'carlo') {
+                document.getElementById("staffIdInput").value = "carlo.reyes@swiftlogistics.ph";
+                document.getElementById("staffPasswordInput").value = "password123";
+                handleStaffLogin();
+            }
+        }
+    </script>
+</body>
+</html>

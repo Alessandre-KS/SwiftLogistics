@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Firebase Cache & Logs
+.firebase/
+*-debug.log
+firebase-debug.log
+firestore-debug.log
+
+# System & Editor Files
+.DS_Store
+Thumbs.db
+*.tmp
+.vscode/
+.idea/
