@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TripwireJS — Enterprise Threat Containment Console</title>
-    <link rel="stylesheet" href="style.css?v=5.0.0">
+    <link rel="stylesheet" href="style.css?v=5.1.0">
 </head>
 <body>
 
@@ -182,6 +182,7 @@
                     <tr>
                         <th>Employee</th>
                         <th>Role & Scope</th>
+                        <th>MFA Policy</th>
                         <th>Account Status</th>
                         <th>Query Velocity</th>
                         <th>Access Governance</th>
@@ -465,6 +466,21 @@
                         </div>
                         <div class="toggle-switch">
                             <input type="checkbox" id="toggleCanary" checked>
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="settings-section">
+                    <label class="switch-label">
+                        <div>
+                            <span class="settings-title">Pre-Authentication Policy: RFC 6238 TOTP Enforced</span>
+                            <p class="settings-desc" style="margin-bottom: 0; margin-top: 4px;">
+                                Mandates Time-based One-Time Password verification via Google/Microsoft Authenticator for all counter staff. Rejects headless terminal requests lacking valid 30s hardware tokens.
+                            </p>
+                        </div>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="toggleTotpMfa" checked disabled>
                             <span class="toggle-slider"></span>
                         </div>
                     </label>

@@ -50,21 +50,31 @@ The repository contains two interconnected, yet autonomous systems:
 
 ---
 
-## 3. Core Security Mechanisms
+## 3. Core Security Pillars & Mechanisms
 
-### A. Layer-7 Pre-Flight Velocity Gate (Client-Side)
+### Pillar 1: Pre-Authentication Defense — RFC 6238 TOTP Multi-Factor Authentication
+To neutralize credential stuffing, phishing, and headless terminal API scripts, all staff counter sessions mandate Time-based One-Time Password (TOTP) verification.
+- **RFC 6238 Standard**: Utilizes native Web Crypto HMAC-SHA1 with a 30-second timestep and 6-digit dynamic truncation.
+- **Universal Authenticator Compatibility**: Synchronizes natively with Google Authenticator, Microsoft Authenticator, and Authy via standard `otpauth://` QR code enrollment.
+- **Clock Drift Tolerance**: Evaluates token validity across a $\pm 30$-second window ($t_{-1}, t_0, t_{+1}$) to absorb real-world mobile device clock discrepancies without compromising security.
+- **Elimination of Headless Script Attacks**: Even if an attacker compromises Maria Santos's email and password (`maria.santos@swiftlogistics.ph` / `password123`), a headless Python script or `curl` loop cannot generate valid Firebase session credentials without the physical smartphone token.
+
+### Pillar 2: Post-Authentication Defense — TripwireJS Layer-7 Sentry Engine
+If an authenticated device is hijacked in-session (via XSS or rogue operator misuse), TripwireJS monitors behavioral velocity and canary boundaries.
+
+#### A. Layer-7 Pre-Flight Velocity Gate (Client-Side)
 TripwireJS implements a sliding-window rate limiter inside the application runtime.
 - **Threshold**: Exceeding 30 queries within a 5-second window trips the containment engine.
 - **Latency**: Fires in ~18ms locally before network packets are dispatched to Google Cloud.
 - **Resource Protection**: Preserves daily free-tier read quotas by dropping malicious loops before they touch the database.
 
-### B. Honeypot Decoy Canary Trap (`TRK-0000`)
+#### B. Honeypot Decoy Canary Trap (`TRK-0000`)
 Automated enumeration tools (Burp Suite, SQLMap, custom scrapers) typically start scraping from the lowest numeric index.
 - A synthetic document (`TRK-0000`) is planted inside the `/parcels` collection.
 - Any request targeting `TRK-0000` fires an instant containment trigger on Request #1.
 - Because Cloud Firestore Security Rules enforce `trackingNo != 'TRK-0000'`, Firestore's "Rules Are Not Filters" constraint also blocks automated bulk collection queries (`collection.get()`) from downloading the manifest.
 
-### C. 0ms Cloud Kill-Switch via Firestore Security Rules
+#### C. 0ms Cloud Kill-Switch via Firestore Security Rules
 When TripwireJS flags a compromised user, the staff status in `/staff/{uid}` is updated to `quarantined`.
 Cloud Firestore evaluates the following rule at Google's edge:
 ```cel

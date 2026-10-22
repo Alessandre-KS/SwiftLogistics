@@ -523,6 +523,11 @@ function renderStaffTable() {
                     </div>
                 </td>
                 <td><span>${staff.role}</span></td>
+                <td>
+                    <span style="font-size: 11px; font-weight: 700; color: #10B981; background: rgba(16, 185, 129, 0.12); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.3); font-family: var(--font-mono);">
+                        TOTP RFC 6238
+                    </span>
+                </td>
                 <td>${statusBadge}</td>
                 <td>${velocityBadge}</td>
                 <td>${actionBtn}</td>
