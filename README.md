@@ -130,9 +130,6 @@ To demonstrate SwiftLogistics Hub during your capstone defense presentation, ope
 ```
 ├── .gitignore                                 # Git ignore configuration
 ├── README.md                                  # Flagship project documentation & threat model
-├── DEFENSE_PANEL_ATTACK_GUIDE.md              # Examiner attack & demonstration protocol
-├── SWIFTLOGISTICS_PROJECT_INSTRUCTIONS.md     # Courier operations & Firestore schema guide
-├── MASTER_PROJECT_BRIEF_AND_PROMPT.md         # Original architectural brief
 ├── TripwireJS_Capstone_Proposal_Deck.pptx     # Proposal presentation slide deck
 ├── TripwireJS_Proposal_Paper.docx             # Research paper manuscript
 │

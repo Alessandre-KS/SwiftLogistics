@@ -13,3 +13,6 @@ Thumbs.db
 *.tmp
 .vscode/
 .idea/
+
+# Local Documentation Archive
+.docs_archive/
