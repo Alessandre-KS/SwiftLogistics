@@ -16,3 +16,7 @@ Thumbs.db
 
 # Local Documentation Archive
 .docs_archive/
+
+# Documents & Presentations
+*.docx
+*.pptx
