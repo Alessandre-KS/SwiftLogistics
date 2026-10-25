@@ -43,7 +43,7 @@ SwiftLogistics Hub operates as the flagship operational platform, backed by a du
 ```
 
 ### Component Overview
-- **SwiftLogistics Hub ([`SwiftLogisticsHub/`](file:///w:/IAS%20CAPSTONE/SwiftLogisticsHub))**:
+- **SwiftLogistics Hub (Root: [`index.html`](file:///w:/IAS%20CAPSTONE/index.html) & [`login.html`](file:///w:/IAS%20CAPSTONE/login.html))**:
   - The primary operational courier application for branch clerks, dispatchers, and delivery riders.
   - Manages parcels, active shipments, consignment notes, delivery routes, and COD collections across Batangas province.
   - Implements **Pre-Authentication RFC 6238 TOTP Multi-Factor Authentication** to prevent unauthorized access from stolen passwords or headless API bots.
@@ -130,17 +130,16 @@ To demonstrate SwiftLogistics Hub during your capstone defense presentation, ope
 ```
 ├── .gitignore                                 # Git ignore configuration
 ├── README.md                                  # Flagship project documentation & threat model
-│
-├── SwiftLogisticsHub/                         # [MAIN PRODUCT] Courier Operations Hub
-│   ├── index.html                             # Dispatch terminal desk (Sidebar layout)
-│   ├── login.html                             # Zero-trust TOTP MFA challenge login
-│   ├── app.js                                 # Courier operations & Firestore integration
-│   ├── totp.js                                # Native RFC 6238 Web Crypto TOTP engine
-│   ├── style.css                              # Cargo freight design system
-│   ├── firestore.rules                        # Production Layer-7 edge security rules
-│   ├── firebase.json                          # Hosting headers & caching configuration
-│   └── vendor/
-│       └── tripwire.js                        # Embedded TripwireJS Sentry SDK
+├── index.html                                 # [MAIN PRODUCT] Dispatch terminal desk (Sidebar layout)
+├── login.html                                 # Zero-trust TOTP MFA challenge login
+├── app.js                                     # Courier operations & Firestore integration
+├── totp.js                                    # Native RFC 6238 Web Crypto TOTP engine
+├── style.css                                  # Cargo freight design system
+├── firestore.rules                            # Production Layer-7 edge security rules
+├── firebase.json                              # Hosting headers & caching configuration
+├── .firebaserc                                # Firebase project configuration (swiftlogistics-hub-9821)
+├── vendor/
+│   └── tripwire.js                            # Embedded TripwireJS Sentry SDK
 │
 └── TripwireJS/                                # [SECURITY SUBSYSTEM] Owner SOC Console
     ├── index.html                             # Owner security console (Dark SOC layout)
@@ -149,7 +148,9 @@ To demonstrate SwiftLogistics Hub during your capstone defense presentation, ope
     ├── style.css                              # Dark cyber console styling
     ├── tripwire.js                            # Standalone TripwireJS engine
     ├── firestore.rules                        # Threat log tamper-proof rules
-    └── firebase.json                          # Hosting configuration
+    ├── firestore.indexes.json                 # Composite Firestore indexes
+    ├── firebase.json                          # Hosting configuration
+    └── .firebaserc                            # Firebase project configuration (tripwirejs-capstone-9821)
 ```
 
 ---
