@@ -24,6 +24,12 @@ const TOTP = (function () {
             name: 'Carlo Reyes',
             role: 'Delivery Rider',
             secret: 'KRUGS4ZANFZSAYJA'
+        },
+        'usr_alessandre': {
+            email: 'alessandre.sanidad@swiftlogistics.ph',
+            name: 'Alessandre Kyle Sanidad',
+            role: 'Hub Operations Lead',
+            secret: 'MZXW633PN5XW6MZX'
         }
     };
 
@@ -139,12 +145,47 @@ const TOTP = (function () {
         return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${base32Secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
     }
 
+    /**
+     * Retrieve or deterministically derive a Base32 TOTP secret for any user email
+     */
+    function getSecretForEmail(email) {
+        if (!email) return 'JBSWY3DPEHPK3PXP';
+        const clean = email.toLowerCase().trim();
+        for (const k in STAFF_SECRETS) {
+            if (STAFF_SECRETS[k].email.toLowerCase() === clean) {
+                return STAFF_SECRETS[k].secret;
+            }
+        }
+        if (clean.includes('carlo')) return STAFF_SECRETS['usr_carlo'].secret;
+        if (clean.includes('alessandre') || clean.includes('sanidad')) return STAFF_SECRETS['usr_alessandre'].secret;
+        if (clean.includes('maria')) return STAFF_SECRETS['usr_maria'].secret;
+
+        let stored = null;
+        try { stored = localStorage.getItem('totp_sec_' + clean); } catch (e) {}
+        if (!stored) {
+            let hash = 0;
+            for (let i = 0; i < clean.length; i++) {
+                hash = ((hash << 5) - hash) + clean.charCodeAt(i);
+                hash |= 0;
+            }
+            let s = '';
+            for (let i = 0; i < 16; i++) {
+                const idx = Math.abs((hash ^ (i * 31))) % 32;
+                s += BASE32_CHARS[idx];
+            }
+            stored = s;
+            try { localStorage.setItem('totp_sec_' + clean, stored); } catch (e) {}
+        }
+        return stored;
+    }
+
     return {
         STAFF_SECRETS,
         getCode,
         verifyCode,
         getRemainingSeconds,
-        getOtpAuthUrl
+        getOtpAuthUrl,
+        getSecretForEmail
     };
 })();
 

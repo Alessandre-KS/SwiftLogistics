@@ -80,6 +80,14 @@
                             Quick-Select Operator Profile:
                         </div>
                         
+                        <button type="button" class="demo-account-btn" onclick="quickLoginAs('alessandre')" style="width: 100%; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; text-align: left;">
+                            <div>
+                                <strong style="display: block; font-size: 12.5px; color: var(--text-title);">Alessandre Kyle Sanidad</strong>
+                                <span style="font-size: 11px; color: var(--text-muted);">Hub Operations Lead (Lipa Sorting Facility)</span>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 700; color: var(--courier-orange);">Select</span>
+                        </button>
+
                         <button type="button" class="demo-account-btn" onclick="quickLoginAs('maria')" style="width: 100%; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; text-align: left;">
                             <div>
                                 <strong style="display: block; font-size: 12.5px; color: var(--text-title);">Maria Santos</strong>
@@ -286,11 +294,13 @@
             // Populate user banner
             document.getElementById("totpUserName").innerText = user.name || "Maria Santos";
             document.getElementById("totpUserEmail").innerText = user.email;
-            document.getElementById("totpUserInitials").innerText = user.name.includes("Carlo") ? "CR" : "MS";
+            // Generate initials
+            const p = (user.name || "Staff Member").trim().split(/\s+/);
+            const initials = p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : p[0].slice(0, 2).toUpperCase();
+            document.getElementById("totpUserInitials").innerText = initials;
 
-            // Determine secret based on account
-            const accountPreset = user.email.includes("carlo") ? TOTP.STAFF_SECRETS["usr_carlo"] : TOTP.STAFF_SECRETS["usr_maria"];
-            activeSecret = accountPreset.secret;
+            // Determine secret based on account (preset or derived for real people)
+            activeSecret = (typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(user.email) : (user.email.includes("carlo") ? TOTP.STAFF_SECRETS["usr_carlo"].secret : TOTP.STAFF_SECRETS["usr_maria"].secret);
 
             // Setup QR image in modal
             const qrUri = TOTP.getOtpAuthUrl(user.email, activeSecret, "SwiftLogistics");
@@ -504,7 +514,10 @@
         }
 
         function quickLoginAs(userType) {
-            if (userType === 'maria') {
+            if (userType === 'alessandre') {
+                document.getElementById("staffIdInput").value = "alessandre.sanidad@swiftlogistics.ph";
+                document.getElementById("staffPasswordInput").value = "password123";
+            } else if (userType === 'maria') {
                 document.getElementById("staffIdInput").value = "maria.santos@swiftlogistics.ph";
                 document.getElementById("staffPasswordInput").value = "password123";
             } else if (userType === 'carlo') {

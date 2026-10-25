@@ -60,6 +60,15 @@ let staffList = [
         isFlagged: false
     },
     {
+        id: "usr_alessandre",
+        name: "Alessandre Kyle Sanidad",
+        role: "Hub Operations Lead (Senior Dispatcher)",
+        email: "alessandre.sanidad@swiftlogistics.ph",
+        active: true,
+        velocity: "0.2 req/s (Nominal)",
+        isFlagged: false
+    },
+    {
         id: "usr_nena",
         name: "Aling Nena",
         role: "Business Owner (Administrator)",
@@ -431,17 +440,31 @@ function buildDynamicVictims(inc) {
         return;
     }
 
-    const sampleLocations = ["Lipa City", "Tanauan City", "Batangas City", "Sto. Tomas", "San Jose", "Malvar"];
-    const samplePackages = ["Documents Waybill", "Express Parcel", "General Merchandise", "Cargo Box"];
+    const sampleLocations = ["Lipa City", "Tanauan City", "Batangas City", "Sto. Tomas", "San Jose", "Malvar", "Padre Garcia", "Rosario", "Mataasnakahoy", "Balete"];
+    const samplePackages = ["Mechanical Keyboard & Keycaps", "UB-Lipa CITEC Department Uniform", "Computer RAM & NVMe SSD Drive", "IT Capstone Project Hardware Kit", "Digital Graphic Drawing Tablet", "Database Management Textbooks"];
+
+    const realStudents = [
+        "Alessandre Kyle E. Sanidad", "Samantha Jean Q. Adaya", "Joanna Rei E. Aguila",
+        "Stephanie H. Albacite", "Jan Rykaelle C. Belegal", "Nicole Angelique A. Dela Cruz",
+        "Aizel Anne Magsino", "Maybell J. Mañibo", "Lyra Isabel R. Perez",
+        "Reinali Mae B. Rojas", "Rheamae A. Roldan", "Yvonne Gail V. Rosales",
+        "Aerone Cedric L. Abaigar", "Vonn Cedric M. Abello", "John Francis D. Alvarez",
+        "Andrei B. Amparo", "Carl Joseph G. Arrieta", "Liwen Aibud Barnuevo",
+        "Julian Nichoes S. Bautista", "Ashton Ross M. Cabasal", "Cedric Gian C. Combate",
+        "John Paul E. Culala", "Randee M. Curioso Jr.", "John Mark B. Daradar",
+        "Jay Noel R. David", "Carl Daniel K. De La Cruz", "Bennedict Oswyn D. Diokno",
+        "Gabriel D. Gabiliño", "Rainner B. Gallo", "Jestine E. Gibaga"
+    ];
 
     for (let i = 1; i <= count; i++) {
         const tracking = "TRK-" + (1000 + i);
         const city = sampleLocations[(i - 1) % sampleLocations.length] + ", Batangas";
         const pkg = samplePackages[(i - 1) % samplePackages.length];
+        const studentName = realStudents[(i - 1) % realStudents.length];
 
         victimsList.push({
             id: tracking,
-            name: `Recipient of ${tracking}`,
+            name: studentName,
             phone: `0917-***-${1000 + i}`,
             city: city,
             exposed: `Masked Waybill Manifest (${pkg})`,

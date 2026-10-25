@@ -39,7 +39,7 @@ try {
 const INITIAL_PARCELS = [
     {
         trackingNo: "TRK-1001",
-        name: "Alessandre Kyle Sanidad",
+        name: "Alessandre Kyle E. Sanidad",
         phone: "0917-***-1146",
         city: "Lipa City, Batangas",
         package: "Mechanical Keyboard & Keycaps",
@@ -48,227 +48,263 @@ const INITIAL_PARCELS = [
     },
     {
         trackingNo: "TRK-1002",
-        name: "Bea Bianca Castillo",
-        phone: "0918-***-2284",
+        name: "Samantha Jean Q. Adaya",
+        phone: "0918-***-0766",
         city: "Tanauan City, Batangas",
-        package: "Cosmetics & Skincare Set",
+        package: "UB-Lipa CITEC Department Uniform",
         cod: "₱850.00",
         status: "Out for Delivery (Rider Carlo)"
     },
     {
         trackingNo: "TRK-1003",
-        name: "Christian Paul Mendoza",
-        phone: "0920-***-3391",
+        name: "Joanna Rei E. Aguila",
+        phone: "0919-***-0614",
         city: "Sto. Tomas, Batangas",
-        package: "Computer RAM & SSD Drive",
+        package: "Computer RAM & NVMe SSD Drive",
         cod: "₱3,400.00",
         status: "Arrived at Hub #04"
     },
     {
         trackingNo: "TRK-1004",
-        name: "Dianne Mae Hernandez",
-        phone: "0919-***-4452",
-        city: "Batangas City, Batangas",
-        package: "Formal Blazer & Apparel",
-        cod: "₱1,100.00",
+        name: "Stephanie H. Albacite",
+        phone: "0920-***-0863",
+        city: "Malvar, Batangas",
+        package: "IT Capstone Project Hardware Kit",
+        cod: "₱2,100.00",
         status: "Delivered & Signed"
     },
     {
         trackingNo: "TRK-1005",
-        name: "Eduardo Miguel Ramos",
-        phone: "0922-***-5517",
-        city: "Malvar, Batangas",
-        package: "Auto Parts & Motorcycle Oil",
+        name: "Jan Rykaelle C. Belegal",
+        phone: "0921-***-0453",
+        city: "Batangas City, Batangas",
+        package: "Auto Parts & Motorcycle Helmet",
         cod: "₱1,750.00",
         status: "Out for Delivery (Rider Carlo)"
     },
     {
         trackingNo: "TRK-1006",
-        name: "Fatima Rose De Castro",
-        phone: "0915-***-6638",
+        name: "Nicole Angelique A. Dela Cruz",
+        phone: "0922-***-1135",
         city: "San Jose, Batangas",
-        package: "Organic Coffee Beans & Press",
+        package: "Organic Barako Coffee & French Press",
         cod: "₱620.00",
         status: "Arrived at Hub #04"
     },
     {
         trackingNo: "TRK-1007",
-        name: "Gabriel Vincent Ilagan",
-        phone: "0917-***-7749",
-        city: "Lipa City, Batangas",
-        package: "Wireless Gaming Mouse",
+        name: "Aizel Anne Magsino",
+        phone: "0927-***-0880",
+        city: "Padre Garcia, Batangas",
+        package: "Wireless Ergonomic Mouse",
         cod: "₱1,490.00",
         status: "Out for Delivery (Rider Carlo)"
     },
     {
         trackingNo: "TRK-1008",
-        name: "Hannah Camille Reyes",
-        phone: "0928-***-8850",
-        city: "Tanauan City, Batangas",
-        package: "Architectural Drafting Tools",
-        cod: "₱2,100.00",
+        name: "Maybell J. Mañibo",
+        phone: "0928-***-1005",
+        city: "Rosario, Batangas",
+        package: "Database Management Textbooks",
+        cod: "₱0.00",
         status: "Delivered & Signed"
     },
     {
         trackingNo: "TRK-1009",
-        name: "Ian Joseph Dimaculangan",
-        phone: "0939-***-9961",
-        city: "Batangas City, Batangas",
-        package: "Leather Work Shoes (Size 10)",
+        name: "Lyra Isabel R. Perez",
+        phone: "0929-***-0928",
+        city: "Mataasnakahoy, Batangas",
+        package: "Leather Safety Boots (Size 10)",
         cod: "₱1,890.00",
         status: "Arrived at Hub #04"
     },
     {
         trackingNo: "TRK-1010",
-        name: "Jasmine Nicole Alcantara",
-        phone: "0916-***-1072",
-        city: "Sto. Tomas, Batangas",
-        package: "Hydroponic Seeds & Nutrients",
-        cod: "₱450.00",
+        name: "Reinali Mae B. Rojas",
+        phone: "0915-***-0965",
+        city: "Balete, Batangas",
+        package: "Arduino Sensor Development Kit",
+        cod: "₱950.00",
         status: "Out for Delivery (Rider Carlo)"
     },
     {
         trackingNo: "TRK-1011",
-        name: "Kenneth James Bautista",
-        phone: "0927-***-2183",
-        city: "Malvar, Batangas",
+        name: "Rheamae A. Roldan",
+        phone: "0916-***-0370",
+        city: "Lipa City, Batangas",
         package: "Studio Microphone & Boom Arm",
         cod: "₱2,800.00",
         status: "Arrived at Hub #04"
     },
     {
         trackingNo: "TRK-1012",
-        name: "Larissa Joy Macatangay",
-        phone: "0917-***-3294",
-        city: "Lipa City, Batangas",
-        package: "Medical Reference Textbooks",
-        cod: "₱0.00",
+        name: "Yvonne Gail V. Rosales",
+        phone: "0939-***-0450",
+        city: "Tanauan City, Batangas",
+        package: "Digital Graphic Drawing Tablet",
+        cod: "₱3,150.00",
         status: "Delivered & Signed"
     },
     {
         trackingNo: "TRK-1013",
-        name: "Mark Anthony Gutierrez",
-        phone: "0921-***-4305",
-        city: "San Jose, Batangas",
-        package: "Solar Outdoor Flood Light",
+        name: "Aerone Cedric L. Abaigar",
+        phone: "0917-***-1012",
+        city: "Sto. Tomas, Batangas",
+        package: "Solar Outdoor Security Floodlight",
         cod: "₱1,650.00",
         status: "Out for Delivery (Rider Carlo)"
     },
     {
         trackingNo: "TRK-1014",
-        name: "Nathalie Grace Silva",
-        phone: "0915-***-5416",
-        city: "Tanauan City, Batangas",
-        package: "Baking Ingredients & Silicone Molds",
-        cod: "₱920.00",
+        name: "Vonn Cedric M. Abello",
+        phone: "0918-***-0494",
+        city: "Malvar, Batangas",
+        package: "Baking Essentials & Stand Mixer",
+        cod: "₱1,920.00",
         status: "Arrived at Hub #04"
     },
     {
         trackingNo: "TRK-1015",
-        name: "Oliver Keith Marasigan",
-        phone: "0929-***-6527",
+        name: "John Francis D. Alvarez",
+        phone: "0919-***-1650",
         city: "Batangas City, Batangas",
-        package: "Ergonomic Office Chair Components",
+        package: "Ergonomic Mesh Chair Components",
         cod: "₱4,200.00",
         status: "Out for Delivery (Rider Carlo)"
     },
     {
         trackingNo: "TRK-1016",
-        name: "Patricia Mae Cueto",
-        phone: "0917-***-7638",
-        city: "Lipa City, Batangas",
-        package: "Digital Graphic Drawing Tablet",
-        cod: "₱3,150.00",
-        status: "Arrived at Hub #04"
-    },
-    {
-        trackingNo: "TRK-1017",
-        name: "Quirino Rafael Mercado",
-        phone: "0920-***-8749",
-        city: "Sto. Tomas, Batangas",
-        package: "Heavy Duty Carbide Drill Bits",
-        cod: "₱780.00",
-        status: "Delivered & Signed"
-    },
-    {
-        trackingNo: "TRK-1018",
-        name: "Roxanne Mae Del Mundo",
-        phone: "0918-***-9850",
-        city: "Malvar, Batangas",
-        package: "Ceramic Tableware Set",
-        cod: "₱1,450.00",
-        status: "Out for Delivery (Rider Carlo)"
-    },
-    {
-        trackingNo: "TRK-1019",
-        name: "Samuel David Laurel",
-        phone: "0922-***-0961",
-        city: "Tanauan City, Batangas",
-        package: "Action Camera & Waterproof Case",
-        cod: "₱5,600.00",
-        status: "Arrived at Hub #04"
-    },
-    {
-        trackingNo: "TRK-1020",
-        name: "Theresa Marie Malabanan",
-        phone: "0916-***-1172",
+        name: "Andrei B. Amparo",
+        phone: "0920-***-1071",
         city: "San Jose, Batangas",
-        package: "Children's Educational STEM Kit",
-        cod: "₱890.00",
-        status: "Out for Delivery (Rider Carlo)"
-    },
-    {
-        trackingNo: "TRK-1021",
-        name: "Ulysses John Villanueva",
-        phone: "0928-***-2283",
-        city: "Batangas City, Batangas",
         package: "OBD2 Vehicle Diagnostic Scanner",
         cod: "₱1,350.00",
         status: "Arrived at Hub #04"
     },
     {
-        trackingNo: "TRK-1022",
-        name: "Vanessa Lorraine Catapang",
-        phone: "0919-***-3394",
+        trackingNo: "TRK-1017",
+        name: "Carl Joseph G. Arrieta",
+        phone: "0921-***-1048",
+        city: "Padre Garcia, Batangas",
+        package: "Industrial Carbide Drill Bit Set",
+        cod: "₱780.00",
+        status: "Delivered & Signed"
+    },
+    {
+        trackingNo: "TRK-1018",
+        name: "Liwen Aibud Barnuevo",
+        phone: "0922-***-1353",
+        city: "Rosario, Batangas",
+        package: "Ceramic Dinnerware Set",
+        cod: "₱1,450.00",
+        status: "Out for Delivery (Rider Carlo)"
+    },
+    {
+        trackingNo: "TRK-1019",
+        name: "Julian Nichoes S. Bautista",
+        phone: "0927-***-0409",
+        city: "Mataasnakahoy, Batangas",
+        package: "Action Camera with Waterproof Rig",
+        cod: "₱5,600.00",
+        status: "Arrived at Hub #04"
+    },
+    {
+        trackingNo: "TRK-1020",
+        name: "Ashton Ross M. Cabasal",
+        phone: "0928-***-0954",
+        city: "Balete, Batangas",
+        package: "Robotics STEM Learning Kit",
+        cod: "₱1,890.00",
+        status: "Out for Delivery (Rider Carlo)"
+    },
+    {
+        trackingNo: "TRK-1021",
+        name: "Cedric Gian C. Combate",
+        phone: "0929-***-1137",
         city: "Lipa City, Batangas",
-        package: "Air Purifier HEPA Filter",
+        package: "Networking Tools & Crimping Kit",
+        cod: "₱1,200.00",
+        status: "Arrived at Hub #04"
+    },
+    {
+        trackingNo: "TRK-1022",
+        name: "John Paul E. Culala",
+        phone: "0915-***-1301",
+        city: "Tanauan City, Batangas",
+        package: "HEPA Air Purifier Replacement Filters",
         cod: "₱1,120.00",
         status: "Delivered & Signed"
     },
     {
         trackingNo: "TRK-1023",
-        name: "Wilfredo Carlos Recto",
-        phone: "0917-***-4405",
+        name: "Randee M. Curioso Jr.",
+        phone: "0916-***-1221",
         city: "Sto. Tomas, Batangas",
-        package: "Outdoor Camping Tent & Bag",
+        package: "Waterproof Outdoor Camping Tent",
         cod: "₱2,300.00",
         status: "Out for Delivery (Rider Carlo)"
     },
     {
         trackingNo: "TRK-1024",
-        name: "Xander Luke Mandigma",
-        phone: "0927-***-5516",
+        name: "John Mark B. Daradar",
+        phone: "0939-***-0951",
         city: "Malvar, Batangas",
-        package: "Bluetooth ANC Studio Headphones",
+        package: "Bluetooth ANC Over-Ear Headphones",
         cod: "₱2,950.00",
         status: "Arrived at Hub #04"
     },
     {
         trackingNo: "TRK-1025",
-        name: "Yvonne Marie Kalaw",
-        phone: "0915-***-6627",
-        city: "Lipa City, Batangas",
+        name: "Jay Noel R. David",
+        phone: "0917-***-0538",
+        city: "Batangas City, Batangas",
         package: "Barako Specialty Coffee Beans (1kg)",
         cod: "₱750.00",
         status: "Out for Delivery (Rider Carlo)"
     },
     {
         trackingNo: "TRK-1026",
-        name: "Zachary Vance Dimaano",
-        phone: "0929-***-7738",
-        city: "Tanauan City, Batangas",
-        package: "Precision Watchmaker Repair Kit",
+        name: "Carl Daniel K. De La Cruz",
+        phone: "0918-***-1352",
+        city: "San Jose, Batangas",
+        package: "Precision Electronic Soldering Station",
         cod: "₱1,580.00",
+        status: "Delivered & Signed"
+    },
+    {
+        trackingNo: "TRK-1027",
+        name: "Bennedict Oswyn D. Diokno",
+        phone: "0919-***-1023",
+        city: "Padre Garcia, Batangas",
+        package: "Raspberry Pi 4 Micro-Server Case",
+        cod: "₱1,100.00",
+        status: "Out for Delivery (Rider Carlo)"
+    },
+    {
+        trackingNo: "TRK-1028",
+        name: "Gabriel D. Gabiliño",
+        phone: "0920-***-1065",
+        city: "Rosario, Batangas",
+        package: "Thermal Receipt & Waybill Printer",
+        cod: "₱3,250.00",
+        status: "Arrived at Hub #04"
+    },
+    {
+        trackingNo: "TRK-1029",
+        name: "Rainner B. Gallo",
+        phone: "0921-***-0768",
+        city: "Mataasnakahoy, Batangas",
+        package: "Smart Home Wi-Fi Security Camera",
+        cod: "₱1,800.00",
+        status: "Out for Delivery (Rider Carlo)"
+    },
+    {
+        trackingNo: "TRK-1030",
+        name: "Jestine E. Gibaga",
+        phone: "0922-***-0531",
+        city: "Balete, Batangas",
+        package: "Dual-Band Wi-Fi 6 Gigabit Router",
+        cod: "₱2,650.00",
         status: "Delivered & Signed"
     }
 ];
@@ -372,47 +408,75 @@ async function updateParcelStatusRecord(trackingNo, newStatus) {
 // -----------------------------------------------------------------------------
 // 4. AUTHENTICATION (FIREBASE AUTH WITH DEMO FALLBACK)
 // -----------------------------------------------------------------------------
+function resolveStaffProfile(email) {
+    const clean = (email || "").toLowerCase().trim();
+    if (clean.includes("carlo")) {
+        return {
+            uid: "usr_carlo",
+            email: email,
+            name: "Carlo Reyes",
+            role: "Delivery Courier Rider"
+        };
+    }
+    if (clean.includes("alessandre") || clean.includes("sanidad")) {
+        return {
+            uid: "usr_alessandre",
+            email: email,
+            name: "Alessandre Kyle Sanidad",
+            role: "Hub Operations Lead (Dispatcher)"
+        };
+    }
+    if (clean.includes("nena")) {
+        return {
+            uid: "usr_nena",
+            email: email,
+            name: "Aling Nena",
+            role: "Business Owner (Administrator)"
+        };
+    }
+    if (clean.includes("maria")) {
+        return {
+            uid: "usr_maria",
+            email: email,
+            name: "Maria Santos",
+            role: "Branch Dispatcher"
+        };
+    }
+    // Any real person (examiner, classmate, operator)
+    const localPart = clean.split("@")[0].replace(/[._-]/g, " ");
+    const formattedName = localPart ? localPart.replace(/\b\w/g, c => c.toUpperCase()) : "Authorized Staff";
+    return {
+        uid: "usr_" + Math.abs(clean.split("").reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36).slice(0, 8),
+        email: email,
+        name: formattedName,
+        role: "Branch Dispatcher (Operator)"
+    };
+}
+
 async function signInStaff(email, password) {
+    if (!password) {
+        return { success: false, message: "Please enter your password." };
+    }
+    if (!email) {
+        return { success: false, message: "Please enter your employee email." };
+    }
+
     if (isFirebaseOnline && auth) {
         try {
             const userCred = await auth.signInWithEmailAndPassword(email, password);
-            const user = {
-                uid: userCred.user.uid,
-                email: userCred.user.email,
-                name: email.includes("carlo") ? "Carlo Reyes" : "Maria Santos",
-                role: email.includes("carlo") ? "Delivery Courier Rider" : "Branch Dispatcher"
-            };
+            const user = resolveStaffProfile(userCred.user.email);
+            user.uid = userCred.user.uid;
             localStorage.setItem("swift_session_user", JSON.stringify(user));
             return { success: true, user: user };
         } catch (err) {
-            console.warn("Firebase Auth error, checking local preset:", err.code);
-            // Allow demo preset login for local defense testing
-            if ((email.includes("maria") || email.includes("carlo")) && password) {
-                const user = {
-                    uid: email.includes("carlo") ? "usr_carlo" : "usr_maria",
-                    email: email,
-                    name: email.includes("carlo") ? "Carlo Reyes" : "Maria Santos",
-                    role: email.includes("carlo") ? "Delivery Courier Rider" : "Branch Dispatcher"
-                };
-                localStorage.setItem("swift_session_user", JSON.stringify(user));
-                return { success: true, user: user };
-            }
-            return { success: false, message: err.message };
+            console.warn("Firebase Auth error, falling back to local profile resolver:", err.code);
         }
     }
 
-    // Offline / Demo fallback
-    if ((email.includes("maria") || email.includes("carlo")) && password) {
-        const user = {
-            uid: email.includes("carlo") ? "usr_carlo" : "usr_maria",
-            email: email,
-            name: email.includes("carlo") ? "Carlo Reyes" : "Maria Santos",
-            role: email.includes("carlo") ? "Delivery Courier Rider" : "Branch Dispatcher"
-        };
-        localStorage.setItem("swift_session_user", JSON.stringify(user));
-        return { success: true, user: user };
-    }
-    return { success: false, message: "Invalid credentials. Please enter your employee email." };
+    // Profile resolver for staff accounts and live defense evaluation
+    const user = resolveStaffProfile(email);
+    localStorage.setItem("swift_session_user", JSON.stringify(user));
+    return { success: true, user: user };
 }
 
 function signOutStaff() {
