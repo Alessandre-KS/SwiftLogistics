@@ -13,22 +13,22 @@ const TOTP = (function () {
 
     // Presets for SwiftLogistics Staff Accounts
     const STAFF_SECRETS = {
+        'usr_jeff': {
+            email: 'jeff@swiftlogistics.ph',
+            name: 'Bossing Jeff',
+            role: 'Business Owner (Administrator)',
+            secret: 'JBSWY3DPEHPK3PXP'
+        },
         'usr_maria': {
             email: 'maria.santos@swiftlogistics.ph',
             name: 'Maria Santos',
             role: 'Branch Dispatcher',
-            secret: 'JBSWY3DPEHPK3PXP' // Base32 test secret
+            secret: 'KRUGS4ZANFZSAYJA'
         },
         'usr_carlo': {
             email: 'carlo.reyes@swiftlogistics.ph',
             name: 'Carlo Reyes',
             role: 'Delivery Rider',
-            secret: 'KRUGS4ZANFZSAYJA'
-        },
-        'usr_alessandre': {
-            email: 'alessandre.sanidad@swiftlogistics.ph',
-            name: 'Alessandre Kyle Sanidad',
-            role: 'Hub Operations Lead',
             secret: 'MZXW633PN5XW6MZX'
         }
     };
@@ -156,8 +156,8 @@ const TOTP = (function () {
                 return STAFF_SECRETS[k].secret;
             }
         }
+        if (clean.includes('jeff') || clean.includes('bossing')) return STAFF_SECRETS['usr_jeff'].secret;
         if (clean.includes('carlo')) return STAFF_SECRETS['usr_carlo'].secret;
-        if (clean.includes('alessandre') || clean.includes('sanidad')) return STAFF_SECRETS['usr_alessandre'].secret;
         if (clean.includes('maria')) return STAFF_SECRETS['usr_maria'].secret;
 
         let stored = null;

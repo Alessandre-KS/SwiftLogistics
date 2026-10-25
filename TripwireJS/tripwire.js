@@ -262,7 +262,7 @@
                 </div>
 
                 <div style="background:#FEF2F2; border:1px solid #FCA5A5; border-radius:6px; padding:10px 14px; margin-bottom:18px; font-size:12px; color:#991B1B; line-height:1.4;">
-                    <strong>Access Terminated:</strong> Session severed across Google Cloud. Contact business administrator Aling Nena to review and re-authorize this terminal.
+                    <strong>Access Terminated:</strong> Session severed across Google Cloud. Contact business administrator Bossing Jeff to review and re-authorize this terminal.
                 </div>
 
                 <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">

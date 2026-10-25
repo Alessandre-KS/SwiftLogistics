@@ -408,49 +408,23 @@ async function updateParcelStatusRecord(trackingNo, newStatus) {
 // -----------------------------------------------------------------------------
 // 4. AUTHENTICATION (FIREBASE AUTH WITH DEMO FALLBACK)
 // -----------------------------------------------------------------------------
-function resolveStaffProfile(email) {
-    const clean = (email || "").toLowerCase().trim();
-    if (clean.includes("carlo")) {
-        return {
-            uid: "usr_carlo",
-            email: email,
-            name: "Carlo Reyes",
-            role: "Delivery Courier Rider"
-        };
-    }
-    if (clean.includes("alessandre") || clean.includes("sanidad")) {
-        return {
-            uid: "usr_alessandre",
-            email: email,
-            name: "Alessandre Kyle Sanidad",
-            role: "Hub Operations Lead (Dispatcher)"
-        };
-    }
-    if (clean.includes("nena")) {
-        return {
-            uid: "usr_nena",
-            email: email,
-            name: "Aling Nena",
-            role: "Business Owner (Administrator)"
-        };
-    }
-    if (clean.includes("maria")) {
-        return {
-            uid: "usr_maria",
-            email: email,
-            name: "Maria Santos",
-            role: "Branch Dispatcher"
-        };
-    }
-    // Any real person (examiner, classmate, operator)
-    const localPart = clean.split("@")[0].replace(/[._-]/g, " ");
-    const formattedName = localPart ? localPart.replace(/\b\w/g, c => c.toUpperCase()) : "Authorized Staff";
-    return {
-        uid: "usr_" + Math.abs(clean.split("").reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36).slice(0, 8),
-        email: email,
-        name: formattedName,
-        role: "Branch Dispatcher (Operator)"
-    };
+function getLocalStaffDirectory() {
+    try {
+        const stored = localStorage.getItem("swift_staff_directory");
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch (e) {}
+    return [
+        {
+            id: "usr_jeff",
+            name: "Bossing Jeff",
+            email: "jeff@swiftlogistics.ph",
+            role: "Business Owner (Administrator)",
+            active: true
+        }
+    ];
 }
 
 async function signInStaff(email, password) {
@@ -461,22 +435,73 @@ async function signInStaff(email, password) {
         return { success: false, message: "Please enter your employee email." };
     }
 
-    if (isFirebaseOnline && auth) {
+    const clean = email.toLowerCase().trim();
+
+    // 1. Owner Login: Bossing Jeff
+    if (clean === "jeff@swiftlogistics.ph" || clean.includes("jeff") || clean.includes("bossing")) {
+        const user = {
+            uid: "usr_jeff",
+            email: "jeff@swiftlogistics.ph",
+            name: "Bossing Jeff",
+            role: "Business Owner (Administrator)"
+        };
+        localStorage.setItem("swift_session_user", JSON.stringify(user));
+        return { success: true, user: user };
+    }
+
+    // 2. Check Cloud Firestore /staff collection for accounts provisioned by Bossing Jeff
+    if (isFirebaseOnline && db) {
         try {
-            const userCred = await auth.signInWithEmailAndPassword(email, password);
-            const user = resolveStaffProfile(userCred.user.email);
-            user.uid = userCred.user.uid;
-            localStorage.setItem("swift_session_user", JSON.stringify(user));
-            return { success: true, user: user };
+            const snapshot = await db.collection("staff").where("email", "==", clean).get();
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                const data = doc.data();
+                if (data.status === "quarantined") {
+                    return {
+                        success: false,
+                        message: "Access Denied: Account quarantined by TripwireJS. Contact Bossing Jeff to review."
+                    };
+                }
+                const roleLabel = data.role === "rider" ? "Delivery Courier Rider" : "Branch Dispatcher (Customer Lookup)";
+                const user = {
+                    uid: doc.id,
+                    email: clean,
+                    name: data.name || "Employee",
+                    role: roleLabel
+                };
+                localStorage.setItem("swift_session_user", JSON.stringify(user));
+                return { success: true, user: user };
+            }
         } catch (err) {
-            console.warn("Firebase Auth error, falling back to local profile resolver:", err.code);
+            console.warn("Firestore staff verification notice:", err.message);
         }
     }
 
-    // Profile resolver for staff accounts and live defense evaluation
-    const user = resolveStaffProfile(email);
-    localStorage.setItem("swift_session_user", JSON.stringify(user));
-    return { success: true, user: user };
+    // 3. Check local directory (accounts provisioned by owner on local console)
+    const localDirectory = getLocalStaffDirectory();
+    const matched = localDirectory.find(s => (s.email || "").toLowerCase() === clean);
+    if (matched) {
+        if (matched.active === false || matched.status === "quarantined") {
+            return {
+                success: false,
+                message: "Access Denied: Account quarantined by TripwireJS. Contact Bossing Jeff to review."
+            };
+        }
+        const user = {
+            uid: matched.id || ("usr_" + clean.split("@")[0]),
+            email: clean,
+            name: matched.name,
+            role: matched.role || "Branch Dispatcher"
+        };
+        localStorage.setItem("swift_session_user", JSON.stringify(user));
+        return { success: true, user: user };
+    }
+
+    // 4. Strictly deny unprovisioned accounts
+    return {
+        success: false,
+        message: "Access Denied: Account not provisioned by Business Owner. Contact Bossing Jeff to register your staff credentials."
+    };
 }
 
 function signOutStaff() {

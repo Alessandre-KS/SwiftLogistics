@@ -39,40 +39,13 @@ try {
 let currentState = "before";
 let activeIncident = null;
 
-// Staff Data Store
+// Staff Data Store (Pristine Owner-Only Baseline)
 let staffList = [
     {
-        id: "usr_maria",
-        name: "Maria Santos",
-        role: "Branch Dispatcher (Customer Lookup)",
-        email: "maria.santos@swiftlogistics.ph",
-        active: true,
-        velocity: "0.2 req/s (Nominal)",
-        isFlagged: false
-    },
-    {
-        id: "usr_carlo",
-        name: "Carlo Reyes",
-        role: "Delivery Courier Rider",
-        email: "carlo.reyes@swiftlogistics.ph",
-        active: true,
-        velocity: "0.1 req/s (Nominal)",
-        isFlagged: false
-    },
-    {
-        id: "usr_alessandre",
-        name: "Alessandre Kyle Sanidad",
-        role: "Hub Operations Lead (Senior Dispatcher)",
-        email: "alessandre.sanidad@swiftlogistics.ph",
-        active: true,
-        velocity: "0.2 req/s (Nominal)",
-        isFlagged: false
-    },
-    {
-        id: "usr_nena",
-        name: "Aling Nena",
+        id: "usr_jeff",
+        name: "Bossing Jeff",
         role: "Business Owner (Administrator)",
-        email: "nena@swiftlogistics.ph",
+        email: "jeff@swiftlogistics.ph",
         active: true,
         velocity: "0.1 req/s (Nominal)",
         isFlagged: false
@@ -522,7 +495,7 @@ function renderStaffTable() {
             : `<span class="status-pill status-pill-danger">Quarantined</span>`;
 
         let actionBtn = "";
-        if (staff.id === "usr_nena") {
+        if (staff.id === "usr_jeff") {
             actionBtn = `<span class="text-muted" style="font-size:12px;">Administrator</span>`;
         } else if (staff.active) {
             actionBtn = `<button class="btn btn-sm btn-outline text-danger" onclick="toggleStaffAccount('${staff.id}')">Quarantine</button>`;
@@ -671,7 +644,7 @@ function downloadNpcReport() {
         compliance_authority: "National Privacy Commission (Republic Act 10173)",
         circular_reference: "NPC Circular 16-03 (Personal Data Breach Management)",
         store_name: "SwiftLogistics Courier Services PH (Branch #04)",
-        business_owner: "Aling Nena",
+        business_owner: "Bossing Jeff",
         incident_id: inc.id,
         discovery_timestamp: inc.timestamp,
         containment_latency: `${inc.containmentTimeMs} Milliseconds`,
@@ -882,6 +855,83 @@ function showToast(msg) {
 // -----------------------------------------------------------------------------
 // 8. REAL-TIME EVENT SYNCHRONIZATION
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// 8. STAFF ACCOUNT PROVISIONING (OWNER SIDE)
+// -----------------------------------------------------------------------------
+async function handleProvisionStaffSubmit(event) {
+    if (event) event.preventDefault();
+    const nameInput = document.getElementById("newStaffName");
+    const emailInput = document.getElementById("newStaffEmail");
+    const roleInput = document.getElementById("newStaffRole");
+
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim().toLowerCase();
+    const roleVal = roleInput.value;
+    const branch = "Branch #04 — Regional Dispatch (Lipa)";
+
+    if (!name || !email) {
+        showToast("Please enter employee name and work email.");
+        return;
+    }
+
+    const uid = "usr_" + email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "_");
+    const roleLabel = roleVal === "rider" ? "Delivery Courier Rider" : "Branch Dispatcher (Customer Lookup)";
+
+    const newStaffDoc = {
+        name: name,
+        email: email,
+        role: roleVal,
+        branch: branch,
+        status: "active",
+        velocity: "0.0 req/s (Nominal)",
+        createdAt: new Date().toISOString()
+    };
+
+    // Save to Firestore
+    if (db) {
+        try {
+            await db.collection("staff").doc(uid).set(newStaffDoc);
+            console.log("Provisioned staff in Firestore:", uid);
+        } catch (err) {
+            console.warn("Firestore staff save notice:", err.message);
+        }
+    }
+
+    // Add to in-memory staffList
+    const newEntry = {
+        id: uid,
+        name: name,
+        role: roleLabel,
+        email: email,
+        active: true,
+        velocity: "0.0 req/s (Nominal)",
+        isFlagged: false
+    };
+
+    const existingIdx = staffList.findIndex(s => s.id === uid);
+    if (existingIdx >= 0) {
+        staffList[existingIdx] = newEntry;
+    } else {
+        staffList.push(newEntry);
+    }
+    try { localStorage.setItem("swift_staff_directory", JSON.stringify(staffList)); } catch (e) {}
+    renderStaffTable();
+
+    // Derive deterministic RFC 6238 Secret
+    let secret = "JBSWY3DPEHPK3PXP";
+    if (typeof TOTP !== "undefined" && TOTP.getSecretForEmail) {
+        secret = TOTP.getSecretForEmail(email);
+    }
+    const qrUri = `otpauth://totp/SwiftLogistics:${encodeURIComponent(email)}?secret=${secret}&issuer=SwiftLogistics&algorithm=SHA1&digits=6&period=30`;
+
+    document.getElementById("provisionResultBox").style.display = "block";
+    document.getElementById("provisionQrImg").src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(qrUri);
+    document.getElementById("provisionSecretKey").innerText = secret;
+    document.getElementById("btnSubmitProvision").innerText = "Provision Another Account";
+
+    showToast(`Staff account for ${name} registered by Bossing Jeff!`);
+}
+
 function initRealtimeSync() {
     if (typeof window !== "undefined") {
         window.addEventListener("storage", (e) => {
@@ -897,6 +947,31 @@ function initRealtimeSync() {
 
     if (db) {
         try {
+            // Real-time listener for Staff Directory provisioned by Bossing Jeff
+            db.collection("staff").onSnapshot((snapshot) => {
+                if (!snapshot.empty) {
+                    const loaded = [];
+                    snapshot.forEach(doc => {
+                        const d = doc.data();
+                        loaded.push({
+                            id: doc.id,
+                            name: d.name || "Employee",
+                            role: d.role === "owner" ? "Business Owner (Administrator)" : (d.role === "rider" ? "Delivery Courier Rider" : "Branch Dispatcher (Customer Lookup)"),
+                            email: d.email || "",
+                            active: d.status !== "quarantined",
+                            velocity: d.velocity || "0.0 req/s (Nominal)",
+                            isFlagged: d.status === "quarantined"
+                        });
+                    });
+                    loaded.sort((a, b) => (a.id === "usr_jeff" ? -1 : 1));
+                    staffList = loaded;
+                    try { localStorage.setItem("swift_staff_directory", JSON.stringify(staffList)); } catch (e) {}
+                    renderStaffTable();
+                }
+            }, (err) => {
+                console.warn("Firestore staff snapshot notice:", err.message);
+            });
+
             db.collection("system_status").doc("tripwire").onSnapshot((doc) => {
                 if (doc.exists) {
                     const d = doc.data();

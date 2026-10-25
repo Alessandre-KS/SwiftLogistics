@@ -41,8 +41,8 @@
                                 type="text" 
                                 id="staffIdInput" 
                                 class="form-input-custom font-mono" 
-                                placeholder="e.g. maria.santos@swiftlogistics.ph" 
-                                value="maria.santos@swiftlogistics.ph"
+                                placeholder="e.g. employee@swiftlogistics.ph" 
+                                value=""
                                 required
                             >
                         </div>
@@ -77,32 +77,20 @@
                     <!-- OPERATOR QUICK-SWITCH PROFILES -->
                     <div class="quick-demo-box" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-subtle);">
                         <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                            Quick-Select Operator Profile:
+                            Owner Access & Provisioned Staff:
                         </div>
                         
-                        <button type="button" class="demo-account-btn" onclick="quickLoginAs('alessandre')" style="width: 100%; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; text-align: left;">
+                        <button type="button" class="demo-account-btn" onclick="quickLoginAs('jeff')" style="width: 100%; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; text-align: left;">
                             <div>
-                                <strong style="display: block; font-size: 12.5px; color: var(--text-title);">Alessandre Kyle Sanidad</strong>
-                                <span style="font-size: 11px; color: var(--text-muted);">Hub Operations Lead (Lipa Sorting Facility)</span>
+                                <strong style="display: block; font-size: 12.5px; color: var(--text-title);">Bossing Jeff</strong>
+                                <span style="font-size: 11px; color: var(--text-muted);">Business Owner / Master Admin</span>
                             </div>
                             <span style="font-size: 11px; font-weight: 700; color: var(--courier-orange);">Select</span>
                         </button>
 
-                        <button type="button" class="demo-account-btn" onclick="quickLoginAs('maria')" style="width: 100%; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; text-align: left;">
-                            <div>
-                                <strong style="display: block; font-size: 12.5px; color: var(--text-title);">Maria Santos</strong>
-                                <span style="font-size: 11px; color: var(--text-muted);">Branch Dispatcher (Counter Terminal)</span>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 700; color: var(--courier-orange);">Select</span>
-                        </button>
-
-                        <button type="button" class="demo-account-btn" onclick="quickLoginAs('carlo')" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; text-align: left;">
-                            <div>
-                                <strong style="display: block; font-size: 12.5px; color: var(--text-title);">Carlo Reyes</strong>
-                                <span style="font-size: 11px; color: var(--text-muted);">Delivery Rider (Field Operations)</span>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 700; color: var(--courier-orange);">Select</span>
-                        </button>
+                        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4; padding: 8px 10px; background: var(--bg-subtle); border-radius: 6px; border: 1px solid var(--border-subtle);">
+                            Employee accounts must be provisioned by <strong>Bossing Jeff</strong> on the <a href="TripwireJS/index.html" target="_blank" style="color: var(--courier-orange); text-decoration: underline; font-weight: 600;">Owner Console</a> before accessing this terminal.
+                        </div>
                     </div>
                 </div>
 
@@ -514,14 +502,8 @@
         }
 
         function quickLoginAs(userType) {
-            if (userType === 'alessandre') {
-                document.getElementById("staffIdInput").value = "alessandre.sanidad@swiftlogistics.ph";
-                document.getElementById("staffPasswordInput").value = "password123";
-            } else if (userType === 'maria') {
-                document.getElementById("staffIdInput").value = "maria.santos@swiftlogistics.ph";
-                document.getElementById("staffPasswordInput").value = "password123";
-            } else if (userType === 'carlo') {
-                document.getElementById("staffIdInput").value = "carlo.reyes@swiftlogistics.ph";
+            if (userType === 'jeff') {
+                document.getElementById("staffIdInput").value = "jeff@swiftlogistics.ph";
                 document.getElementById("staffPasswordInput").value = "password123";
             }
             handleStep1Credentials();

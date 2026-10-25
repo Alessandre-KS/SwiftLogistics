@@ -49,7 +49,7 @@ SwiftLogistics Hub operates as the flagship operational platform, backed by a du
   - Implements **Pre-Authentication RFC 6238 TOTP Multi-Factor Authentication** to prevent unauthorized access from stolen passwords or headless API bots.
   - Embeds the **TripwireJS Sentry SDK** to detect and block post-authentication scraping in under 18 milliseconds.
 - **TripwireJS Security Operations Console ([`TripwireJS/`](file:///w:/IAS%20CAPSTONE/TripwireJS))**:
-  - The business owner (Aling Nena) administrative portal.
+  - The business owner (Bossing Jeff) administrative portal.
   - Monitors real-time query velocities, contains compromised employee accounts via Cloud Firestore Security Rules, and pre-fills NPC 72-Hour Breach Forensic reports.
 
 ---
@@ -119,7 +119,7 @@ To demonstrate SwiftLogistics Hub during your capstone defense presentation, ope
    - In Tab 1, at Query #31 (or Request #1 on the canary), the screen locks instantly with:  
      `🚫 401 UNAUTHORIZED: SESSION REVOKED BY TRIPWIREJS`  
      *Account quarantined across Google Cloud in 18ms.*
-   - In Tab 2, Aling Nena's SOC console reflects the containment in real time: 31 records isolated, 4,969 preserved safe (99.38%), and the pre-filled NPC Circular 16-03 72-Hour Breach Report generated for export.
+   - In Tab 2, Bossing Jeff's SOC console reflects the containment in real time: 31 records isolated, 4,969 preserved safe (99.38%), and the pre-filled NPC Circular 16-03 72-Hour Breach Report generated for export.
 5. **Administrative Recovery**:
    - In Tab 2, click **Re-activate Maria Santos** to clear the quarantine flag and restore branch operations.
 

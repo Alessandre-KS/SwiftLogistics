@@ -21,7 +21,7 @@ rules_version = '2';
 //
 // 2. Dual-Entity Separation & Personal Information Controller (PIC) Boundary:
 //    SwiftLogistics Hub is an autonomous MSME courier service owned by an entrepreneur
-//    (Aling Nena). Under RA 10173 Section 20, SwiftLogistics is the sole PIC. All customer
+//    (Bossing Jeff). Under RA 10173 Section 20, SwiftLogistics is the sole PIC. All customer
 //    Personally Identifiable Information (PII) resides strictly within SwiftLogistics'
 //    own Firestore database. TripwireJS is a third-party security middleware installed into
 //    the project; it never extracts, duplicates, or mirrors customer PII externally.
@@ -128,7 +128,7 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/staff/$(request.auth.uid));
     }
 
-    // 3. Verify that the authenticated user is the verified business owner (Aling Nena).
+    // 3. Verify that the authenticated user is the verified business owner (Bossing Jeff).
     // Authority is derived from Firebase Auth Custom Claims or the verified staff document role.
     function isOwner() {
       return isAuthenticated() && (
