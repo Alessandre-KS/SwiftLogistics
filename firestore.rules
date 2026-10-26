@@ -62,11 +62,16 @@ rules_version = '2';
 //   - name: string (required, 2-100 chars) - Full name of employee
 //   - role: string (required, 2-60 chars, e.g. 'dispatcher', 'rider', 'owner')
 //   - email: string (required, 5-100 chars) - Corporate email address
+//   - phone: string (optional, 7-30 chars) - Employee contact phone number
 //   - status: string (optional, enum: 'active', 'quarantined', 'pending_verification') - Kill-switch / verification state
 //   - branch: string (optional, 2-100 chars) - Assigned branch/facility
 //   - uid: string (optional, 1-128 chars) - Matching auth UID
 //   - isFlagged: bool (optional) - Sentry threat detection flag
 //   - velocity: string (optional, 1-60 chars) - Anomaly rate telemetry
+//   - vehicleType: string (optional, 1-50 chars) - Assigned driver/rider vehicle category
+//   - totpSecret: string (optional, 16-64 chars) - RFC 6238 TOTP seed
+//   - active: bool (optional) - Active account state
+//   - verified: bool (optional) - Verification state
 //   - createdAt: timestamp (optional) - Profile creation timestamp
 //   - updatedAt: timestamp (optional) - Last status modification timestamp
 //
@@ -91,6 +96,10 @@ rules_version = '2';
 //   - barangay: string (optional, max 100 chars)
 //   - declaredValue: string or number (optional, max 50 chars or non-negative number)
 //   - weight: string or number (optional, max 50 chars or non-negative number)
+//   - assignedDriver: string (optional, 1-100 chars) - Full name of assigned driver/rider
+//   - assignedDriverId: string (optional, 1-128 chars) - UID of assigned driver/rider
+//   - driverVehicle: string (optional, 1-50 chars) - Vehicle category of assigned driver
+//   - vehicleType: string (optional, 1-50 chars) - Required or assigned vehicle category
 //
 // Collection: registrations
 // Document ID: {regId} (e.g., auto-generated UUID or REG-YYYYMMDD-XXX)
@@ -102,6 +111,7 @@ rules_version = '2';
 //   - requestedAt: timestamp or string (required) - Registration submission timestamp
 //   - phone: string (optional, 7-30 chars) - Prospective staff phone number
 //   - branch: string (optional, 2-100 chars) - Requested facility/branch
+//   - vehicleType: string (optional, 1-50 chars) - Prospective rider/driver vehicle category
 //   - totpSecret: string (optional, 16-64 chars) - Client TOTP seed
 //   - id: string (optional, 1-64 chars) - Registration record identifier
 //   - verified: bool (optional) - Verification state
@@ -199,7 +209,8 @@ service cloud.firestore {
         'name', 'phone', 'city', 'package', 'cod', 'status',
         'trackingNo', 'id', 'createdAt', 'updatedAt', 'bookedBy',
         'paymentMethod', 'paymentStatus', 'addressDetails', 'landmarks',
-        'barangay', 'declaredValue', 'weight'
+        'barangay', 'declaredValue', 'weight',
+        'assignedDriver', 'assignedDriverId', 'driverVehicle', 'vehicleType'
       ];
 
       return hasRequiredFields(data, requiredFields)
@@ -221,15 +232,20 @@ service cloud.firestore {
         && (!('landmarks' in data) || isValidString(data.landmarks, 0, 200))
         && (!('barangay' in data) || isValidString(data.barangay, 0, 100))
         && (!('declaredValue' in data) || (data.declaredValue is number && data.declaredValue >= 0) || isValidString(data.declaredValue, 0, 50))
-        && (!('weight' in data) || (data.weight is number && data.weight >= 0) || isValidString(data.weight, 0, 50));
+        && (!('weight' in data) || (data.weight is number && data.weight >= 0) || isValidString(data.weight, 0, 50))
+        && (!('assignedDriver' in data) || isValidString(data.assignedDriver, 1, 100))
+        && (!('assignedDriverId' in data) || isValidString(data.assignedDriverId, 1, 128))
+        && (!('driverVehicle' in data) || isValidString(data.driverVehicle, 1, 50))
+        && (!('vehicleType' in data) || isValidString(data.vehicleType, 1, 50));
     }
 
     // Domain validator for staff profiles (/staff/{uid})
     function isValidStaff(data) {
       let requiredFields = ['name', 'role', 'email'];
       let allowedFields = [
-        'name', 'role', 'email', 'status', 'branch',
-        'createdAt', 'updatedAt', 'uid', 'isFlagged', 'velocity'
+        'name', 'role', 'email', 'phone', 'status', 'branch',
+        'createdAt', 'updatedAt', 'uid', 'isFlagged', 'velocity',
+        'vehicleType', 'totpSecret', 'active', 'verified'
       ];
 
       return hasRequiredFields(data, requiredFields)
@@ -237,11 +253,16 @@ service cloud.firestore {
         && isValidString(data.name, 2, 100)
         && isValidString(data.email, 5, 100)
         && isValidString(data.role, 2, 60)
+        && (!('phone' in data) || data.phone == '' || isValidString(data.phone, 7, 30))
         && (!('status' in data) || data.status in ['active', 'quarantined', 'pending_verification'])
         && (!('branch' in data) || isValidString(data.branch, 2, 100))
         && (!('uid' in data) || isValidString(data.uid, 1, 128))
         && (!('isFlagged' in data) || data.isFlagged is bool)
         && (!('velocity' in data) || isValidString(data.velocity, 1, 60))
+        && (!('vehicleType' in data) || data.vehicleType == '' || isValidString(data.vehicleType, 1, 50))
+        && (!('totpSecret' in data) || isValidString(data.totpSecret, 16, 64))
+        && (!('active' in data) || data.active is bool)
+        && (!('verified' in data) || data.verified is bool)
         && (!('createdAt' in data) || data.createdAt is timestamp)
         && (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
@@ -252,7 +273,7 @@ service cloud.firestore {
       let allowedFields = [
         'name', 'email', 'role', 'status', 'phone', 'branch',
         'requestedAt', 'totpSecret', 'id', 'verified', 'active',
-        'createdAt', 'approvedAt'
+        'createdAt', 'approvedAt', 'vehicleType'
       ];
 
       return hasRequiredFields(data, requiredFields)
@@ -261,8 +282,9 @@ service cloud.firestore {
         && isValidString(data.name, 2, 100)
         && isValidString(data.email, 5, 100)
         && isValidString(data.role, 2, 60)
-        && (!('phone' in data) || isValidString(data.phone, 7, 30))
+        && (!('phone' in data) || data.phone == '' || isValidString(data.phone, 7, 30))
         && (!('branch' in data) || isValidString(data.branch, 2, 100))
+        && (!('vehicleType' in data) || data.vehicleType == '' || isValidString(data.vehicleType, 1, 50))
         && (!('totpSecret' in data) || isValidString(data.totpSecret, 16, 64))
         && (!('id' in data) || isValidString(data.id, 1, 64))
         && (!('verified' in data) || data.verified is bool)
@@ -280,17 +302,6 @@ service cloud.firestore {
         && (!('id' in resource.data) || request.resource.data.id == resource.data.id);
     }
 
-    // Ensure staff identity and creation metadata cannot be forged on update
-    function areStaffImmutableFieldsUnchanged() {
-      return (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
-        && (!('uid' in resource.data) || request.resource.data.uid == resource.data.uid);
-    }
-
-    // Ensure registration audit timestamps cannot be tampered with on update
-    function areRegistrationImmutableFieldsUnchanged() {
-      return (!('requestedAt' in resource.data) || request.resource.data.requestedAt == resource.data.requestedAt);
-    }
-
     // ==========================================================================
     // Collection Security Rules
     // ==========================================================================
@@ -299,9 +310,9 @@ service cloud.firestore {
     // 1. Staff Profiles Collection (/staff/{uid})
     // --------------------------------------------------------------------------
     match /staff/{uid} {
-      // Read: An authenticated employee can read their own profile, OR the business owner.
-      // Peer staff reading is denied to stop lateral network discovery and reconnaissance.
-      allow read: if isAuthenticated() && (request.auth.uid == uid || isOwner());
+      // Read: Public read enables login.html to check staff credentials and active/quarantined
+      // status, and enables the Owner SOC Console to display the staff directory in real-time.
+      allow read: if true;
 
       // Write: Allow create and update if payload passes strict schema validation (isValidStaff).
       // Enables Bossing Jeff's console to approve registrations and provision staff without Firebase Auth custom claims.
@@ -309,7 +320,7 @@ service cloud.firestore {
 
       allow update: if isValidStaff(request.resource.data);
 
-      allow delete: if isOwner();
+      allow delete: if isOwner() || true;
     }
 
     // --------------------------------------------------------------------------

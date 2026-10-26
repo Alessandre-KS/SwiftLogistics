@@ -66,10 +66,6 @@
                     <span>Shipments Manifest</span>
                     <span class="sidebar-count-pill" id="sidebarManifestPill">26</span>
                 </a>
-                <a href="#out-delivery" class="sidebar-nav-link" onclick="filterManifest('OUT', document.querySelectorAll('.tab-btn')[1]); return false;">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                    <span>Rider Dispatch (Carlo)</span>
-                </a>
                 <a href="#hub-sorting" class="sidebar-nav-link" onclick="filterManifest('HUB', document.querySelectorAll('.tab-btn')[2]); return false;">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/></svg>
                     <span>Sorting Facility</span>
@@ -246,13 +242,16 @@
                             <span class="waybill-tag-label">CONSIGNMENT NOTE</span>
                             <div class="parcel-track-num font-mono" id="cardTrackingNo">---</div>
                         </div>
-                        <div class="waybill-actions">
-                            <button class="btn-courier-sm btn-courier-outline" onclick="openUpdateStatusModal(currentSelectedTracking)">
-                                Update Status
-                            </button>
-                            <span class="badge-active courier-status-pill" id="cardStatusBadge">
-                                Out for Delivery
-                            </span>
+                        <div class="waybill-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button class="btn-courier-sm btn-courier-outline" onclick="openUpdateStatusModal(currentSelectedTracking)">
+                                    Dispatch & Update
+                                </button>
+                                <span class="badge-active courier-status-pill" id="cardStatusBadge">
+                                    Out for Delivery
+                                </span>
+                            </div>
+                            <div id="cardAssignedDriver" style="font-size: 11px; font-weight: 700; color: #1D4ED8;"></div>
                         </div>
                     </div>
 
@@ -418,13 +417,22 @@
                 <div class="form-group-row">
                     <label class="form-label-custom">New Transit Status</label>
                     <select id="updateStatusSelect" class="form-input-custom">
-                        <option value="Out for Delivery (Rider Carlo)">Out for Delivery (Rider Carlo)</option>
-                        <option value="Out for Delivery (Rider Juan)">Out for Delivery (Rider Juan)</option>
+                        <option value="Out for Delivery">Out for Delivery</option>
                         <option value="Arrived at Hub #04">Arrived at Hub #04</option>
                         <option value="In Transit from Sorting Center">In Transit from Sorting Center</option>
                         <option value="Ready for Branch Pickup">Ready for Branch Pickup</option>
                         <option value="Delivered & Signed">Delivered & Signed</option>
                     </select>
+                </div>
+
+                <div class="form-group-row" id="assignCourierGroup" style="margin-top: 14px;">
+                    <label class="form-label-custom">Assign Courier Driver</label>
+                    <select id="updateDriverSelect" class="form-input-custom">
+                        <option value="">-- No Driver Assigned --</option>
+                    </select>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                        Branch Management Dispatch: Select which courier driver & fleet vehicle will deliver this consignment.
+                    </div>
                 </div>
 
                 <div class="modal-footer-bar">

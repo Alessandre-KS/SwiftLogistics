@@ -1,3 +1,62 @@
+
+function getVehicleEmoji(type) {
+    if (!type) return "🏍️";
+    const t = String(type).toLowerCase();
+    if (t.includes("truck")) return "🚚";
+    return "🏍️";
+}
+
+async function getRegisteredDrivers() {
+    let drivers = [
+        { id: "usr_carlo", name: "Carlo Reyes", role: "Driver", vehicleType: "Motorcycle (Express 2-Wheeler)" },
+        { id: "usr_juan", name: "Juan Dela Cruz", role: "Driver", vehicleType: "Cargo Truck (Heavy 4/6-Wheeler)" }
+    ];
+
+    try {
+        const stored = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
+        stored.forEach(s => {
+            const roleStr = (s.role || "").toLowerCase();
+            if (roleStr.includes("driver") || roleStr.includes("rider")) {
+                if (!drivers.some(d => (d.email && d.email.toLowerCase() === (s.email || "").toLowerCase()) || d.name.toLowerCase() === (s.name || "").toLowerCase())) {
+                    drivers.push({
+                        id: s.id || s.uid,
+                        name: s.name,
+                        email: s.email,
+                        role: s.role,
+                        vehicleType: s.vehicleType || "Motorcycle"
+                    });
+                }
+            }
+        });
+    } catch (e) {}
+
+    if (isFirebaseOnline && db) {
+        try {
+            const snap = await db.collection("staff").get();
+            snap.forEach(doc => {
+                const data = doc.data();
+                const roleStr = (data.role || "").toLowerCase();
+                if ((roleStr.includes("driver") || roleStr.includes("rider")) && data.status !== "quarantined") {
+                    const existingIdx = drivers.findIndex(d => (d.email && d.email.toLowerCase() === (data.email || "").toLowerCase()) || d.name.toLowerCase() === (data.name || "").toLowerCase());
+                    const driverObj = {
+                        id: doc.id,
+                        name: data.name,
+                        email: data.email,
+                        role: data.role,
+                        vehicleType: data.vehicleType || "Motorcycle"
+                    };
+                    if (existingIdx >= 0) {
+                        drivers[existingIdx] = driverObj;
+                    } else {
+                        drivers.push(driverObj);
+                    }
+                }
+            });
+        } catch (e) {}
+    }
+
+    return drivers;
+}
 /**
  * SwiftLogistics Hub — Core Client Business Application (v1.0)
  * Branch #04 — Regional Dispatch & Sorting Facility
@@ -44,7 +103,9 @@ const INITIAL_PARCELS = [
         city: "Lipa City, Batangas",
         package: "Mechanical Keyboard & Keycaps",
         cod: "₱1,250.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery",
+        assignedDriver: "Carlo Reyes",
+        driverVehicle: "Motorcycle (Express 2-Wheeler)"
     },
     {
         trackingNo: "TRK-1002",
@@ -53,7 +114,9 @@ const INITIAL_PARCELS = [
         city: "Tanauan City, Batangas",
         package: "UB-Lipa CITEC Department Uniform",
         cod: "₱850.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery",
+        assignedDriver: "Juan Dela Cruz",
+        driverVehicle: "Cargo Truck (Heavy 4/6-Wheeler)"
     },
     {
         trackingNo: "TRK-1003",
@@ -80,7 +143,7 @@ const INITIAL_PARCELS = [
         city: "Batangas City, Batangas",
         package: "Auto Parts & Motorcycle Helmet",
         cod: "₱1,750.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1006",
@@ -98,7 +161,7 @@ const INITIAL_PARCELS = [
         city: "Padre Garcia, Batangas",
         package: "Wireless Ergonomic Mouse",
         cod: "₱1,490.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1008",
@@ -125,7 +188,7 @@ const INITIAL_PARCELS = [
         city: "Balete, Batangas",
         package: "Arduino Sensor Development Kit",
         cod: "₱950.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1011",
@@ -152,7 +215,7 @@ const INITIAL_PARCELS = [
         city: "Sto. Tomas, Batangas",
         package: "Solar Outdoor Security Floodlight",
         cod: "₱1,650.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1014",
@@ -170,7 +233,7 @@ const INITIAL_PARCELS = [
         city: "Batangas City, Batangas",
         package: "Ergonomic Mesh Chair Components",
         cod: "₱4,200.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1016",
@@ -197,7 +260,7 @@ const INITIAL_PARCELS = [
         city: "Rosario, Batangas",
         package: "Ceramic Dinnerware Set",
         cod: "₱1,450.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1019",
@@ -215,7 +278,7 @@ const INITIAL_PARCELS = [
         city: "Balete, Batangas",
         package: "Robotics STEM Learning Kit",
         cod: "₱1,890.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1021",
@@ -242,7 +305,7 @@ const INITIAL_PARCELS = [
         city: "Sto. Tomas, Batangas",
         package: "Waterproof Outdoor Camping Tent",
         cod: "₱2,300.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1024",
@@ -260,7 +323,7 @@ const INITIAL_PARCELS = [
         city: "Batangas City, Batangas",
         package: "Barako Specialty Coffee Beans (1kg)",
         cod: "₱750.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1026",
@@ -278,7 +341,7 @@ const INITIAL_PARCELS = [
         city: "Padre Garcia, Batangas",
         package: "Raspberry Pi 4 Micro-Server Case",
         cod: "₱1,100.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1028",
@@ -296,7 +359,7 @@ const INITIAL_PARCELS = [
         city: "Mataasnakahoy, Batangas",
         package: "Smart Home Wi-Fi Security Camera",
         cod: "₱1,800.00",
-        status: "Out for Delivery (Rider Carlo)"
+        status: "Out for Delivery"
     },
     {
         trackingNo: "TRK-1030",
@@ -367,7 +430,10 @@ async function addParcelRecord(parcelData) {
         barangay: parcelData.barangay || "",
         addressDetails: parcelData.addressDetails || "",
         landmarks: parcelData.landmarks || "",
-        status: parcelData.status || "Out for Delivery (Rider Carlo)",
+        status: parcelData.status || "Out for Delivery",
+        assignedDriver: parcelData.assignedDriver || "",
+        driverVehicle: parcelData.driverVehicle || "",
+        assignedDriverId: parcelData.assignedDriverId || "",
         package: parcelData.package || "General Merchandise Parcel",
         paymentMethod: parcelData.paymentMethod || "COD",
         paymentStatus: parcelData.paymentStatus || "pending_collection",
@@ -392,15 +458,29 @@ async function addParcelRecord(parcelData) {
     return newRecord;
 }
 
-async function updateParcelStatusRecord(trackingNo, newStatus) {
+async function updateParcelStatusRecord(trackingNo, newStatus, assignedDriver = "", driverVehicle = "", assignedDriverId = "") {
     const item = parcelsList.find(p => p.trackingNo === trackingNo);
     if (item) {
         item.status = newStatus;
+        if (assignedDriver) {
+            item.assignedDriver = assignedDriver;
+            item.driverVehicle = driverVehicle;
+            item.assignedDriverId = assignedDriverId;
+        }
         saveLocalParcels(parcelsList);
 
         if (isFirebaseOnline && db) {
             try {
-                await db.collection("parcels").doc(trackingNo).update({ status: newStatus });
+                const updatePayload = {
+                    status: newStatus,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                if (assignedDriver) {
+                    updatePayload.assignedDriver = assignedDriver;
+                    updatePayload.driverVehicle = driverVehicle;
+                    if (assignedDriverId) updatePayload.assignedDriverId = assignedDriverId;
+                }
+                await db.collection("parcels").doc(trackingNo).set(updatePayload, { merge: true });
             } catch (e) {
                 console.warn("Firestore update error:", e.message);
             }
@@ -454,56 +534,102 @@ async function signInStaff(email, password) {
         return { success: true, user: user };
     }
 
-    // 2. Check if account is in Pending Verification status (Registration Queue)
-    try {
-        const pendingRegistrations = JSON.parse(localStorage.getItem("swift_pending_registrations") || "[]");
-        const pendingMatch = pendingRegistrations.find(r => (r.email || "").toLowerCase() === clean);
-        if (pendingMatch && (pendingMatch.status === "pending_verification" || pendingMatch.verified === false)) {
-            return {
-                success: false,
-                message: "Registration Pending: Your staff account has not been approved yet. Contact Bossing Jeff on the Owner Console to verify and activate your account."
-            };
-        }
-    } catch (e) {}
-
-    // 3. Check Cloud Firestore /staff collection for accounts provisioned by Bossing Jeff
+    // 2. CHECK CLOUD FIRESTORE /staff FIRST (Primary Source of Truth)
     if (isFirebaseOnline && db) {
         try {
             const snapshot = await db.collection("staff").where("email", "==", clean).get();
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
                 const data = doc.data();
+
                 if (data.status === "quarantined") {
                     return {
                         success: false,
                         message: "Access Denied: Account quarantined by TripwireJS. Contact Bossing Jeff to review."
                     };
                 }
+
                 if (data.status === "pending_verification" || data.verified === false) {
                     return {
                         success: false,
                         message: "Registration Pending: Your staff account has not been approved yet. Contact Bossing Jeff on the Owner Console to verify and activate your account."
                     };
                 }
-                const roleLabel = (data.role && (data.role.toLowerCase().includes("driver") || data.role === "rider")) ? "Driver (Delivery Courier Rider)" : "Management (Branch Dispatcher)";
+
+                // ACCOUNT IS ACTIVE AND APPROVED!
+                // Clean up any stale pending registration from local cache
+                try {
+                    let pendingList = JSON.parse(localStorage.getItem("swift_pending_registrations") || "[]");
+                    pendingList = pendingList.filter(r => (r.email || "").toLowerCase() !== clean);
+                    localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingList));
+                } catch (e) {}
+
+                // Sync to local directory as verified active
+                try {
+                    let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
+                    dir = dir.filter(s => (s.email || "").toLowerCase() !== clean);
+                    dir.push({
+                        id: doc.id,
+                        name: data.name,
+                        email: clean,
+                        role: data.role,
+                        active: true,
+                        status: "active",
+                        verified: true
+                    });
+                    localStorage.setItem("swift_staff_directory", JSON.stringify(dir));
+                } catch (e) {}
+
+                const roleLabel = (data.role && (data.role.toLowerCase().includes("driver") || data.role === "rider")) 
+                    ? "Driver (Delivery Courier Rider)" 
+                    : "Management (Branch Dispatcher)";
+
+                const totpSec = data.totpSecret || ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(clean) : "JBSWY3DPEHPK3PXP");
                 const user = {
                     uid: doc.id,
                     email: clean,
                     name: data.name || "Employee",
-                    role: roleLabel
+                    role: roleLabel,
+                    totpSecret: totpSec
                 };
                 localStorage.setItem("swift_session_user", JSON.stringify(user));
                 return { success: true, user: user };
+            }
+
+            // Also check if there is an unapproved request in Firestore /registrations
+            const regSnapshot = await db.collection("registrations").where("email", "==", clean).get();
+            if (!regSnapshot.empty) {
+                const regData = regSnapshot.docs[0].data();
+                if (regData.status === "pending_verification") {
+                    return {
+                        success: false,
+                        message: "Registration Pending: Your staff account has not been approved yet. Contact Bossing Jeff on the Owner Console to verify and activate your account."
+                    };
+                }
             }
         } catch (err) {
             console.warn("Firestore staff verification notice:", err.message);
         }
     }
 
-    // 4. Check local directory (accounts provisioned by owner on local console)
+    // 3. Fallback: Check local staff directory (accounts provisioned locally or offline)
     const localDirectory = getLocalStaffDirectory();
     const matched = localDirectory.find(s => (s.email || "").toLowerCase() === clean);
     if (matched) {
+        if (matched.status === "active" || matched.verified === true) {
+            const totpSec = matched.totpSecret || ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(clean) : "JBSWY3DPEHPK3PXP");
+            const user = {
+                uid: matched.id || ("usr_" + clean.split("@")[0]),
+                email: clean,
+                name: matched.name,
+                role: (matched.role && (matched.role.toLowerCase().includes("driver") || matched.role === "rider"))
+                    ? "Driver (Delivery Courier Rider)" 
+                    : "Management (Branch Dispatcher)",
+                totpSecret: totpSec
+            };
+            localStorage.setItem("swift_session_user", JSON.stringify(user));
+            return { success: true, user: user };
+        }
         if (matched.status === "pending_verification" || matched.verified === false) {
             return {
                 success: false,
@@ -516,15 +642,19 @@ async function signInStaff(email, password) {
                 message: "Access Denied: Account quarantined by TripwireJS. Contact Bossing Jeff to review."
             };
         }
-        const user = {
-            uid: matched.id || ("usr_" + clean.split("@")[0]),
-            email: clean,
-            name: matched.name,
-            role: matched.role || "Branch Dispatcher"
-        };
-        localStorage.setItem("swift_session_user", JSON.stringify(user));
-        return { success: true, user: user };
     }
+
+    // 4. Check local pending registrations queue
+    try {
+        const pendingRegistrations = JSON.parse(localStorage.getItem("swift_pending_registrations") || "[]");
+        const pendingMatch = pendingRegistrations.find(r => (r.email || "").toLowerCase() === clean);
+        if (pendingMatch && (pendingMatch.status === "pending_verification" || pendingMatch.verified === false)) {
+            return {
+                success: false,
+                message: "Registration Pending: Your staff account has not been approved yet. Contact Bossing Jeff on the Owner Console to verify and activate your account."
+            };
+        }
+    } catch (e) {}
 
     // 5. Strictly deny unprovisioned accounts
     return {
@@ -639,6 +769,14 @@ function lookupParcel(query, showAlert = false) {
         const pmLabel = (found.paymentMethod || "COD").toUpperCase();
         if (elCod) elCod.innerText = `${pmLabel}: ${found.cod}`;
         if (elBadge) elBadge.innerText = found.status;
+        const elAssignedDriver = document.getElementById("cardAssignedDriver");
+        if (elAssignedDriver) {
+            if (found.assignedDriver) {
+                elAssignedDriver.innerHTML = `<span style="display:inline-flex; align-items:center; gap:4px; background:#EFF6FF; border:1px solid #BFDBFE; color:#1E40AF; padding:2px 8px; border-radius:12px;">${getVehicleEmoji(found.driverVehicle)} <strong>${found.assignedDriver}</strong> (${found.driverVehicle || 'Motorcycle'})</span>`;
+            } else {
+                elAssignedDriver.innerHTML = `<span style="color:#94A3B8; font-weight:500; font-size:10.5px;">Courier: Unassigned</span>`;
+            }
+        }
         updateTimeline(found.status);
     } else if (showAlert) {
         showToast(`No parcel found matching "${query}".`, "warning");
@@ -725,10 +863,19 @@ function renderManifestTable() {
                 <span style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:20px; display:inline-block; ${badgeColor}">
                     ${p.status}
                 </span>
+                ${p.assignedDriver ? `
+                    <div style="margin-top:4px;">
+                        <span style="font-size:10px; font-weight:700; color:#1E40AF; background:#EFF6FF; border:1px solid #DBEAFE; padding:1px 6px; border-radius:10px; display:inline-flex; align-items:center; gap:3px;">
+                            ${getVehicleEmoji(p.driverVehicle)} ${p.assignedDriver}
+                        </span>
+                    </div>
+                ` : (p.status.includes("Out for Delivery") ? `
+                    <div style="font-size:10px; color:#DC2626; font-weight:600; margin-top:3px;">⚠️ Unassigned Driver</div>
+                ` : '')}
             </td>
             <td style="text-align:right;">
                 <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px;" onclick="quickLookup('${p.trackingNo}', true)">Track</button>
-                <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px; margin-left:4px;" onclick="openUpdateStatusModal('${p.trackingNo}')">Edit</button>
+                <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px; margin-left:4px;" onclick="openUpdateStatusModal('${p.trackingNo}')">Dispatch</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -825,13 +972,31 @@ async function handleBookParcelSubmit(e) {
 }
 
 let editingTrackingNo = null;
-function openUpdateStatusModal(trackingNo) {
+async function openUpdateStatusModal(trackingNo) {
     editingTrackingNo = trackingNo;
     const found = parcelsList.find(p => p.trackingNo === trackingNo);
     if (found) {
         document.getElementById("updateModalTrackingNo").innerText = found.trackingNo;
         document.getElementById("updateModalCustomerName").innerText = found.name;
-        document.getElementById("updateStatusSelect").value = found.status;
+        let targetStatus = found.status || "Out for Delivery";
+        if (targetStatus.includes("Out for Delivery")) targetStatus = "Out for Delivery";
+        document.getElementById("updateStatusSelect").value = targetStatus;
+
+        // Populate Driver select dynamically
+        const driverSelect = document.getElementById("updateDriverSelect");
+        if (driverSelect) {
+            driverSelect.innerHTML = `<option value="">-- No Driver Assigned --</option>`;
+            const drivers = await getRegisteredDrivers();
+            drivers.forEach(d => {
+                const opt = document.createElement("option");
+                opt.value = `${d.name}|${d.vehicleType || 'Motorcycle'}|${d.id || ''}`;
+                opt.innerText = `${getVehicleEmoji(d.vehicleType)} ${d.name} (${d.vehicleType || 'Motorcycle'})`;
+                if (found.assignedDriver && found.assignedDriver.toLowerCase() === d.name.toLowerCase()) {
+                    opt.selected = true;
+                }
+                driverSelect.appendChild(opt);
+            });
+        }
     }
     const m = document.getElementById("updateStatusModal");
     if (m) {
@@ -851,9 +1016,21 @@ function closeUpdateStatusModal() {
 async function confirmStatusUpdate() {
     if (!editingTrackingNo) return;
     const newStatus = document.getElementById("updateStatusSelect").value;
-    await updateParcelStatusRecord(editingTrackingNo, newStatus);
+    const driverSelect = document.getElementById("updateDriverSelect");
+    let assignedDriver = "";
+    let driverVehicle = "";
+    let assignedDriverId = "";
+    if (driverSelect && driverSelect.value) {
+        const parts = driverSelect.value.split("|");
+        assignedDriver = parts[0] || "";
+        driverVehicle = parts[1] || "";
+        assignedDriverId = parts[2] || "";
+    }
+
+    await updateParcelStatusRecord(editingTrackingNo, newStatus, assignedDriver, driverVehicle, assignedDriverId);
     closeUpdateStatusModal();
-    showToast(`Status updated to "${newStatus}".`);
+    const driverNotice = assignedDriver ? ` and assigned to ${assignedDriver} (${driverVehicle})` : "";
+    showToast(`Status updated to "${newStatus}"${driverNotice}.`);
     renderManifestTable();
     if (currentSelectedTracking === editingTrackingNo) {
         quickLookup(editingTrackingNo);

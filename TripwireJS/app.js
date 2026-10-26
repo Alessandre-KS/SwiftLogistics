@@ -1,3 +1,18 @@
+
+function getVehicleEmoji(type) {
+    if (!type) return "🏍️";
+    const t = String(type).toLowerCase();
+    if (t.includes("truck")) return "🚚";
+    return "🏍️";
+}
+
+function handleNewStaffRoleChange() {
+    const roleEl = document.getElementById("newStaffRole");
+    const groupEl = document.getElementById("newStaffVehicleGroup");
+    if (roleEl && groupEl) {
+        groupEl.style.display = (roleEl.value.includes("Driver") || roleEl.value.includes("Rider")) ? "block" : "none";
+    }
+}
 /**
  * ============================================================================
  * TripwireJS Business Owner Security Console — Real-Time Controller (v5.0)
@@ -497,10 +512,12 @@ function renderStaffTable() {
         let actionBtn = "";
         if (staff.id === "usr_jeff") {
             actionBtn = `<span class="text-muted" style="font-size:12px;">Administrator</span>`;
-        } else if (staff.active) {
-            actionBtn = `<button class="btn btn-sm btn-outline text-danger" onclick="toggleStaffAccount('${staff.id}')">Quarantine</button>`;
         } else {
-            actionBtn = `<button class="btn btn-sm btn-primary" onclick="toggleStaffAccount('${staff.id}')">Restore Access</button>`;
+            const quarantineBtn = staff.active 
+                ? `<button class="btn btn-sm btn-outline text-danger" onclick="toggleStaffAccount('${staff.id}')">Quarantine</button>` 
+                : `<button class="btn btn-sm btn-primary" onclick="toggleStaffAccount('${staff.id}')">Restore</button>`;
+            const deleteBtn = `<button class="btn btn-sm btn-outline text-danger" style="margin-left: 6px; border-color: #FECACA; background: #FEF2F2;" onclick="handleDeleteStaffAccount('${staff.id}')" title="Permanently delete staff account">Delete</button>`;
+            actionBtn = `<div style="display: flex; align-items: center; gap: 4px;">${quarantineBtn}${deleteBtn}</div>`;
         }
 
         const velocityBadge = staff.isFlagged && !staff.active
@@ -518,11 +535,19 @@ function renderStaffTable() {
                         </div>
                     </div>
                 </td>
-                <td><span>${staff.role}</span></td>
                 <td>
-                    <span style="font-size: 11px; font-weight: 700; color: #10B981; background: rgba(16, 185, 129, 0.12); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.3); font-family: var(--font-mono);">
-                        TOTP RFC 6238
-                    </span>
+                    <span>${staff.role}</span>
+                    ${staff.vehicleType ? `<div style="margin-top:3px;"><span style="font-size:10.5px; font-weight:700; color:#EA580C; background:#FFF7ED; border:1px solid #FFEDD5; padding:2px 7px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">${getVehicleEmoji(staff.vehicleType)} ${staff.vehicleType}</span></div>` : ''}
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 11px; font-weight: 700; color: #10B981; background: rgba(16, 185, 129, 0.12); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.3); font-family: var(--font-mono);">
+                            TOTP RFC 6238
+                        </span>
+                        <button class="btn btn-sm btn-outline" style="padding: 2px 7px; font-size: 11px;" onclick="viewEmployeeQrModal('${staff.id}')" title="View Google Authenticator 2FA QR Code">
+                            📱 QR Code
+                        </button>
+                    </div>
                 </td>
                 <td>${statusBadge}</td>
                 <td>${velocityBadge}</td>
@@ -876,7 +901,13 @@ async function handleProvisionStaffSubmit(event) {
 
     const uid = "usr_" + email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "_");
     const roleLabel = (roleVal && (roleVal.toLowerCase().includes("driver") || roleVal === "rider")) ? "Driver (Delivery Courier Rider)" : "Management (Branch Dispatcher)";
+    let vehicleType = "";
+    if (roleVal.toLowerCase().includes("driver") || roleVal.toLowerCase().includes("rider")) {
+        const vEl = document.getElementById("newStaffVehicle");
+        vehicleType = vEl ? vEl.value : "Motorcycle";
+    }
 
+    const provSecret = (typeof TOTP !== "undefined" && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(email) : "JBSWY3DPEHPK3PXP";
     const newStaffDoc = {
         name: name,
         email: email,
@@ -884,8 +915,12 @@ async function handleProvisionStaffSubmit(event) {
         branch: branch,
         status: "active",
         velocity: "0.0 req/s (Nominal)",
+        totpSecret: provSecret,
         createdAt: new Date().toISOString()
     };
+    if (vehicleType) {
+        newStaffDoc.vehicleType = vehicleType;
+    }
 
     // Save to Firestore
     if (db) {
@@ -902,6 +937,7 @@ async function handleProvisionStaffSubmit(event) {
         id: uid,
         name: name,
         role: roleLabel,
+        vehicleType: vehicleType,
         email: email,
         active: true,
         velocity: "0.0 req/s (Nominal)",
@@ -918,10 +954,7 @@ async function handleProvisionStaffSubmit(event) {
     renderStaffTable();
 
     // Derive deterministic RFC 6238 Secret
-    let secret = "JBSWY3DPEHPK3PXP";
-    if (typeof TOTP !== "undefined" && TOTP.getSecretForEmail) {
-        secret = TOTP.getSecretForEmail(email);
-    }
+    let secret = provSecret;
     const qrUri = `otpauth://totp/SwiftLogistics:${encodeURIComponent(email)}?secret=${secret}&issuer=SwiftLogistics&algorithm=SHA1&digits=6&period=30`;
 
     document.getElementById("provisionResultBox").style.display = "block";
@@ -957,6 +990,8 @@ function initRealtimeSync() {
                             id: doc.id,
                             name: d.name || "Employee",
                             role: d.role === "owner" ? "Business Owner (Administrator)" : ((d.role && (d.role.toLowerCase().includes("driver") || d.role === "rider")) ? "Driver (Delivery Courier Rider)" : "Management (Branch Dispatcher)"),
+                            vehicleType: d.vehicleType || "",
+                            totpSecret: d.totpSecret || "",
                             email: d.email || "",
                             active: d.status !== "quarantined",
                             velocity: d.velocity || "0.0 req/s (Nominal)",
@@ -1070,7 +1105,10 @@ function renderPendingRegistrationsTable() {
                     <strong style="color: var(--text-title);">${reg.name}</strong><br>
                     <span class="text-muted font-mono" style="font-size: 11px;">${reg.email}</span>
                 </td>
-                <td><span>${reg.role}</span></td>
+                <td>
+                    <span>${reg.role}</span>
+                    ${reg.vehicleType ? `<div style="margin-top:3px;"><span style="font-size:10.5px; font-weight:700; color:#EA580C; background:#FFF7ED; border:1px solid #FFEDD5; padding:2px 7px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">${getVehicleEmoji(reg.vehicleType)} ${reg.vehicleType}</span></div>` : ''}
+                </td>
                 <td class="font-mono text-muted">${reg.phone || "0917-***-0000"}</td>
                 <td class="text-muted font-mono" style="font-size: 11px;">${timeStr}</td>
                 <td>
@@ -1098,14 +1136,18 @@ async function handleApproveRegistration(regId) {
     if (!reg) return;
 
     const staffUid = "usr_" + reg.email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "_");
-    const totpSecret = reg.totpSecret || "JBSWY3DPEHPK3PXP";
+    const totpSecret = (reg.totpSecret && reg.totpSecret !== "JBSWY3DPEHPK3PXP")
+        ? reg.totpSecret
+        : ((typeof TOTP !== "undefined" && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(reg.email) : "JBSWY3DPEHPK3PXP");
 
-    // 1. Add to active staff list
+    // 1. Add to active staff list and update UI immediately
+    const vehicleType = reg.vehicleType || (reg.role && (reg.role.toLowerCase().includes("driver") || reg.role.toLowerCase().includes("rider")) ? "Motorcycle" : "");
     const newStaff = {
         id: staffUid,
         name: reg.name,
         email: reg.email,
-        role: reg.role,
+        role: (reg.role && (reg.role.toLowerCase().includes("driver") || reg.role.toLowerCase().includes("rider"))) ? "Driver (Delivery Courier Rider)" : "Management (Branch Dispatcher)",
+        vehicleType: vehicleType,
         branch: reg.branch || "Branch #04 (Lipa City)",
         active: true,
         status: "active",
@@ -1115,12 +1157,13 @@ async function handleApproveRegistration(regId) {
         totpSecret: totpSecret
     };
 
+    staffList = staffList.filter(s => s.id !== staffUid && s.email.toLowerCase() !== reg.email.toLowerCase());
     staffList.push(newStaff);
     renderStaffTable();
 
     // 2. Remove from pending queue
     pendingRegistrationsList = pendingRegistrationsList.filter(r => r.id !== regId);
-    localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingRegistrationsList));
+    try { localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingRegistrationsList)); } catch (e) {}
     renderPendingRegistrationsTable();
 
     // 3. Update local staff directory
@@ -1131,10 +1174,10 @@ async function handleApproveRegistration(regId) {
         localStorage.setItem("swift_staff_directory", JSON.stringify(dir));
     } catch (e) {}
 
-    // 4. Save to Firestore /staff/{uid} and update /registrations/{regId}
+    // 4. Save to Firestore /staff/{uid} and delete /registrations/{regId}
     if (db) {
         try {
-            await db.collection("staff").doc(staffUid).set({
+            const staffDocToSave = {
                 name: newStaff.name,
                 email: newStaff.email,
                 role: newStaff.role,
@@ -1142,22 +1185,30 @@ async function handleApproveRegistration(regId) {
                 status: "active",
                 velocity: "0.2 req/s (Nominal)",
                 isFlagged: false,
+                totpSecret: totpSecret,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            };
+            if (reg.phone && reg.phone.trim().length >= 7) {
+                staffDocToSave.phone = reg.phone.trim();
+            }
+            if (newStaff.vehicleType && newStaff.vehicleType.trim().length > 0) {
+                staffDocToSave.vehicleType = newStaff.vehicleType.trim();
+            }
+            await db.collection("staff").doc(staffUid).set(staffDocToSave);
+            console.log("[TripwireJS] Approved staff written to /staff/" + staffUid);
 
-            await db.collection("registrations").doc(regId).update({
-                status: "approved",
-                approvedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            // Delete or update the pending registration in Firestore
+            await db.collection("registrations").doc(regId).delete();
+            console.log("[TripwireJS] Registration removed from /registrations/" + regId);
         } catch (err) {
-            console.warn("Firestore approval sync notice:", err.message);
+            console.error("Firestore approval error:", err);
         }
     }
 
     // 5. Open Onboarding QR Modal with secret
     document.getElementById("verifiedStaffName").innerText = reg.name;
     document.getElementById("verifiedSecretKey").innerText = totpSecret;
-    const otpUrl = `otpauth://totp/SwiftLogistics:${encodeURIComponent(reg.email)}?secret=${totpSecret}&issuer=SwiftLogistics`;
+    const otpUrl = `otpauth://totp/SwiftLogistics:${encodeURIComponent(reg.email)}?secret=${totpSecret}&issuer=SwiftLogistics&algorithm=SHA1&digits=6&period=30`;
     document.getElementById("verifiedQrImage").src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(otpUrl)}`;
 
     openModal("verifiedOnboardingModal");
@@ -1171,10 +1222,94 @@ async function handleRejectRegistration(regId) {
 
     if (db) {
         try {
-            await db.collection("registrations").doc(regId).update({
-                status: "rejected"
-            });
-        } catch (e) {}
+            await db.collection("registrations").doc(regId).delete();
+            console.log("[TripwireJS] Deleted rejected registration:", regId);
+        } catch (e) {
+            console.warn("Firestore reject delete notice:", e.message);
+        }
     }
-    showToast("Registration request rejected.");
+    showToast("Registration request rejected and removed.");
+}
+
+function viewEmployeeQrModal(staffId) {
+    const staff = staffList.find(s => s.id === staffId);
+    if (!staff) return;
+
+    let totpSecret = staff.totpSecret;
+    if (!totpSecret) {
+        if (typeof TOTP !== "undefined" && TOTP.getSecretForEmail) {
+            totpSecret = TOTP.getSecretForEmail(staff.email);
+        } else {
+            totpSecret = "JBSWY3DPEHPK3PXP";
+        }
+    }
+
+    const titleEl = document.getElementById("verifiedModalHeading");
+    if (titleEl) titleEl.innerText = "Employee 2FA Authenticator Setup";
+
+    const nameEl = document.getElementById("verifiedStaffName");
+    if (nameEl) nameEl.innerText = staff.name + " (" + staff.role + ")";
+
+    const secEl = document.getElementById("verifiedSecretKey");
+    if (secEl) secEl.innerText = totpSecret;
+
+    const otpUrl = `otpauth://totp/SwiftLogistics:${encodeURIComponent(staff.email)}?secret=${totpSecret}&issuer=SwiftLogistics&algorithm=SHA1&digits=6&period=30`;
+    const qrImg = document.getElementById("verifiedQrImage");
+    if (qrImg) {
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(otpUrl)}`;
+    }
+
+    openModal("verifiedOnboardingModal");
+}
+
+async function handleDeleteStaffAccount(staffId) {
+    if (staffId === "usr_jeff") {
+        showToast("Cannot delete Administrator account.", "warning");
+        return;
+    }
+
+    const staff = staffList.find(s => s.id === staffId);
+    const staffName = staff ? staff.name : staffId;
+    const staffEmail = (staff && staff.email ? staff.email : "").toLowerCase();
+
+    const confirmed = confirm(`Are you sure you want to permanently delete the account for "${staffName}"?\n\nThis will immediately revoke their terminal access, delete their credentials from Cloud Firestore, and clear any registration records.`);
+    if (!confirmed) return;
+
+    // 1. Remove from in-memory staffList
+    staffList = staffList.filter(s => s.id !== staffId);
+    renderStaffTable();
+
+    // 2. Remove from local directory cache
+    try {
+        let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
+        dir = dir.filter(s => s.id !== staffId && (s.email || "").toLowerCase() !== staffEmail);
+        localStorage.setItem("swift_staff_directory", JSON.stringify(dir));
+    } catch (e) {}
+
+    // 3. Remove from local pending registrations if present
+    try {
+        pendingRegistrationsList = pendingRegistrationsList.filter(r => (r.email || "").toLowerCase() !== staffEmail);
+        localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingRegistrationsList));
+        renderPendingRegistrationsTable();
+    } catch (e) {}
+
+    // 4. Delete from Cloud Firestore /staff/{staffId} AND any related /registrations
+    if (db) {
+        try {
+            await db.collection("staff").doc(staffId).delete();
+            console.log("[TripwireJS] Deleted /staff/" + staffId);
+
+            if (staffEmail) {
+                const regSnap = await db.collection("registrations").where("email", "==", staffEmail).get();
+                regSnap.forEach(async (doc) => {
+                    await db.collection("registrations").doc(doc.id).delete();
+                    console.log("[TripwireJS] Purged registration record /registrations/" + doc.id);
+                });
+            }
+        } catch (err) {
+            console.warn("Firestore staff deletion notice:", err.message);
+        }
+    }
+
+    showToast(`Account for ${staffName} permanently deleted and wiped.`);
 }

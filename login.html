@@ -200,6 +200,8 @@
                         Your account will be created with status <span style="font-weight:700;">Pending Verification</span>. The business owner (<strong>Bossing Jeff</strong>) must verify and approve your identity on the Owner Console before login is granted.
                     </div>
 
+                    <div id="regErrorAlert" style="display: none; background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; padding: 10px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 14px; line-height: 1.45;"></div>
+
                     <form id="staffRegisterForm" onsubmit="handleStaffRegisterSubmit(event)">
                         <div class="form-group-row">
                             <label class="form-label-custom">Full Employee Name *</label>
@@ -218,10 +220,21 @@
 
                         <div class="form-group-row">
                             <label class="form-label-custom">Assigned Department / Role *</label>
-                            <select id="regRole" class="form-input-custom" required>
+                            <select id="regRole" class="form-input-custom" onchange="handleRegRoleChange()" required>
                                 <option value="Management (Branch Dispatcher)" selected>Management (Branch Dispatcher)</option>
                                 <option value="Driver (Delivery Courier Rider)">Driver (Delivery Courier Rider)</option>
                             </select>
+                        </div>
+
+                        <div class="form-group-row" id="regVehicleRow" style="display: none;">
+                            <label class="form-label-custom">Driver Fleet Vehicle Category *</label>
+                            <select id="regVehicle" class="form-input-custom">
+                                <option value="Motorcycle (Express 2-Wheeler)" selected>🏍️ Motorcycle (Express 2-Wheeler)</option>
+                                <option value="Cargo Truck (Heavy 4/6-Wheeler)">🚚 Cargo Truck (Heavy 4/6-Wheeler)</option>
+                            </select>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                                Identifies your transport capacity for branch management shipment dispatching.
+                            </div>
                         </div>
 
                         <div class="form-group-row">
@@ -356,8 +369,12 @@
             const initials = p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : p[0].slice(0, 2).toUpperCase();
             document.getElementById("totpUserInitials").innerText = initials;
 
-            // Determine secret based on account (preset or derived for real people)
-            activeSecret = (typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(user.email) : (user.email.includes("carlo") ? TOTP.STAFF_SECRETS["usr_carlo"].secret : TOTP.STAFF_SECRETS["usr_maria"].secret);
+            // Determine secret based on account: prefer user.totpSecret from Firestore profile, else derive deterministically
+            activeSecret = (user && user.totpSecret) 
+                ? user.totpSecret 
+                : ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) 
+                    ? TOTP.getSecretForEmail(user.email) 
+                    : (user.email.includes("carlo") ? TOTP.STAFF_SECRETS["usr_carlo"].secret : TOTP.STAFF_SECRETS["usr_maria"].secret));
 
             // Setup QR image in modal
             const qrUri = TOTP.getOtpAuthUrl(user.email, activeSecret, "SwiftLogistics");
@@ -572,6 +589,8 @@
                 m.classList.remove("hidden");
                 document.getElementById("regFormBody").style.display = "block";
                 document.getElementById("regSuccessCard").style.display = "none";
+                const errBox = document.getElementById("regErrorAlert");
+                if (errBox) errBox.style.display = "none";
             }
         }
 
@@ -583,18 +602,129 @@
             }
         }
 
+        function handleRegRoleChange() {
+            const role = document.getElementById("regRole").value;
+            const vehicleRow = document.getElementById("regVehicleRow");
+            if (vehicleRow) {
+                vehicleRow.style.display = (role.includes("Driver") || role.includes("Rider")) ? "block" : "none";
+            }
+        }
+
+        function showRegError(msg) {
+            const errBox = document.getElementById("regErrorAlert");
+            if (errBox) {
+                errBox.innerHTML = `<strong>Registration Blocked:</strong> ${msg}`;
+                errBox.style.display = "block";
+            }
+            const btn = document.getElementById("btnSubmitReg");
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "Submit for Owner Verification";
+            }
+        }
+
         async function handleStaffRegisterSubmit(e) {
             if (e) e.preventDefault();
+            const errBox = document.getElementById("regErrorAlert");
+            if (errBox) errBox.style.display = "none";
+
             const btn = document.getElementById("btnSubmitReg");
             btn.disabled = true;
-            btn.innerText = "Submitting Registration...";
+            btn.innerText = "Checking availability...";
 
             const name = document.getElementById("regFullName").value.trim();
             const email = document.getElementById("regEmail").value.trim().toLowerCase();
             const phone = document.getElementById("regPhone").value.trim();
             const role = document.getElementById("regRole").value;
             const password = document.getElementById("regPassword").value.trim();
+            let vehicleType = "";
+            if (role.includes("Driver") || role.includes("Rider")) {
+                const vEl = document.getElementById("regVehicle");
+                vehicleType = vEl ? vEl.value : "Motorcycle (Express 2-Wheeler)";
+            }
 
+            // Input validation
+            if (!email || !email.includes("@")) {
+                showRegError("Please enter a valid corporate email address.");
+                return;
+            }
+            const cleanDigits = phone.replace(/\D/g, "");
+            if (cleanDigits.length < 10) {
+                showRegError("Please enter a valid mobile number with at least 10 digits.");
+                return;
+            }
+
+            // 1. UNIQUE CHECKS IN CLOUD FIRESTORE
+            if (typeof db !== "undefined" && db) {
+                try {
+                    // Check if email already registered in /staff
+                    const staffEmailSnap = await db.collection("staff").where("email", "==", email).get();
+                    if (!staffEmailSnap.empty) {
+                        showRegError(`The email <strong>${email}</strong> is already taken by an existing staff account. Please sign in or contact Bossing Jeff.`);
+                        return;
+                    }
+
+                    // Check if email already pending in /registrations
+                    const regEmailSnap = await db.collection("registrations")
+                        .where("email", "==", email)
+                        .where("status", "==", "pending_verification")
+                        .get();
+                    if (!regEmailSnap.empty) {
+                        showRegError(`The email <strong>${email}</strong> already has a registration pending verification on the Owner Console.`);
+                        return;
+                    }
+
+                    // Check if phone number already registered in /staff
+                    const allStaffSnap = await db.collection("staff").get();
+                    let phoneConflict = false;
+                    allStaffSnap.forEach(doc => {
+                        const d = doc.data();
+                        if (d.phone && d.phone.replace(/\D/g, "") === cleanDigits) {
+                            phoneConflict = true;
+                        }
+                    });
+                    if (phoneConflict) {
+                        showRegError(`The mobile number <strong>${phone}</strong> is already taken by another registered employee. Each staff member must have a unique contact number.`);
+                        return;
+                    }
+
+                    // Check if phone number is already pending in /registrations
+                    const allRegSnap = await db.collection("registrations").where("status", "==", "pending_verification").get();
+                    let regPhoneConflict = false;
+                    allRegSnap.forEach(doc => {
+                        const d = doc.data();
+                        if (d.phone && d.phone.replace(/\D/g, "") === cleanDigits) {
+                            regPhoneConflict = true;
+                        }
+                    });
+                    if (regPhoneConflict) {
+                        showRegError(`The mobile number <strong>${phone}</strong> is already attached to a pending registration request.`);
+                        return;
+                    }
+                } catch (checkErr) {
+                    console.warn("Pre-registration validation notice:", checkErr);
+                }
+            }
+
+            // 2. CHECK LOCAL CACHES (OFFLINE FALLBACK)
+            try {
+                const localStaff = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
+                if (localStaff.some(s => (s.email || "").toLowerCase() === email)) {
+                    showRegError(`The email <strong>${email}</strong> is already taken in the directory.`);
+                    return;
+                }
+                if (localStaff.some(s => s.phone && s.phone.replace(/\D/g, "") === cleanDigits)) {
+                    showRegError(`The mobile number <strong>${phone}</strong> is already registered to another staff member.`);
+                    return;
+                }
+                const localPending = JSON.parse(localStorage.getItem("swift_pending_registrations") || "[]");
+                if (localPending.some(r => (r.email || "").toLowerCase() === email && r.status === "pending_verification")) {
+                    showRegError(`A registration for <strong>${email}</strong> is already in the pending verification queue.`);
+                    return;
+                }
+            } catch (e) {}
+
+            btn.innerText = "Submitting Registration...";
             const regId = "reg_" + Date.now();
             const registrationRecord = {
                 id: regId,
@@ -607,10 +737,30 @@
                 verified: false,
                 active: false,
                 requestedAt: new Date().toISOString(),
-                totpSecret: (typeof TOTP !== 'undefined' && TOTP.generateSecret) ? TOTP.generateSecret() : "JBSWY3DPEHPK3PXP"
+                totpSecret: (typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(email) : "JBSWY3DPEHPK3PXP"
             };
+            if (vehicleType && vehicleType.trim().length > 0) {
+                registrationRecord.vehicleType = vehicleType.trim();
+            }
 
-            // 1. Save to Local Pending Registrations Cache
+            // 1. Save to Firestore registrations collection if online
+            if (typeof db !== 'undefined' && db) {
+                try {
+                    await db.collection("registrations").doc(regId).set({
+                        ...registrationRecord,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log("[Registration] Successfully written to Firestore /registrations/" + regId);
+                } catch (err) {
+                    console.error("Firestore registration failure:", err);
+                    showRegError("Could not submit registration to Cloud Firestore: " + (err.message || err));
+                    btn.disabled = false;
+                    btn.innerText = "Submit for Owner Verification";
+                    return;
+                }
+            }
+
+            // 2. Save to Local Pending Registrations Cache
             let pendingList = [];
             try {
                 const stored = localStorage.getItem("swift_pending_registrations");
@@ -636,19 +786,6 @@
                 totpSecret: registrationRecord.totpSecret
             });
             localStorage.setItem("swift_staff_directory", JSON.stringify(localStaff));
-
-            // 2. Save to Firestore registrations collection if online
-            if (typeof db !== 'undefined' && db) {
-                try {
-                    await db.collection("registrations").doc(regId).set({
-                        ...registrationRecord,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    console.log("[Registration] Successfully written to Firestore /registrations/" + regId);
-                } catch (err) {
-                    console.error("Firestore registration sync notice:", err);
-                }
-            }
 
             document.getElementById("regFormBody").style.display = "none";
             document.getElementById("regSuccessCard").style.display = "block";

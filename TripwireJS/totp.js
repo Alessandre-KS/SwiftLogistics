@@ -29,6 +29,7 @@ const TOTP = (function () {
             email: 'carlo.reyes@swiftlogistics.ph',
             name: 'Carlo Reyes',
             role: 'Delivery Rider',
+            vehicleType: 'Motorcycle',
             secret: 'MZXW633PN5XW6MZX'
         }
     };
@@ -185,7 +186,8 @@ const TOTP = (function () {
         verifyCode,
         getRemainingSeconds,
         getOtpAuthUrl,
-        getSecretForEmail
+        getSecretForEmail,
+        generateSecret: (email) => getSecretForEmail(email || ('user_' + Date.now()))
     };
 })();
 
