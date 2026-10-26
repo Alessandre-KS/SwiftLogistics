@@ -485,7 +485,7 @@ async function signInStaff(email, password) {
                         message: "Registration Pending: Your staff account has not been approved yet. Contact Bossing Jeff on the Owner Console to verify and activate your account."
                     };
                 }
-                const roleLabel = data.role === "rider" ? "Delivery Courier Rider" : (data.role || "Branch Dispatcher");
+                const roleLabel = (data.role && (data.role.toLowerCase().includes("driver") || data.role === "rider")) ? "Driver (Delivery Courier Rider)" : "Management (Branch Dispatcher)";
                 const user = {
                     uid: doc.id,
                     email: clean,

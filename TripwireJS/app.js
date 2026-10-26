@@ -875,7 +875,7 @@ async function handleProvisionStaffSubmit(event) {
     }
 
     const uid = "usr_" + email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "_");
-    const roleLabel = roleVal === "rider" ? "Delivery Courier Rider" : "Branch Dispatcher (Customer Lookup)";
+    const roleLabel = (roleVal && (roleVal.toLowerCase().includes("driver") || roleVal === "rider")) ? "Driver (Delivery Courier Rider)" : "Management (Branch Dispatcher)";
 
     const newStaffDoc = {
         name: name,
@@ -956,7 +956,7 @@ function initRealtimeSync() {
                         loaded.push({
                             id: doc.id,
                             name: d.name || "Employee",
-                            role: d.role === "owner" ? "Business Owner (Administrator)" : (d.role === "rider" ? "Delivery Courier Rider" : "Branch Dispatcher (Customer Lookup)"),
+                            role: d.role === "owner" ? "Business Owner (Administrator)" : ((d.role && (d.role.toLowerCase().includes("driver") || d.role === "rider")) ? "Driver (Delivery Courier Rider)" : "Management (Branch Dispatcher)"),
                             email: d.email || "",
                             active: d.status !== "quarantined",
                             velocity: d.velocity || "0.0 req/s (Nominal)",
