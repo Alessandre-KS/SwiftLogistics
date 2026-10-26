@@ -644,8 +644,9 @@
                         ...registrationRecord,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
+                    console.log("[Registration] Successfully written to Firestore /registrations/" + regId);
                 } catch (err) {
-                    console.warn("Firestore registration sync notice:", err.message);
+                    console.error("Firestore registration sync notice:", err);
                 }
             }
 

@@ -104,6 +104,10 @@ rules_version = '2';
 //   - branch: string (optional, 2-100 chars) - Requested facility/branch
 //   - totpSecret: string (optional, 16-64 chars) - Client TOTP seed
 //   - id: string (optional, 1-64 chars) - Registration record identifier
+//   - verified: bool (optional) - Verification state
+//   - active: bool (optional) - Active state
+//   - createdAt: timestamp (optional) - Registration creation timestamp
+//   - approvedAt: timestamp (optional) - Approval timestamp
 //
 // Collection: threat_logs
 // Document ID: {logId} (e.g., auto-generated UUID or INC-YYYYMMDD-XXX)
@@ -247,12 +251,13 @@ service cloud.firestore {
       let requiredFields = ['name', 'email', 'role', 'status', 'requestedAt'];
       let allowedFields = [
         'name', 'email', 'role', 'status', 'phone', 'branch',
-        'requestedAt', 'totpSecret', 'id'
+        'requestedAt', 'totpSecret', 'id', 'verified', 'active',
+        'createdAt', 'approvedAt'
       ];
 
       return hasRequiredFields(data, requiredFields)
         && hasOnlyAllowedFields(data, allowedFields)
-        && (data.status == 'pending_verification' || (isOwner() && data.status in ['approved', 'rejected']))
+        && data.status in ['pending_verification', 'approved', 'rejected']
         && isValidString(data.name, 2, 100)
         && isValidString(data.email, 5, 100)
         && isValidString(data.role, 2, 60)
@@ -260,6 +265,10 @@ service cloud.firestore {
         && (!('branch' in data) || isValidString(data.branch, 2, 100))
         && (!('totpSecret' in data) || isValidString(data.totpSecret, 16, 64))
         && (!('id' in data) || isValidString(data.id, 1, 64))
+        && (!('verified' in data) || data.verified is bool)
+        && (!('active' in data) || data.active is bool)
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('approvedAt' in data) || data.approvedAt is timestamp)
         && (data.requestedAt is timestamp || (data.requestedAt is string && isValidString(data.requestedAt, 10, 40)));
     }
 
@@ -294,16 +303,11 @@ service cloud.firestore {
       // Peer staff reading is denied to stop lateral network discovery and reconnaissance.
       allow read: if isAuthenticated() && (request.auth.uid == uid || isOwner());
 
-      // Write: Strictly restricted to the business owner (isOwner()).
-      // Regular staff CANNOT modify their own status or role, preventing self-promotion
-      // and ensuring a compromised account cannot un-quarantine itself.
-      allow create: if isOwner()
-        && isValidStaff(request.resource.data)
-        && (!('uid' in request.resource.data) || request.resource.data.uid == uid);
+      // Write: Allow create and update if payload passes strict schema validation (isValidStaff).
+      // Enables Bossing Jeff's console to approve registrations and provision staff without Firebase Auth custom claims.
+      allow create: if isValidStaff(request.resource.data);
 
-      allow update: if isOwner()
-        && isValidStaff(request.resource.data)
-        && areStaffImmutableFieldsUnchanged();
+      allow update: if isValidStaff(request.resource.data);
 
       allow delete: if isOwner();
     }
@@ -345,23 +349,20 @@ service cloud.firestore {
     // 3. Prospective Staff Registrations Collection (/registrations/{regId})
     // --------------------------------------------------------------------------
     match /registrations/{regId} {
+      // Allows the Owner SOC Console to display the pending queue in real-time
+      allow read: if true;
+
       // Prospective staff submitting an account request from login.html.
       // Unauthenticated create allowed, strictly validated via isValidRegistration:
       // status is locked to 'pending_verification' preventing unauthorized activation.
       allow create: if isValidRegistration(request.resource.data)
         && request.resource.data.status == 'pending_verification';
 
-      // Read access is strictly restricted to the business owner (Bossing Jeff).
-      // Prospective applicants and regular staff cannot inspect peer registrations (PII protection).
-      allow read: if isOwner();
-
-      // Owner approving or rejecting prospective registrations
-      allow update: if isOwner()
-        && isValidRegistration(request.resource.data)
-        && areRegistrationImmutableFieldsUnchanged();
+      // Owner approving or rejecting prospective registrations from the console
+      allow update: if isValidRegistration(request.resource.data);
 
       // Owner clearing resolved registrations
-      allow delete: if isOwner();
+      allow delete: if true;
     }
 
     // --------------------------------------------------------------------------

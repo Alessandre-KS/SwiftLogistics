@@ -1035,14 +1035,13 @@ function loadPendingRegistrations() {
                     snapshot.forEach(doc => {
                         loaded.push({ id: doc.id, ...doc.data() });
                     });
-                    if (loaded.length > 0) {
-                        pendingRegistrationsList = loaded;
-                        localStorage.setItem("swift_pending_registrations", JSON.stringify(loaded));
-                    }
+                    pendingRegistrationsList = loaded;
+                    try { localStorage.setItem("swift_pending_registrations", JSON.stringify(loaded)); } catch (e) {}
                     renderPendingRegistrationsTable();
+                    console.log("[TripwireJS] Pending registrations loaded from Firestore:", loaded.length);
                 }
             }, (err) => {
-                console.warn("Registrations listener notice:", err.message);
+                console.error("Registrations listener notice:", err.message);
             });
         } catch (e) {}
     }
