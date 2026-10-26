@@ -165,6 +165,35 @@
 
         </div>
 
+        <!-- PENDING REGISTRATIONS QUEUE (ADMIN VERIFICATION GATED) -->
+        <section class="staff-panel" id="pendingSection" style="margin-bottom: 24px;">
+            <div class="panel-head">
+                <div>
+                    <h3 class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                        <span>Pending Staff Registrations</span>
+                        <span class="status-pill status-pill-pending" id="pendingCountBadge">0 Pending</span>
+                    </h3>
+                    <p class="panel-caption">Prospective employee registrations awaiting identity verification and authorization by Bossing Jeff.</p>
+                </div>
+            </div>
+
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>Applicant</th>
+                        <th>Requested Role</th>
+                        <th>Mobile Contact</th>
+                        <th>Submitted At</th>
+                        <th>Verification Status</th>
+                        <th>Owner Action</th>
+                    </tr>
+                </thead>
+                <tbody id="pendingRegistrationsBody">
+                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No pending staff registrations.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
         <!-- STAFF ACCOUNTS & ACCESS CONTROLS -->
         <section class="staff-panel" id="staffSection">
             <div class="panel-head">
@@ -504,7 +533,42 @@
     </div>
 
     <!-- MODAL: PROVISION NEW STAFF ACCOUNT (OWNER SIDE) -->
-    <div id="provisionAccountModal" class="modal-backdrop hidden">
+        <!-- MODAL: VERIFIED ONBOARDING CREDENTIALS -->
+    <div id="verifiedOnboardingModal" class="modal-backdrop hidden">
+        <div class="modal-card" style="max-width: 460px;">
+            <div class="modal-top">
+                <div>
+                    <h3 class="modal-heading">Staff Account Verified & Activated</h3>
+                    <p class="modal-sub">Authorized credentials and Google Authenticator 2FA setup</p>
+                </div>
+                <button class="modal-x" onclick="closeModal('verifiedOnboardingModal')">&times;</button>
+            </div>
+            <div class="modal-scroll-body" style="text-align: center; padding: 20px;">
+                <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; padding: 10px; margin-bottom: 14px; font-size: 12px; color: #065F46;">
+                    Account <strong id="verifiedStaffName">Staff Member</strong> has been approved and activated in Cloud Firestore.
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+                    Scan this QR code with <strong>Google Authenticator</strong> to complete MFA onboarding:
+                </div>
+                <div style="width: 170px; height: 170px; margin: 0 auto 10px auto; border: 1px solid #CBD5E1; border-radius: 8px; padding: 6px; background: #FFF;">
+                    <img id="verifiedQrImage" src="" alt="MFA QR Code" style="width: 100%; height: 100%; object-fit: contain;">
+                </div>
+                <div style="font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: #EA580C; background: #FFF7ED; padding: 6px 12px; border-radius: 4px; display: inline-block;" id="verifiedSecretKey">
+                    JBSWY3DPEHPK3PXP
+                </div>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
+                    The employee can now sign in at the branch terminal with their registered password and rolling 6-digit TOTP code.
+                </p>
+            </div>
+            <div class="modal-bot">
+                <button class="btn btn-primary" onclick="closeModal('verifiedOnboardingModal')" style="width: 100%;">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+<div id="provisionAccountModal" class="modal-backdrop hidden">
         <div class="modal-card">
             <div class="modal-top">
                 <div>

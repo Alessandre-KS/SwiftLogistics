@@ -48,8 +48,8 @@ rules_version = '2';
 //
 // 6. Elimination of Privilege Escalation & The Update Bypass Vulnerability:
 //    - Staff cannot edit their own roles, status, or peer profiles (/staff/{uid}).
-//    - Domain validators (isValidParcel, isValidStaff) are mandatory on BOTH create
-//      and update operations, preventing 1MB resource exhaustion and schema injection.
+//    - Domain validators (isValidParcel, isValidStaff, isValidRegistration) are mandatory
+//      on BOTH create and update operations, preventing 1MB resource exhaustion and schema injection.
 // ==============================================================================
 
 // ==============================================================================
@@ -62,7 +62,7 @@ rules_version = '2';
 //   - name: string (required, 2-100 chars) - Full name of employee
 //   - role: string (required, 2-60 chars, e.g. 'dispatcher', 'rider', 'owner')
 //   - email: string (required, 5-100 chars) - Corporate email address
-//   - status: string (optional, enum: 'active', 'quarantined') - Kill-switch state
+//   - status: string (optional, enum: 'active', 'quarantined', 'pending_verification') - Kill-switch / verification state
 //   - branch: string (optional, 2-100 chars) - Assigned branch/facility
 //   - uid: string (optional, 1-128 chars) - Matching auth UID
 //   - isFlagged: bool (optional) - Sentry threat detection flag
@@ -84,6 +84,26 @@ rules_version = '2';
 //   - createdAt: timestamp (optional) - Waybill booking timestamp
 //   - updatedAt: timestamp (optional) - Last status update timestamp
 //   - bookedBy: string (optional, 1-128 chars) - UID of booking staff
+//   - paymentMethod: string (optional, 1-50 chars, e.g. 'COD', 'Debit', 'GCash', 'Maya', 'Bank Transfer')
+//   - paymentStatus: string (optional, 1-50 chars, e.g. 'pending_collection', 'paid', 'settled')
+//   - addressDetails: string (optional, max 300 chars, e.g. '13th floor, Unit 1302, Green Residences')
+//   - landmarks: string (optional, max 200 chars, e.g. 'Near De La Salle Lipa')
+//   - barangay: string (optional, max 100 chars)
+//   - declaredValue: string or number (optional, max 50 chars or non-negative number)
+//   - weight: string or number (optional, max 50 chars or non-negative number)
+//
+// Collection: registrations
+// Document ID: {regId} (e.g., auto-generated UUID or REG-YYYYMMDD-XXX)
+// Fields:
+//   - name: string (required, 2-100 chars) - Prospective employee full name
+//   - email: string (required, 5-100 chars) - Corporate email address
+//   - role: string (required, 2-60 chars) - Requested role (e.g., 'dispatcher', 'rider')
+//   - status: string (required, 'pending_verification' on create, 'approved' / 'rejected' on review)
+//   - requestedAt: timestamp or string (required) - Registration submission timestamp
+//   - phone: string (optional, 7-30 chars) - Prospective staff phone number
+//   - branch: string (optional, 2-100 chars) - Requested facility/branch
+//   - totpSecret: string (optional, 16-64 chars) - Client TOTP seed
+//   - id: string (optional, 1-64 chars) - Registration record identifier
 //
 // Collection: threat_logs
 // Document ID: {logId} (e.g., auto-generated UUID or INC-YYYYMMDD-XXX)
@@ -173,7 +193,9 @@ service cloud.firestore {
       let requiredFields = ['name', 'phone', 'city', 'package', 'cod', 'status'];
       let allowedFields = [
         'name', 'phone', 'city', 'package', 'cod', 'status',
-        'trackingNo', 'id', 'createdAt', 'updatedAt', 'bookedBy'
+        'trackingNo', 'id', 'createdAt', 'updatedAt', 'bookedBy',
+        'paymentMethod', 'paymentStatus', 'addressDetails', 'landmarks',
+        'barangay', 'declaredValue', 'weight'
       ];
 
       return hasRequiredFields(data, requiredFields)
@@ -188,7 +210,14 @@ service cloud.firestore {
         && (!('id' in data) || isValidString(data.id, 3, 30))
         && (!('createdAt' in data) || data.createdAt is timestamp)
         && (!('updatedAt' in data) || data.updatedAt is timestamp)
-        && (!('bookedBy' in data) || isValidString(data.bookedBy, 1, 128));
+        && (!('bookedBy' in data) || isValidString(data.bookedBy, 1, 128))
+        && (!('paymentMethod' in data) || isValidString(data.paymentMethod, 1, 50))
+        && (!('paymentStatus' in data) || isValidString(data.paymentStatus, 1, 50))
+        && (!('addressDetails' in data) || isValidString(data.addressDetails, 0, 300))
+        && (!('landmarks' in data) || isValidString(data.landmarks, 0, 200))
+        && (!('barangay' in data) || isValidString(data.barangay, 0, 100))
+        && (!('declaredValue' in data) || (data.declaredValue is number && data.declaredValue >= 0) || isValidString(data.declaredValue, 0, 50))
+        && (!('weight' in data) || (data.weight is number && data.weight >= 0) || isValidString(data.weight, 0, 50));
     }
 
     // Domain validator for staff profiles (/staff/{uid})
@@ -204,13 +233,34 @@ service cloud.firestore {
         && isValidString(data.name, 2, 100)
         && isValidString(data.email, 5, 100)
         && isValidString(data.role, 2, 60)
-        && (!('status' in data) || data.status in ['active', 'quarantined'])
+        && (!('status' in data) || data.status in ['active', 'quarantined', 'pending_verification'])
         && (!('branch' in data) || isValidString(data.branch, 2, 100))
         && (!('uid' in data) || isValidString(data.uid, 1, 128))
         && (!('isFlagged' in data) || data.isFlagged is bool)
         && (!('velocity' in data) || isValidString(data.velocity, 1, 60))
         && (!('createdAt' in data) || data.createdAt is timestamp)
         && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Domain validator for prospective staff registration requests (/registrations/{regId})
+    function isValidRegistration(data) {
+      let requiredFields = ['name', 'email', 'role', 'status', 'requestedAt'];
+      let allowedFields = [
+        'name', 'email', 'role', 'status', 'phone', 'branch',
+        'requestedAt', 'totpSecret', 'id'
+      ];
+
+      return hasRequiredFields(data, requiredFields)
+        && hasOnlyAllowedFields(data, allowedFields)
+        && (data.status == 'pending_verification' || (isOwner() && data.status in ['approved', 'rejected']))
+        && isValidString(data.name, 2, 100)
+        && isValidString(data.email, 5, 100)
+        && isValidString(data.role, 2, 60)
+        && (!('phone' in data) || isValidString(data.phone, 7, 30))
+        && (!('branch' in data) || isValidString(data.branch, 2, 100))
+        && (!('totpSecret' in data) || isValidString(data.totpSecret, 16, 64))
+        && (!('id' in data) || isValidString(data.id, 1, 64))
+        && (data.requestedAt is timestamp || (data.requestedAt is string && isValidString(data.requestedAt, 10, 40)));
     }
 
     // Ensure immutable audit fields cannot be tampered with or erased during updates
@@ -225,6 +275,11 @@ service cloud.firestore {
     function areStaffImmutableFieldsUnchanged() {
       return (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
         && (!('uid' in resource.data) || request.resource.data.uid == resource.data.uid);
+    }
+
+    // Ensure registration audit timestamps cannot be tampered with on update
+    function areRegistrationImmutableFieldsUnchanged() {
+      return (!('requestedAt' in resource.data) || request.resource.data.requestedAt == resource.data.requestedAt);
     }
 
     // ==========================================================================
@@ -287,7 +342,30 @@ service cloud.firestore {
     }
 
     // --------------------------------------------------------------------------
-    // 3. Threat Logs Collection (/threat_logs/{logId})
+    // 3. Prospective Staff Registrations Collection (/registrations/{regId})
+    // --------------------------------------------------------------------------
+    match /registrations/{regId} {
+      // Prospective staff submitting an account request from login.html.
+      // Unauthenticated create allowed, strictly validated via isValidRegistration:
+      // status is locked to 'pending_verification' preventing unauthorized activation.
+      allow create: if isValidRegistration(request.resource.data)
+        && request.resource.data.status == 'pending_verification';
+
+      // Read access is strictly restricted to the business owner (Bossing Jeff).
+      // Prospective applicants and regular staff cannot inspect peer registrations (PII protection).
+      allow read: if isOwner();
+
+      // Owner approving or rejecting prospective registrations
+      allow update: if isOwner()
+        && isValidRegistration(request.resource.data)
+        && areRegistrationImmutableFieldsUnchanged();
+
+      // Owner clearing resolved registrations
+      allow delete: if isOwner();
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. Threat Logs Collection (/threat_logs/{logId})
     // --------------------------------------------------------------------------
     match /threat_logs/{logId} {
       // Immutable breach audit trail.
@@ -302,7 +380,7 @@ service cloud.firestore {
     }
 
     // --------------------------------------------------------------------------
-    // 4. Kill-Switch System Status Collection (/system_status/{docId})
+    // 5. Kill-Switch System Status Collection (/system_status/{docId})
     // --------------------------------------------------------------------------
     match /system_status/{docId} {
       // Publicly readable so client terminals and browser listeners can monitor kill-switch status in real-time
@@ -312,7 +390,7 @@ service cloud.firestore {
     }
 
     // --------------------------------------------------------------------------
-    // 5. Default Catch-All (Default Deny)
+    // 6. Default Catch-All (Default Deny)
     // --------------------------------------------------------------------------
     // Deny all reads and writes for any unspecified collection or document path.
     match /{document=**} {

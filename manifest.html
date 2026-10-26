@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SwiftLogistics Hub — Manifest New Shipment</title>
+    <link rel="stylesheet" href="style.css?v=6.1.0">
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .waybill-preview-sticker, .waybill-preview-sticker * {
+                visibility: visible;
+            }
+            .waybill-preview-sticker {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                border: 2px solid #000;
+                box-shadow: none;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="courier-body" style="background: #F1F5F9;">
+
+    <!-- TOP NAVIGATION APP BAR -->
+    <header class="courier-topbar no-print" style="position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+        <div class="topbar-info" style="display: flex; align-items: center; gap: 12px;">
+            <a href="index.html" class="btn-courier-sm btn-courier-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--text-title); background: #FFFFFF;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Return to Dispatch Terminal
+            </a>
+            <div class="topbar-crumb" style="margin: 0;">
+                <span class="crumb-lead">SwiftLogistics Operations</span>
+                <span class="crumb-slash">/</span>
+                <span class="crumb-active">Manifest New Consignment Note</span>
+            </div>
+        </div>
+
+        <div class="topbar-actions" style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 11px; color: var(--text-muted); background: #FFFFFF; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-subtle);">
+                Active Terminal: <strong id="activeOperatorName" class="font-mono" style="color: var(--courier-orange);">Bossing Jeff</strong>
+            </div>
+            <span style="font-size: 10.5px; background: #ECFDF5; color: #059669; font-weight: 700; padding: 3px 8px; border-radius: 4px; border: 1px solid #A7F3D0;">
+                MFA Verified
+            </span>
+        </div>
+    </header>
+
+    <!-- MAIN ENCODER CONTAINER -->
+    <div class="encoder-container">
+
+        <div class="encoder-header no-print">
+            <div class="encoder-title-wrap">
+                <h1>
+                    <div style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: var(--courier-orange); color: #FFF;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    </div>
+                    Full-Page Waybill Intake Encoder
+                </h1>
+                <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+                    Register counter drop-offs, e-commerce dispatches, and multi-story apartment consignments with precision delivery instructions.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-courier-sm btn-courier-outline" onclick="resetEncoderForm()">
+                    Clear Form
+                </button>
+                <button type="button" class="btn-courier-primary" onclick="window.print()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    Print Sticker
+                </button>
+            </div>
+        </div>
+
+        <!-- 2-COLUMN GRID: FORM + LIVE STICKER PREVIEW -->
+        <div class="encoder-grid">
+
+            <!-- LEFT: INTAKE FORM -->
+            <div class="encoder-card no-print">
+                <div class="encoder-card-header">
+                    <span class="encoder-card-title">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        Waybill Consignment Data Form
+                    </span>
+                    <span class="font-mono" style="font-size: 11px; font-weight: 700; color: var(--courier-orange);" id="liveGeneratedTracking">
+                        AUTO-GENERATED TRK
+                    </span>
+                </div>
+
+                <div class="encoder-card-body">
+                    <form id="fullManifestForm" onsubmit="handleFullManifestSubmit(event)">
+
+                        <!-- SECTION 1: RECIPIENT CONSIGNEE -->
+                        <div class="form-section-title">
+                            1. Recipient Consignee Information
+                        </div>
+
+                        <div class="form-grid-2col">
+                            <div class="form-group-row">
+                                <label class="form-label-custom">Consignee Full Name *</label>
+                                <input type="text" id="inputConsigneeName" class="form-input-custom" placeholder="e.g. Maria Clara De Los Santos" required oninput="updateLiveSticker()">
+                            </div>
+
+                            <div class="form-group-row">
+                                <label class="form-label-custom">Primary Mobile Number *</label>
+                                <input type="text" id="inputConsigneePhone" class="form-input-custom font-mono" placeholder="0917-123-4567" required oninput="updateLiveSticker()">
+                            </div>
+                        </div>
+
+                        <!-- SECTION 2: DESTINATION & APARTMENT INSTRUCTIONS -->
+                        <div class="form-section-title">
+                            2. Destination Address & Apartment Details
+                        </div>
+
+                        <div class="form-grid-2col">
+                            <div class="form-group-row">
+                                <label class="form-label-custom">City / Municipality *</label>
+                                <select id="inputCity" class="form-input-custom" required onchange="updateLiveSticker()">
+                                    <option value="Lipa City, Batangas" selected>Lipa City, Batangas</option>
+                                    <option value="Tanauan City, Batangas">Tanauan City, Batangas</option>
+                                    <option value="Malvar, Batangas">Malvar, Batangas</option>
+                                    <option value="Sto. Tomas, Batangas">Sto. Tomas, Batangas</option>
+                                    <option value="San Jose, Batangas">San Jose, Batangas</option>
+                                    <option value="Rosario, Batangas">Rosario, Batangas</option>
+                                    <option value="Balete, Batangas">Balete, Batangas</option>
+                                    <option value="Batangas City, Batangas">Batangas City, Batangas</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group-row">
+                                <label class="form-label-custom">Barangay</label>
+                                <input type="text" id="inputBarangay" class="form-input-custom" placeholder="e.g. Brgy. Marawoy" value="Brgy. Marawoy" oninput="updateLiveSticker()">
+                            </div>
+                        </div>
+
+                        <div class="form-group-row">
+                            <label class="form-label-custom">Floor, Unit & Apartment / Building Description *</label>
+                            <input 
+                                type="text" 
+                                id="inputApartmentDetails" 
+                                class="form-input-custom" 
+                                placeholder="e.g. 13th Floor, Unit 1302, Green Residences Tower 2" 
+                                value="13th Floor, Unit 1302, Green Residences Tower 2"
+                                required 
+                                oninput="updateLiveSticker()"
+                            >
+                            <small style="display:block; font-size:11px; color:var(--text-muted); margin-top:3px;">
+                                Specify exact floor, room/unit number, condo building, or gate details for field courier navigation.
+                            </small>
+                        </div>
+
+                        <div class="form-group-row">
+                            <label class="form-label-custom">Landmarks & Special Rider Delivery Instructions</label>
+                            <input 
+                                type="text" 
+                                id="inputLandmarks" 
+                                class="form-input-custom" 
+                                placeholder="e.g. Near De La Salle Lipa Gate 3, leave with lobby guard if recipient is absent" 
+                                value="Across De La Salle Lipa Gate 3. Ring doorbell twice."
+                                oninput="updateLiveSticker()"
+                            >
+                        </div>
+
+                        <!-- SECTION 3: PARCEL SPECIFICATIONS -->
+                        <div class="form-section-title">
+                            3. Parcel Contents & Specs
+                        </div>
+
+                        <div class="form-grid-2col">
+                            <div class="form-group-row">
+                                <label class="form-label-custom">Package Description *</label>
+                                <input type="text" id="inputPackageDesc" class="form-input-custom" placeholder="e.g. Electronics & Computer Peripherals" required oninput="updateLiveSticker()">
+                            </div>
+
+                            <div class="form-group-row">
+                                <label class="form-label-custom">Package Category</label>
+                                <select id="inputPackageCategory" class="form-input-custom" onchange="updateLiveSticker()">
+                                    <option value="Electronics & Gadgets">Electronics & Gadgets</option>
+                                    <option value="Fashion & Apparel">Fashion & Apparel</option>
+                                    <option value="School & Office Documents">School & Office Documents</option>
+                                    <option value="Fragile & Glassware">Fragile & Glassware</option>
+                                    <option value="Perishable & Goods">Perishable & Goods</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- SECTION 4: PAYMENT METHOD (COD, DEBIT, GCASH, MAYA) -->
+                        <div class="form-section-title">
+                            4. Payment Terms & Settlement Method
+                        </div>
+
+                        <div class="form-group-row">
+                            <label class="form-label-custom">Select Payment Method *</label>
+                            <div class="payment-selector-grid">
+                                <div class="payment-method-card selected" id="pmCardCOD" onclick="selectPaymentMethod('COD')">
+                                    <div class="pm-title">Cash on Delivery (COD)</div>
+                                    <div class="pm-sub">Collect cash at doorstep</div>
+                                </div>
+                                <div class="payment-method-card" id="pmCardDebit" onclick="selectPaymentMethod('Debit')">
+                                    <div class="pm-title">Debit / Bank Card</div>
+                                    <div class="pm-sub">Prepaid via POS / Bank</div>
+                                </div>
+                                <div class="payment-method-card" id="pmCardGCash" onclick="selectPaymentMethod('GCash')">
+                                    <div class="pm-title">E-Wallet (GCash/Maya)</div>
+                                    <div class="pm-sub">Digital cashless payment</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2col" style="margin-top: 10px;">
+                            <div class="form-group-row">
+                                <label class="form-label-custom" id="amountFieldLabel">Amount to Collect (COD) *</label>
+                                <input type="text" id="inputAmount" class="form-input-custom font-mono" placeholder="₱1,250.00" value="₱1,250.00" required oninput="updateLiveSticker()">
+                            </div>
+
+                            <div class="form-group-row">
+                                <label class="form-label-custom">Payment Reference (For Debit/GCash)</label>
+                                <input type="text" id="inputPayRef" class="form-input-custom font-mono" placeholder="e.g. REF-9821481" oninput="updateLiveSticker()">
+                            </div>
+                        </div>
+
+                        <!-- SUBMISSION BUTTONS -->
+                        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end; gap: 10px;">
+                            <a href="index.html" class="btn-courier-sm btn-courier-outline" style="text-decoration: none; padding: 10px 18px;">
+                                Cancel
+                            </a>
+                            <button type="submit" id="btnSaveWaybill" class="btn-courier-primary" style="padding: 10px 22px; font-weight: 700; font-size: 13.5px;">
+                                Save & Generate Waybill
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+            <!-- RIGHT: LIVE THERMAL WAYBILL STICKER PREVIEW -->
+            <div>
+                <div class="no-print" style="margin-bottom: 8px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                    Live Printable Logistics Label:
+                </div>
+
+                <div class="waybill-preview-sticker" id="thermalWaybillSticker">
+                    <!-- TOP BRANDING -->
+                    <div class="sticker-top">
+                        <div>
+                            <div class="sticker-brand">SWIFTLOGISTICS</div>
+                            <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">
+                                BRANCH #04 • LIPA SORTING FACILITY
+                            </div>
+                        </div>
+                        <div class="sticker-sort-code" id="stickerSortCode">
+                            LIP-04-A
+                        </div>
+                    </div>
+
+                    <!-- BARCODE & TRACKING -->
+                    <div class="sticker-barcode-area">
+                        <svg class="sticker-barcode-svg" viewBox="0 0 200 40">
+                            <!-- High density barcode bars -->
+                            <rect x="5" y="0" width="3" height="40" fill="#000"/>
+                            <rect x="11" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="16" y="0" width="5" height="40" fill="#000"/>
+                            <rect x="25" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="30" y="0" width="4" height="40" fill="#000"/>
+                            <rect x="37" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="43" y="0" width="6" height="40" fill="#000"/>
+                            <rect x="52" y="0" width="3" height="40" fill="#000"/>
+                            <rect x="58" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="63" y="0" width="4" height="40" fill="#000"/>
+                            <rect x="71" y="0" width="5" height="40" fill="#000"/>
+                            <rect x="79" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="85" y="0" width="4" height="40" fill="#000"/>
+                            <rect x="92" y="0" width="6" height="40" fill="#000"/>
+                            <rect x="101" y="0" width="3" height="40" fill="#000"/>
+                            <rect x="107" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="113" y="0" width="5" height="40" fill="#000"/>
+                            <rect x="122" y="0" width="3" height="40" fill="#000"/>
+                            <rect x="128" y="0" width="4" height="40" fill="#000"/>
+                            <rect x="135" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="140" y="0" width="6" height="40" fill="#000"/>
+                            <rect x="149" y="0" width="3" height="40" fill="#000"/>
+                            <rect x="155" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="160" y="0" width="5" height="40" fill="#000"/>
+                            <rect x="168" y="0" width="4" height="40" fill="#000"/>
+                            <rect x="175" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="180" y="0" width="5" height="40" fill="#000"/>
+                            <rect x="188" y="0" width="2" height="40" fill="#000"/>
+                            <rect x="193" y="0" width="4" height="40" fill="#000"/>
+                        </svg>
+                        <div class="sticker-tracking-no" id="stickerTracking">TRK-1031</div>
+                    </div>
+
+                    <!-- RECIPIENT BOX -->
+                    <div class="sticker-section">
+                        <div class="sticker-section-header">
+                            SHIP TO / CONSIGNEE
+                        </div>
+                        <div class="sticker-section-body">
+                            <div class="sticker-recipient-name" id="stickerName">Maria Clara De Los Santos</div>
+                            <div class="font-mono" style="font-size: 11px; font-weight: 700; color: #475569;" id="stickerPhone">
+                                0917-***-4567 (RA 10173 Masked)
+                            </div>
+                            <div class="sticker-address-box">
+                                <strong id="stickerCity">Lipa City, Batangas</strong> • <span id="stickerBarangay">Brgy. Marawoy</span>
+                                <div style="margin-top: 2px;" id="stickerApartment">
+                                    13th Floor, Unit 1302, Green Residences Tower 2
+                                </div>
+                            </div>
+
+                            <!-- SPECIAL DELIVERY INSTRUCTIONS -->
+                            <div class="sticker-instructions-box" id="stickerLandmarks">
+                                <strong>RIDER NOTE:</strong> Across De La Salle Lipa Gate 3. Ring doorbell twice.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PARCEL SPECS -->
+                    <div class="sticker-section">
+                        <div class="sticker-section-header">
+                            PACKAGE INFORMATION
+                        </div>
+                        <div class="sticker-section-body" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong id="stickerDesc">Electronics & Computer Peripherals</strong>
+                                <div style="font-size: 10.5px; color: #64748B;" id="stickerCategory">Category: Electronics & Gadgets</div>
+                            </div>
+                            <div style="text-align: right; font-size: 11px; font-weight: 700; color: #0F172A;">
+                                Std Courier Pouch<br>
+                                <span style="font-size: 10px; color: #64748B;">Weight: 0.8 kg</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAYMENT & SIGNATURE GRID -->
+                    <div class="sticker-bottom-grid">
+                        <div class="sticker-pay-box" id="stickerPayBox">
+                            <div class="sticker-pay-label" id="stickerPayLabel">CASH ON DELIVERY (COD)</div>
+                            <div class="sticker-pay-amount" id="stickerPayAmount">₱1,250.00</div>
+                            <div style="font-size: 9px; font-weight: 700; color: #B45309; margin-top: 2px;" id="stickerPayStatus">
+                                COLLECT FROM RECIPIENT
+                            </div>
+                        </div>
+
+                        <div class="sticker-sign-box">
+                            <div class="sticker-sign-label">RECIPIENT SIGNATURE</div>
+                            <div class="sticker-sign-line"></div>
+                            <div style="font-size: 8px; color: #94A3B8; text-align: center; margin-top: 2px;">
+                                Date / Time Received
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FOOTER SECURITY TAG -->
+                    <div style="margin-top: 10px; font-size: 8.5px; color: #94A3B8; text-align: center; font-family: var(--font-mono);">
+                        TripwireJS Protected • Layer-7 Tamper-Proof • Terminal 04 • Lipa City
+                    </div>
+                </div>
+
+                <!-- QUICK ACTIONS CARD -->
+                <div class="no-print" style="margin-top: 14px; background: #FFFFFF; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px;">
+                    <strong style="font-size: 12px; color: var(--text-title); display: block; margin-bottom: 4px;">
+                        Thermal Printing Tips:
+                    </div>
+                    <ul style="font-size: 11px; color: var(--text-muted); padding-left: 16px; margin: 0; line-height: 1.5;">
+                        <li>Supports 100mm x 150mm standard courier waybill thermal rolls.</li>
+                        <li>Customer contact number is automatically masked per RA 10173.</li>
+                        <li>Click <strong>Print Sticker</strong> or press <kbd>Ctrl+P</kbd> to output label.</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="friendlyToast" class="toast hidden" style="display: none;"></div>
+
+    <!-- FIREBASE COMPAT SDK & SCRIPTS -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="app.js?v=4.3.0"></script>
+
+    <script>
+        let currentSelectedPayment = "COD";
+        let autoTrackingNo = "TRK-" + Math.floor(1031 + Math.random() * 50);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const opEl = document.getElementById("activeOperatorName");
+            const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
+            if (session && opEl) {
+                opEl.innerText = session.name || "Bossing Jeff";
+            }
+            document.getElementById("liveGeneratedTracking").innerText = autoTrackingNo;
+            document.getElementById("stickerTracking").innerText = autoTrackingNo;
+            updateLiveSticker();
+        });
+
+        function selectPaymentMethod(method) {
+            currentSelectedPayment = method;
+            document.getElementById("pmCardCOD").classList.toggle("selected", method === "COD");
+            document.getElementById("pmCardDebit").classList.toggle("selected", method === "Debit");
+            document.getElementById("pmCardGCash").classList.toggle("selected", method === "GCash");
+
+            const label = document.getElementById("amountFieldLabel");
+            const amtInput = document.getElementById("inputAmount");
+
+            if (method === "COD") {
+                label.innerText = "Amount to Collect (COD) *";
+                amtInput.placeholder = "₱1,250.00";
+            } else if (method === "Debit") {
+                label.innerText = "Debit Amount (Settled / Paid) *";
+                amtInput.placeholder = "₱2,450.00";
+            } else {
+                label.innerText = "E-Wallet Amount (GCash / Maya) *";
+                amtInput.placeholder = "₱850.00";
+            }
+            updateLiveSticker();
+        }
+
+        function updateLiveSticker() {
+            const name = document.getElementById("inputConsigneeName").value.trim() || "Maria Clara De Los Santos";
+            const phone = document.getElementById("inputConsigneePhone").value.trim() || "0917-123-4567";
+            const city = document.getElementById("inputCity").value || "Lipa City, Batangas";
+            const barangay = document.getElementById("inputBarangay").value.trim() || "Brgy. Marawoy";
+            const apt = document.getElementById("inputApartmentDetails").value.trim() || "13th Floor, Unit 1302, Green Residences";
+            const landmarks = document.getElementById("inputLandmarks").value.trim() || "Across De La Salle Lipa Gate 3";
+            const desc = document.getElementById("inputPackageDesc").value.trim() || "Electronics & Computer Peripherals";
+            const category = document.getElementById("inputPackageCategory").value || "Electronics & Gadgets";
+            const amount = document.getElementById("inputAmount").value.trim() || "₱1,250.00";
+
+            // Mask phone per RA 10173
+            let maskedPhone = phone;
+            if (phone.length >= 10) {
+                maskedPhone = phone.slice(0, 4) + "-***-" + phone.slice(-4);
+            }
+
+            document.getElementById("stickerName").innerText = name;
+            document.getElementById("stickerPhone").innerText = maskedPhone + " (RA 10173 Masked)";
+            document.getElementById("stickerCity").innerText = city;
+            document.getElementById("stickerBarangay").innerText = barangay;
+            document.getElementById("stickerApartment").innerText = apt;
+            document.getElementById("stickerLandmarks").innerHTML = "<strong>RIDER NOTE:</strong> " + landmarks;
+            document.getElementById("stickerDesc").innerText = desc;
+            document.getElementById("stickerCategory").innerText = "Category: " + category;
+
+            // Sort Code routing based on city
+            let sortCode = "LIP-04-A";
+            if (city.includes("Tanauan")) sortCode = "TAN-02-B";
+            else if (city.includes("Malvar")) sortCode = "MAL-01-A";
+            else if (city.includes("Sto. Tomas")) sortCode = "STO-03-C";
+            else if (city.includes("San Jose")) sortCode = "SJO-05-A";
+            else if (city.includes("Batangas City")) sortCode = "BAT-01-M";
+            document.getElementById("stickerSortCode").innerText = sortCode;
+
+            // Payment box styling
+            const payBox = document.getElementById("stickerPayBox");
+            const payLabel = document.getElementById("stickerPayLabel");
+            const payAmt = document.getElementById("stickerPayAmount");
+            const payStatus = document.getElementById("stickerPayStatus");
+
+            payAmt.innerText = amount;
+
+            if (currentSelectedPayment === "COD") {
+                payBox.style.borderColor = "#EA580C";
+                payBox.style.background = "#FFF7ED";
+                payLabel.innerText = "CASH ON DELIVERY (COD)";
+                payLabel.style.color = "#9A3412";
+                payAmt.style.color = "#EA580C";
+                payStatus.innerText = "COLLECT FROM RECIPIENT";
+                payStatus.style.color = "#B45309";
+            } else if (currentSelectedPayment === "Debit") {
+                payBox.style.borderColor = "#2563EB";
+                payBox.style.background = "#EFF6FF";
+                payLabel.innerText = "DEBIT / BANK CARD";
+                payLabel.style.color = "#1E40AF";
+                payAmt.style.color = "#2563EB";
+                payStatus.innerText = "PREPAID / SETTLED";
+                payStatus.style.color = "#1D4ED8";
+            } else {
+                payBox.style.borderColor = "#059669";
+                payBox.style.background = "#ECFDF5";
+                payLabel.innerText = "GCASH / MAYA (E-WALLET)";
+                payLabel.style.color = "#065F46";
+                payAmt.style.color = "#059669";
+                payStatus.innerText = "PAID VIA QR / E-WALLET";
+                payStatus.style.color = "#047857";
+            }
+        }
+
+        async function handleFullManifestSubmit(e) {
+            if (e) e.preventDefault();
+            const btn = document.getElementById("btnSaveWaybill");
+            btn.disabled = true;
+            btn.innerText = "Writing Waybill to Cloud...";
+
+            const name = document.getElementById("inputConsigneeName").value.trim();
+            const phone = document.getElementById("inputConsigneePhone").value.trim();
+            const city = document.getElementById("inputCity").value;
+            const barangay = document.getElementById("inputBarangay").value.trim();
+            const apt = document.getElementById("inputApartmentDetails").value.trim();
+            const landmarks = document.getElementById("inputLandmarks").value.trim();
+            const desc = document.getElementById("inputPackageDesc").value.trim();
+            const category = document.getElementById("inputPackageCategory").value;
+            const amount = document.getElementById("inputAmount").value.trim();
+            const payRef = document.getElementById("inputPayRef").value.trim();
+
+            const fullAddress = `${apt}, ${barangay}, ${city}`;
+            const combinedPackage = `${desc} (${category})`;
+
+            let maskedPhone = phone;
+            if (phone.length >= 10) {
+                maskedPhone = phone.slice(0, 4) + "-***-" + phone.slice(-4);
+            }
+
+            const parcelData = {
+                trackingNo: autoTrackingNo,
+                name: name,
+                phone: maskedPhone,
+                city: city,
+                barangay: barangay,
+                addressDetails: apt,
+                landmarks: landmarks,
+                package: combinedPackage,
+                paymentMethod: currentSelectedPayment,
+                paymentStatus: currentSelectedPayment === "COD" ? "pending_collection" : "paid",
+                cod: currentSelectedPayment === "COD" ? amount : `${currentSelectedPayment.toUpperCase()}: ${amount} (PAID)`,
+                status: "Arrived at Hub #04",
+                paymentRef: payRef || null
+            };
+
+            // Save via app.js addParcelRecord
+            if (typeof addParcelRecord === "function") {
+                await addParcelRecord(parcelData);
+            } else {
+                const list = getLocalParcels();
+                list.unshift(parcelData);
+                saveLocalParcels(list);
+            }
+
+            showToast(`Waybill ${autoTrackingNo} Manifested & Synced Successfully!`);
+
+            setTimeout(() => {
+                window.location.href = "index.html";
+            }, 1200);
+        }
+
+        function resetEncoderForm() {
+            document.getElementById("fullManifestForm").reset();
+            autoTrackingNo = "TRK-" + Math.floor(1031 + Math.random() * 50);
+            document.getElementById("liveGeneratedTracking").innerText = autoTrackingNo;
+            document.getElementById("stickerTracking").innerText = autoTrackingNo;
+            selectPaymentMethod("COD");
+            updateLiveSticker();
+        }
+    </script>
+</body>
+</html>

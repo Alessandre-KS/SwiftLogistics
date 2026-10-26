@@ -1007,4 +1007,175 @@ document.addEventListener("DOMContentLoaded", () => {
     initThresholdControls();
     switchState("before");
     initRealtimeSync();
+    loadPendingRegistrations();
 });
+
+
+// -----------------------------------------------------------------------------
+// PENDING STAFF REGISTRATIONS & VERIFICATION (ADMIN GATED)
+// -----------------------------------------------------------------------------
+let pendingRegistrationsList = [];
+
+function loadPendingRegistrations() {
+    try {
+        const stored = localStorage.getItem("swift_pending_registrations");
+        if (stored) {
+            pendingRegistrationsList = JSON.parse(stored);
+        }
+    } catch (e) {}
+
+    renderPendingRegistrationsTable();
+
+    // Also sync from Firestore if online
+    if (db) {
+        try {
+            db.collection("registrations").where("status", "==", "pending_verification").onSnapshot((snapshot) => {
+                if (snapshot) {
+                    const loaded = [];
+                    snapshot.forEach(doc => {
+                        loaded.push({ id: doc.id, ...doc.data() });
+                    });
+                    if (loaded.length > 0) {
+                        pendingRegistrationsList = loaded;
+                        localStorage.setItem("swift_pending_registrations", JSON.stringify(loaded));
+                    }
+                    renderPendingRegistrationsTable();
+                }
+            }, (err) => {
+                console.warn("Registrations listener notice:", err.message);
+            });
+        } catch (e) {}
+    }
+}
+
+function renderPendingRegistrationsTable() {
+    const tbody = document.getElementById("pendingRegistrationsBody");
+    const badge = document.getElementById("pendingCountBadge");
+    if (!tbody) return;
+
+    if (badge) {
+        badge.innerText = `${pendingRegistrationsList.length} Pending`;
+        badge.style.display = pendingRegistrationsList.length > 0 ? "inline-flex" : "none";
+    }
+
+    if (pendingRegistrationsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No pending staff registrations.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = pendingRegistrationsList.map(reg => {
+        const timeStr = reg.requestedAt ? new Date(reg.requestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
+        return `
+            <tr>
+                <td>
+                    <strong style="color: var(--text-title);">${reg.name}</strong><br>
+                    <span class="text-muted font-mono" style="font-size: 11px;">${reg.email}</span>
+                </td>
+                <td><span>${reg.role}</span></td>
+                <td class="font-mono text-muted">${reg.phone || "0917-***-0000"}</td>
+                <td class="text-muted font-mono" style="font-size: 11px;">${timeStr}</td>
+                <td>
+                    <span class="status-pill status-pill-pending">
+                        Awaiting Bossing Jeff
+                    </span>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn btn-sm btn-primary" onclick="handleApproveRegistration('${reg.id}')">
+                            Verify & Approve
+                        </button>
+                        <button class="btn btn-sm btn-outline text-danger" onclick="handleRejectRegistration('${reg.id}')">
+                            Reject
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+async function handleApproveRegistration(regId) {
+    const reg = pendingRegistrationsList.find(r => r.id === regId);
+    if (!reg) return;
+
+    const staffUid = "usr_" + reg.email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "_");
+    const totpSecret = reg.totpSecret || "JBSWY3DPEHPK3PXP";
+
+    // 1. Add to active staff list
+    const newStaff = {
+        id: staffUid,
+        name: reg.name,
+        email: reg.email,
+        role: reg.role,
+        branch: reg.branch || "Branch #04 (Lipa City)",
+        active: true,
+        status: "active",
+        velocity: "0.2 req/s (Nominal)",
+        isFlagged: false,
+        verified: true,
+        totpSecret: totpSecret
+    };
+
+    staffList.push(newStaff);
+    renderStaffTable();
+
+    // 2. Remove from pending queue
+    pendingRegistrationsList = pendingRegistrationsList.filter(r => r.id !== regId);
+    localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingRegistrationsList));
+    renderPendingRegistrationsTable();
+
+    // 3. Update local staff directory
+    try {
+        let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
+        dir = dir.filter(s => (s.email || "").toLowerCase() !== reg.email.toLowerCase());
+        dir.push(newStaff);
+        localStorage.setItem("swift_staff_directory", JSON.stringify(dir));
+    } catch (e) {}
+
+    // 4. Save to Firestore /staff/{uid} and update /registrations/{regId}
+    if (db) {
+        try {
+            await db.collection("staff").doc(staffUid).set({
+                name: newStaff.name,
+                email: newStaff.email,
+                role: newStaff.role,
+                branch: newStaff.branch,
+                status: "active",
+                velocity: "0.2 req/s (Nominal)",
+                isFlagged: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await db.collection("registrations").doc(regId).update({
+                status: "approved",
+                approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (err) {
+            console.warn("Firestore approval sync notice:", err.message);
+        }
+    }
+
+    // 5. Open Onboarding QR Modal with secret
+    document.getElementById("verifiedStaffName").innerText = reg.name;
+    document.getElementById("verifiedSecretKey").innerText = totpSecret;
+    const otpUrl = `otpauth://totp/SwiftLogistics:${encodeURIComponent(reg.email)}?secret=${totpSecret}&issuer=SwiftLogistics`;
+    document.getElementById("verifiedQrImage").src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(otpUrl)}`;
+
+    openModal("verifiedOnboardingModal");
+    showToast(`Staff Verified: ${reg.name} is now authorized for terminal login!`);
+}
+
+async function handleRejectRegistration(regId) {
+    pendingRegistrationsList = pendingRegistrationsList.filter(r => r.id !== regId);
+    localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingRegistrationsList));
+    renderPendingRegistrationsTable();
+
+    if (db) {
+        try {
+            await db.collection("registrations").doc(regId).update({
+                status: "rejected"
+            });
+        } catch (e) {}
+    }
+    showToast("Registration request rejected.");
+}

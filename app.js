@@ -358,14 +358,19 @@ async function loadParcels() {
 }
 
 async function addParcelRecord(parcelData) {
-    const newTracking = "TRK-" + Math.floor(1000 + Math.random() * 9000);
+    const newTracking = parcelData.trackingNo || ("TRK-" + Math.floor(1000 + Math.random() * 9000));
     const newRecord = {
         trackingNo: newTracking,
         name: parcelData.name,
         phone: parcelData.phone || "0917-***-" + Math.floor(1000 + Math.random() * 9000),
         city: parcelData.city || "Lipa City, Batangas",
+        barangay: parcelData.barangay || "",
+        addressDetails: parcelData.addressDetails || "",
+        landmarks: parcelData.landmarks || "",
         status: parcelData.status || "Out for Delivery (Rider Carlo)",
         package: parcelData.package || "General Merchandise Parcel",
+        paymentMethod: parcelData.paymentMethod || "COD",
+        paymentStatus: parcelData.paymentStatus || "pending_collection",
         cod: parcelData.cod || "₱0.00"
     };
 
@@ -449,7 +454,19 @@ async function signInStaff(email, password) {
         return { success: true, user: user };
     }
 
-    // 2. Check Cloud Firestore /staff collection for accounts provisioned by Bossing Jeff
+    // 2. Check if account is in Pending Verification status (Registration Queue)
+    try {
+        const pendingRegistrations = JSON.parse(localStorage.getItem("swift_pending_registrations") || "[]");
+        const pendingMatch = pendingRegistrations.find(r => (r.email || "").toLowerCase() === clean);
+        if (pendingMatch && (pendingMatch.status === "pending_verification" || pendingMatch.verified === false)) {
+            return {
+                success: false,
+                message: "Registration Pending: Your staff account has not been approved yet. Contact Bossing Jeff on the Owner Console to verify and activate your account."
+            };
+        }
+    } catch (e) {}
+
+    // 3. Check Cloud Firestore /staff collection for accounts provisioned by Bossing Jeff
     if (isFirebaseOnline && db) {
         try {
             const snapshot = await db.collection("staff").where("email", "==", clean).get();
@@ -462,7 +479,13 @@ async function signInStaff(email, password) {
                         message: "Access Denied: Account quarantined by TripwireJS. Contact Bossing Jeff to review."
                     };
                 }
-                const roleLabel = data.role === "rider" ? "Delivery Courier Rider" : "Branch Dispatcher (Customer Lookup)";
+                if (data.status === "pending_verification" || data.verified === false) {
+                    return {
+                        success: false,
+                        message: "Registration Pending: Your staff account has not been approved yet. Contact Bossing Jeff on the Owner Console to verify and activate your account."
+                    };
+                }
+                const roleLabel = data.role === "rider" ? "Delivery Courier Rider" : (data.role || "Branch Dispatcher");
                 const user = {
                     uid: doc.id,
                     email: clean,
@@ -477,10 +500,16 @@ async function signInStaff(email, password) {
         }
     }
 
-    // 3. Check local directory (accounts provisioned by owner on local console)
+    // 4. Check local directory (accounts provisioned by owner on local console)
     const localDirectory = getLocalStaffDirectory();
     const matched = localDirectory.find(s => (s.email || "").toLowerCase() === clean);
     if (matched) {
+        if (matched.status === "pending_verification" || matched.verified === false) {
+            return {
+                success: false,
+                message: "Registration Pending: Your staff account has not been approved yet. Contact Bossing Jeff on the Owner Console to verify and activate your account."
+            };
+        }
         if (matched.active === false || matched.status === "quarantined") {
             return {
                 success: false,
@@ -497,10 +526,10 @@ async function signInStaff(email, password) {
         return { success: true, user: user };
     }
 
-    // 4. Strictly deny unprovisioned accounts
+    // 5. Strictly deny unprovisioned accounts
     return {
         success: false,
-        message: "Access Denied: Account not provisioned by Business Owner. Contact Bossing Jeff to register your staff credentials."
+        message: "Access Denied: Account not provisioned by Business Owner. Please click 'Register Staff' to submit an account request for verification."
     };
 }
 
@@ -599,9 +628,16 @@ function lookupParcel(query, showAlert = false) {
         if (elTrack) elTrack.innerText = found.trackingNo;
         if (elName) elName.innerText = found.name;
         if (elPhone) elPhone.innerText = found.phone;
-        if (elCity) elCity.innerText = found.city;
+
+        let displayLoc = found.city;
+        if (found.barangay) displayLoc = `${found.barangay}, ${displayLoc}`;
+        if (found.addressDetails) displayLoc += ` • ${found.addressDetails}`;
+        if (found.landmarks) displayLoc += ` (Note: ${found.landmarks})`;
+        if (elCity) elCity.innerText = displayLoc;
+
         if (elPkg) elPkg.innerText = found.package;
-        if (elCod) elCod.innerText = `COD: ${found.cod}`;
+        const pmLabel = (found.paymentMethod || "COD").toUpperCase();
+        if (elCod) elCod.innerText = `${pmLabel}: ${found.cod}`;
         if (elBadge) elBadge.innerText = found.status;
         updateTimeline(found.status);
     } else if (showAlert) {
@@ -659,20 +695,39 @@ function renderManifestTable() {
             badgeColor = "background:#FEF3C7; color:#B45309; border:1px solid #FDE68A;";
         }
 
+        // Payment Badge Logic (COD vs Debit vs E-Wallet)
+        let payBadge = `<span class="pay-badge pay-badge-cod">COD ${p.cod}</span>`;
+        const pm = (p.paymentMethod || "").toUpperCase();
+        const codText = (p.cod || "").toUpperCase();
+
+        if (pm === "DEBIT" || codText.includes("DEBIT")) {
+            payBadge = `<span class="pay-badge pay-badge-debit">DEBIT (PAID)</span>`;
+        } else if (pm === "GCASH" || codText.includes("GCASH")) {
+            payBadge = `<span class="pay-badge pay-badge-gcash">GCASH (PAID)</span>`;
+        } else if (pm === "MAYA" || codText.includes("MAYA")) {
+            payBadge = `<span class="pay-badge pay-badge-maya">MAYA (PAID)</span>`;
+        }
+
+        // Detailed Address Display (Floor, Apartment, Landmark)
+        let locationDisplay = p.city;
+        if (p.addressDetails) {
+            locationDisplay = `<div><strong>${p.city}</strong><div style="font-size:10.5px; color:var(--text-muted); line-height:1.2; margin-top:2px;">${p.addressDetails}</div></div>`;
+        }
+
         tr.innerHTML = `
-            <td class="font-mono" style="font-weight:700; color:var(--color-primary-dark);">${p.trackingNo}</td>
+            <td class="font-mono" style="font-weight:700; color:var(--courier-orange);">${p.trackingNo}</td>
             <td style="font-weight:600; color:var(--text-title);">${p.name}</td>
-            <td class="font-mono" style="color:var(--text-muted);">${p.phone}</td>
-            <td>${p.city}</td>
-            <td style="color:var(--text-muted);">${p.package}</td>
-            <td style="font-weight:700; color:#B45309;">${p.cod}</td>
+            <td class="font-mono" style="color:var(--text-muted); font-size:11.5px;">${p.phone}</td>
+            <td>${locationDisplay}</td>
+            <td style="color:var(--text-muted); font-size:12px;">${p.package}</td>
+            <td>${payBadge}</td>
             <td>
                 <span style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:20px; display:inline-block; ${badgeColor}">
                     ${p.status}
                 </span>
             </td>
             <td style="text-align:right;">
-                <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px;" onclick="quickLookup('${p.trackingNo}')">Track</button>
+                <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px;" onclick="quickLookup('${p.trackingNo}', true)">Track</button>
                 <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px; margin-left:4px;" onclick="openUpdateStatusModal('${p.trackingNo}')">Edit</button>
             </td>
         `;
@@ -687,9 +742,16 @@ function updateKPIs() {
     const delivered = parcelsList.filter(p => p.status.includes("Delivered")).length;
 
     let totalCod = 0;
+    let totalDebit = 0;
     parcelsList.forEach(p => {
         const match = (p.cod || "").match(/₱\s*([\d,]+\.?\d*)/);
-        if (match) totalCod += parseFloat(match[1].replace(/,/g, '')) || 0;
+        const amt = match ? (parseFloat(match[1].replace(/,/g, '')) || 0) : 0;
+        const isDebit = (p.paymentMethod && p.paymentMethod.toLowerCase() !== "cod") || (p.cod && (p.cod.includes("DEBIT") || p.cod.includes("GCASH") || p.cod.includes("MAYA")));
+        if (isDebit) {
+            totalDebit += amt;
+        } else {
+            totalCod += amt;
+        }
     });
 
     const elTotal = document.getElementById("kpiTotalParcels");
