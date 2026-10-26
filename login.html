@@ -146,16 +146,7 @@
                         <div class="totp-timer-bar-fill" id="totpTimerBar" style="width: 100%;"></div>
                     </div>
 
-                    <!-- DEMO SYNC / EXAMINER QUICK-TEST BAR -->
-                    <div class="totp-demo-sync-box">
-                        <div>
-                            <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Authenticator Live Code</div>
-                            <div class="totp-demo-code-val" id="demoTotpCode">------</div>
-                        </div>
-                        <button type="button" class="btn-courier-sm btn-courier-outline" onclick="quickFillTotpCode()" style="font-size: 11px;">
-                            Quick-Fill
-                        </button>
-                    </div>
+
 
                     <!-- VERIFY BUTTON -->
                     <button type="button" id="btnVerifyTotp" class="btn-courier-primary" onclick="handleTotpVerification()" style="width: 100%; justify-content: center; padding: 11px; font-size: 13.5px; font-weight: 700; margin-top: 10px;">
@@ -493,20 +484,7 @@
             totpInterval = setInterval(updateTotpTicker, 1000);
         }
 
-        /**
-         * Quick-fill live TOTP code for presentation demonstrations
-         */
-        async function quickFillTotpCode() {
-            const currentCode = await TOTP.getCode(activeSecret);
-            for (let i = 0; i < 6; i++) {
-                const box = document.getElementById(`otpDigit${i + 1}`);
-                if (box) {
-                    box.value = currentCode[i];
-                    box.classList.add("filled");
-                }
-            }
-            handleTotpVerification();
-        }
+
 
         /**
          * STEP 2: Verify TOTP Code (RFC 6238 Engine)
