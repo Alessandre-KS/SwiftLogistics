@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SwiftLogistics Hub — Driver Transit Terminal & Run-Sheet</title>
+    <link rel="stylesheet" href="style.css?v=6.1.0">
+    <style>
+        .driver-workspace {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 20px 60px 20px;
+        }
+
+        .driver-hero-card {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 24px 28px;
+            color: #FFFFFF;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 18px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+        }
+
+        .driver-hero-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .driver-avatar-circle {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: #EA580C;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 800;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);
+        }
+
+        .driver-title-name {
+            font-size: 20px;
+            font-weight: 800;
+            color: #F8FAFC;
+            margin: 0 0 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .driver-vehicle-badge {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #FED7AA;
+            padding: 3px 10px;
+            border-radius: 14px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .driver-hero-sub {
+            font-size: 12.5px;
+            color: #94A3B8;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .driver-hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .driver-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .driver-kpi-box {
+            background: #FFFFFF;
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 16px 18px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .driver-kpi-box .label {
+            font-size: 11.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .driver-kpi-box .num {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text-title);
+            line-height: 1.1;
+        }
+
+        .driver-kpi-box .sub {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .driver-filter-bar {
+            background: #FFFFFF;
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .driver-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .driver-tab-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12.5px;
+            font-weight: 700;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .driver-tab-btn:hover {
+            background: var(--bg-canvas);
+            color: var(--text-title);
+        }
+
+        .driver-tab-btn.active {
+            background: var(--courier-orange-subtle);
+            color: var(--courier-orange);
+            border-color: var(--courier-orange-border);
+        }
+
+        .driver-card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .driver-parcel-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 20px 22px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+
+        .driver-parcel-card:hover {
+            border-color: var(--border-medium);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .driver-parcel-card.delivered-card {
+            background: #F8FAFC;
+            border-color: #E2E8F0;
+            opacity: 0.88;
+        }
+
+        .card-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .card-tracking-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-tracking-no {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--courier-orange);
+            letter-spacing: 0.5px;
+        }
+
+        .card-meta-badges {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .cod-pill {
+            font-size: 11.5px;
+            font-weight: 800;
+            background: #FFF7ED;
+            color: #C2410C;
+            border: 1px solid #FED7AA;
+            padding: 3px 10px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .card-details-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .card-details-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+
+        .detail-item-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .detail-item-val {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-title);
+            line-height: 1.4;
+        }
+
+        .phone-call-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #EFF6FF;
+            color: #1D4ED8;
+            border: 1px solid #BFDBFE;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11.5px;
+            font-weight: 700;
+            text-decoration: none;
+            margin-left: 6px;
+            transition: background 0.15s ease;
+        }
+
+        .phone-call-btn:hover {
+            background: #DBEAFE;
+        }
+
+        .map-pin-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #047857;
+            font-size: 11px;
+            font-weight: 600;
+            text-decoration: none;
+            margin-left: 6px;
+        }
+
+        .map-pin-btn:hover {
+            text-decoration: underline;
+        }
+
+        .card-action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .btn-deliver-action {
+            background: #059669;
+            color: #FFFFFF;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s ease;
+            box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+        }
+
+        .btn-deliver-action:hover {
+            background: #047857;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(5, 150, 105, 0.35);
+        }
+
+        .empty-runsheet-box {
+            text-align: center;
+            background: #FFFFFF;
+            border: 1px dashed var(--border-medium);
+            border-radius: 12px;
+            padding: 48px 24px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body class="courier-body" style="background: var(--bg-canvas);">
+
+    <!-- ====================================================================
+         TOP APP BAR (DRIVER RUN-SHEET HEADER)
+         ==================================================================== -->
+    <header class="courier-topbar" style="position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+        <div class="topbar-info" style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: #EA580C; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                🚚
+            </div>
+            <div>
+                <div class="topbar-crumb" style="margin: 0;">
+                    <span class="crumb-lead" style="font-weight: 800; color: var(--text-title);">SwiftLogistics Hub</span>
+                    <span class="crumb-slash">/</span>
+                    <span class="crumb-active">Driver Transit Terminal & Run-Sheet</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 1px;">
+                    Branch #04 • Lipa City Sorting Dock • Active Shift Run
+                </div>
+            </div>
+        </div>
+
+        <div class="topbar-actions" style="display: flex; align-items: center; gap: 10px;">
+            <!-- LINK TO DISPATCH DESK (FOR MANAGEMENT / OWNER ACCESS) -->
+            <a href="index.html" id="btnReturnToDesk" class="btn-courier-sm btn-courier-outline" style="text-decoration: none; display: none; align-items: center; gap: 6px; font-weight: 700;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                Branch Dispatch Desk
+            </a>
+
+            <!-- SENTRY PROTECTION BADGE -->
+            <span style="font-size: 10.5px; background: #ECFDF5; color: #059669; font-weight: 700; padding: 4px 9px; border-radius: 4px; border: 1px solid #A7F3D0; display: inline-flex; align-items: center; gap: 4px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>
+                TripwireJS Protected
+            </span>
+
+            <!-- SIGN OUT BUTTON -->
+            <button class="btn-courier-sm btn-courier-outline" onclick="signOutStaff()" title="Sign out of driver run-sheet">
+                Sign Out
+            </button>
+        </div>
+    </header>
+
+    <!-- ====================================================================
+         MAIN DRIVER WORKSPACE
+         ==================================================================== -->
+    <main class="driver-workspace">
+
+        <!-- DRIVER HERO BANNER -->
+        <div class="driver-hero-card">
+            <div class="driver-hero-left">
+                <div class="driver-avatar-circle" id="driverHeroAvatar">DR</div>
+                <div>
+                    <h2 class="driver-title-name">
+                        <span id="driverHeroName">Driver Courier</span>
+                        <span class="driver-vehicle-badge" id="driverHeroVehicle">
+                            🏍️ Motorcycle (Express 2-Wheeler)
+                        </span>
+                    </h2>
+                    <p class="driver-hero-sub">
+                        <span>Terminal 04 Active</span>
+                        <span>•</span>
+                        <span id="driverHeroRole">Field Logistics / Delivery Rider</span>
+                        <span>•</span>
+                        <span style="color: #34D399; font-weight: 700;">✓ TOTP MFA Verified</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="driver-hero-actions">
+                <button type="button" class="btn-courier-sm btn-courier-outline" onclick="refreshDriverParcels()" style="background: rgba(255,255,255,0.08); color: #FFFFFF; border-color: rgba(255,255,255,0.25);">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    Sync Run-Sheet
+                </button>
+            </div>
+        </div>
+
+        <!-- 4 DRIVER OPERATIONAL KPI CARDS -->
+        <section class="driver-kpi-grid">
+            <div class="driver-kpi-box">
+                <div class="label">
+                    <span>Assigned Stops</span>
+                    <span>📦</span>
+                </div>
+                <div class="num" id="kpiDriverTotal">0</div>
+                <div class="sub">Total route packages</div>
+            </div>
+
+            <div class="driver-kpi-box" style="border-left: 4px solid var(--courier-orange);">
+                <div class="label">
+                    <span style="color: var(--courier-orange);">Out for Delivery</span>
+                    <span>🛵</span>
+                </div>
+                <div class="num" id="kpiDriverPending" style="color: var(--courier-orange);">0</div>
+                <div class="sub">Remaining in transit</div>
+            </div>
+
+            <div class="driver-kpi-box" style="border-left: 4px solid #059669;">
+                <div class="label">
+                    <span style="color: #059669;">Delivered</span>
+                    <span>✓</span>
+                </div>
+                <div class="num" id="kpiDriverDelivered" style="color: #059669;">0</div>
+                <div class="sub">Completed & signed</div>
+            </div>
+
+            <div class="driver-kpi-box" style="border-left: 4px solid #2563EB;">
+                <div class="label">
+                    <span style="color: #2563EB;">COD Remittance</span>
+                    <span>₱</span>
+                </div>
+                <div class="num" id="kpiDriverCod" style="color: #2563EB;">₱0.00</div>
+                <div class="sub" id="kpiDriverCodSub">To collect & remit</div>
+            </div>
+        </section>
+
+        <!-- RUN-SHEET FILTER & SEARCH BAR -->
+        <div class="driver-filter-bar">
+            <div class="driver-tabs">
+                <button type="button" class="driver-tab-btn active" onclick="setDriverFilter('ALL', this)">
+                    All Assigned (<span id="tabCountAll">0</span>)
+                </button>
+                <button type="button" class="driver-tab-btn" onclick="setDriverFilter('OUT', this)">
+                    Out for Delivery (<span id="tabCountOut">0</span>)
+                </button>
+                <button type="button" class="driver-tab-btn" onclick="setDriverFilter('DELIVERED', this)">
+                    Completed (<span id="tabCountDelivered">0</span>)
+                </button>
+            </div>
+
+            <div style="flex: 1; max-width: 320px; min-width: 200px;">
+                <input type="text" id="driverSearchInput" class="form-input-custom" placeholder="Search recipient, tracking #, address..." oninput="handleDriverSearch(this.value)">
+            </div>
+        </div>
+
+        <!-- CONSIGNMENTS CARD CONTAINER -->
+        <section class="driver-card-list" id="driverCardsContainer">
+            <!-- CARDS POPULATED DYNAMICALLY VIA JAVASCRIPT -->
+        </section>
+
+    </main>
+
+    <!-- ====================================================================
+         DELIVERY CONFIRMATION & PROOF OF DELIVERY (POD) MODAL
+         ==================================================================== -->
+    <div id="driverProofModal" class="modal-overlay hidden" style="display: none;">
+        <div class="modal-card" style="max-width: 480px;">
+            <div class="modal-header-bar">
+                <div class="modal-title-wrap">
+                    <div class="modal-icon-badge" style="background: #ECFDF5; color: #059669;">✓</div>
+                    <div>
+                        <h3 class="modal-title-text">Confirm Delivery & POD</h3>
+                        <p class="modal-subtitle-text">Log consignment hand-off and cash collection</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="closeDriverProofModal()">&times;</button>
+            </div>
+
+            <div class="modal-body-content">
+                <div style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Waybill Reference</span>
+                        <strong id="proofModalTrackingNo" class="font-mono" style="color: var(--courier-orange); font-size: 14px;">TRK-0000</strong>
+                    </div>
+                    <div style="font-size: 13.5px; font-weight: 700; color: var(--text-title);" id="proofModalCustomerName">Customer Name</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="proofModalAddress">Address details</div>
+                </div>
+
+                <div class="form-group-row">
+                    <label class="form-label-custom">Cash on Delivery (COD) Amount</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="text" id="proofModalCodDisplay" class="form-input-custom font-mono" readonly style="background: #F8FAFC; font-weight: 800; color: #C2410C;">
+                        <span style="font-size: 11px; color: #059669; font-weight: 700; background: #ECFDF5; padding: 8px 10px; border-radius: 6px; border: 1px solid #A7F3D0; white-space: nowrap;">
+                            ✓ Cash Collected
+                        </span>
+                    </div>
+                </div>
+
+                <div class="form-group-row">
+                    <label class="form-label-custom">Received By (Recipient / Representative) *</label>
+                    <input type="text" id="proofModalReceivedBy" class="form-input-custom" placeholder="Name of person who received package..." required>
+                </div>
+
+                <div class="form-group-row">
+                    <label class="form-label-custom">Delivery Proof Notes / Remarks</label>
+                    <input type="text" id="proofModalRemarks" class="form-input-custom" value="Signed and handed over to recipient in good condition.">
+                </div>
+
+                <div class="modal-footer-bar" style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn-courier-sm btn-courier-outline" onclick="closeDriverProofModal()">Cancel</button>
+                    <button type="button" class="btn-courier-primary" id="btnConfirmDeliveryProof" onclick="submitDeliveryProof()" style="background: #059669;">
+                        Confirm & Log Delivery
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FRIENDLY TOAST -->
+    <div id="friendlyToast" class="toast hidden" style="display: none;"></div>
+
+    <!-- FIREBASE COMPAT SDK & APPLICATION LOGIC -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="vendor/tripwire.js?v=2.1.0"></script>
+    <script src="app.js?v=4.2.0"></script>
+
+    <!-- DRIVER RUN-SHEET CONTROLLER -->
+    <script>
+        let currentFilter = "ALL";
+        let searchQuery = "";
+        let pendingDeliverTracking = null;
+        let driverSession = null;
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            driverSession = getStaffSession();
+            if (!driverSession) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            // Populate Driver Profile Header
+            const nameEl = document.getElementById("driverHeroName");
+            const avatarEl = document.getElementById("driverHeroAvatar");
+            const vehicleEl = document.getElementById("driverHeroVehicle");
+            const roleEl = document.getElementById("driverHeroRole");
+
+            if (nameEl) nameEl.innerText = driverSession.name;
+            if (roleEl) roleEl.innerText = driverSession.role;
+
+            const initials = driverSession.name
+                .trim()
+                .split(/\s+/)
+                .map(n => n[0])
+                .join("")
+                .toUpperCase()
+                .slice(0, 2);
+            if (avatarEl) avatarEl.innerText = initials || "DR";
+
+            const vType = driverSession.vehicleType || "Motorcycle (Express 2-Wheeler)";
+            const emoji = getVehicleEmoji(vType);
+            if (vehicleEl) {
+                vehicleEl.innerText = `${emoji} ${vType}`;
+            }
+
+            // If user is owner or dispatcher, show link to dispatch counter desk
+            const isBossOrDispatcher = (driverSession.role && driverSession.role.toLowerCase().includes("management")) ||
+                                       (driverSession.role && driverSession.role.toLowerCase().includes("owner")) ||
+                                       driverSession.email === "jeff@swiftlogistics.ph";
+            const deskBtn = document.getElementById("btnReturnToDesk");
+            if (deskBtn && isBossOrDispatcher) {
+                deskBtn.style.display = "inline-flex";
+            }
+
+            // TripwireJS Sentry Layer-7 Initialization
+            if (typeof TripwireJS !== "undefined") {
+                TripwireJS.init({
+                    protectedCollection: "parcels",
+                    staffCollection: "staff",
+                    canaryId: "TRK-0000",
+                    burstLimit: 30,
+                    burstWindowSec: 5
+                });
+            }
+
+            await loadParcels();
+            renderDriverRunSheet();
+        });
+
+        async function refreshDriverParcels() {
+            showToast("Syncing driver run-sheet with branch database...");
+            await loadParcels();
+            renderDriverRunSheet();
+        }
+
+        function getAssignedDriverParcels() {
+            if (!driverSession) return [];
+            const dName = (driverSession.name || "").toLowerCase().trim();
+            const dUid = (driverSession.uid || "").toLowerCase().trim();
+            const dEmail = (driverSession.email || "").toLowerCase().trim();
+
+            return parcelsList.filter(p => {
+                if (!p.assignedDriver) return false;
+                const assigned = p.assignedDriver.toLowerCase().trim();
+                const assignedId = (p.assignedDriverId || "").toLowerCase().trim();
+
+                return assigned.includes(dName) || 
+                       dName.includes(assigned) || 
+                       assignedId === dUid || 
+                       assignedId === dEmail;
+            });
+        }
+
+        function renderDriverRunSheet() {
+            const container = document.getElementById("driverCardsContainer");
+            if (!container) return;
+
+            const assignedParcels = getAssignedDriverParcels();
+
+            // Calculate KPIs
+            const totalAssigned = assignedParcels.length;
+            const pendingOut = assignedParcels.filter(p => (p.status || "").includes("Out for Delivery")).length;
+            const delivered = assignedParcels.filter(p => (p.status || "").includes("Delivered")).length;
+
+            let totalCodPending = 0;
+            let totalCodCollected = 0;
+            assignedParcels.forEach(p => {
+                const num = parseFloat((p.cod || "").replace(/[^0-9.]/g, "")) || 0;
+                if ((p.status || "").includes("Delivered")) {
+                    totalCodCollected += num;
+                } else {
+                    totalCodPending += num;
+                }
+            });
+
+            // Update KPI Box UI
+            document.getElementById("kpiDriverTotal").innerText = totalAssigned;
+            document.getElementById("kpiDriverPending").innerText = pendingOut;
+            document.getElementById("kpiDriverDelivered").innerText = delivered;
+            document.getElementById("kpiDriverCod").innerText = `₱${totalCodPending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById("kpiDriverCodSub").innerText = `Collected: ₱${totalCodCollected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            // Tab counts
+            document.getElementById("tabCountAll").innerText = totalAssigned;
+            document.getElementById("tabCountOut").innerText = pendingOut;
+            document.getElementById("tabCountDelivered").innerText = delivered;
+
+            // Filter logic
+            let displayList = assignedParcels;
+            if (currentFilter === "OUT") {
+                displayList = displayList.filter(p => (p.status || "").includes("Out for Delivery"));
+            } else if (currentFilter === "DELIVERED") {
+                displayList = displayList.filter(p => (p.status || "").includes("Delivered"));
+            }
+
+            // Search query filter
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase().trim();
+                displayList = displayList.filter(p => 
+                    (p.trackingNo || "").toLowerCase().includes(q) ||
+                    (p.name || "").toLowerCase().includes(q) ||
+                    (p.city || "").toLowerCase().includes(q) ||
+                    (p.package || "").toLowerCase().includes(q)
+                );
+            }
+
+            // Empty state if no parcels
+            if (totalAssigned === 0) {
+                container.innerHTML = `
+                    <div class="empty-runsheet-box">
+                        <div style="font-size: 42px; margin-bottom: 12px;">📋</div>
+                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-title); margin-bottom: 6px;">
+                            No Consignments Assigned to Your Run-Sheet Yet
+                        </h3>
+                        <p style="font-size: 12.5px; color: var(--text-muted); max-width: 460px; margin: 0 auto 16px auto; line-height: 1.5;">
+                            Consignments are assigned by the Branch Dispatcher during sorting at the Lipa City Hub.
+                        </p>
+                        <button type="button" class="btn-courier-primary" onclick="demoAssignNextParcel()" style="margin: 0 auto;">
+                            ⚡ Demo: Self-Assign 1 Available Out-for-Delivery Parcel
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            if (displayList.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-runsheet-box">
+                        <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+                        <h4 style="font-size: 14px; font-weight: 700; color: var(--text-title); margin-bottom: 4px;">
+                            No packages match your search filter
+                        </h4>
+                        <p style="font-size: 12px; color: var(--text-muted);">
+                            Try clearing the search or changing the filter tab above.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Render Card Items
+            container.innerHTML = displayList.map(p => {
+                const isDelivered = (p.status || "").includes("Delivered");
+                const cleanPhone = (p.phone || "").replace(/[^0-9+]/g, "");
+
+                return `
+                    <div class="driver-parcel-card ${isDelivered ? 'delivered-card' : ''}">
+                        <div class="card-top-row">
+                            <div class="card-tracking-box">
+                                <span class="card-tracking-no">${p.trackingNo}</span>
+                                <span style="font-size: 11px; background: #F1F5F9; color: #475569; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
+                                    Branch #04 Lipa
+                                </span>
+                            </div>
+
+                            <div class="card-meta-badges">
+                                <span class="cod-pill">
+                                    💵 COD: ${p.cod || '₱0.00'}
+                                </span>
+                                ${isDelivered ? `
+                                    <span style="font-size: 11px; font-weight: 800; background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; padding: 3px 9px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                        ✓ Delivered (Completed)
+                                    </span>
+                                ` : `
+                                    <span style="font-size: 11px; font-weight: 800; background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; padding: 3px 9px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                        <span class="pulse-dot" style="background: #EA580C;"></span>
+                                        Out for Delivery
+                                    </span>
+                                `}
+                            </div>
+                        </div>
+
+                        <div class="card-details-grid">
+                            <div>
+                                <div class="detail-item-label">Consignment Recipient</div>
+                                <div class="detail-item-val" style="font-size: 14.5px; font-weight: 700; color: #0F172A;">
+                                    ${p.name}
+                                </div>
+                                <div style="font-size: 12.5px; color: #64748B; margin-top: 2px; display: flex; align-items: center;">
+                                    <span>${p.phone || 'No phone provided'}</span>
+                                    ${cleanPhone ? `
+                                        <a href="tel:${cleanPhone}" class="phone-call-btn" title="Call customer on phone">
+                                            📞 Call Recipient
+                                        </a>
+                                    ` : ''}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="detail-item-label">Delivery Destination</div>
+                                <div class="detail-item-val" style="color: #1E293B;">
+                                    📍 ${p.city || 'Lipa City, Batangas'}
+                                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.city + ' Batangas')}" target="_blank" class="map-pin-btn">
+                                        Map Directions &rarr;
+                                    </a>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                                    📦 ${p.package || 'Standard Courier Package'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-action-bar">
+                            <div style="font-size: 11.5px; color: var(--text-muted);">
+                                🚚 Assigned Transport: <strong>${p.driverVehicle || driverSession.vehicleType || 'Motorcycle'}</strong>
+                            </div>
+
+                            <div>
+                                ${isDelivered ? `
+                                    <span style="font-size: 12px; font-weight: 700; color: #059669; display: inline-flex; align-items: center; gap: 6px;">
+                                        ✓ Remitted to Lipa Branch Counter
+                                    </span>
+                                ` : `
+                                    <button type="button" class="btn-deliver-action" onclick="openDeliveryProofModal('${p.trackingNo}')">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        Mark Consignment as Delivered
+                                    </button>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function setDriverFilter(filter, btn) {
+            currentFilter = filter;
+            document.querySelectorAll(".driver-tab-btn").forEach(b => b.classList.remove("active"));
+            if (btn) btn.classList.add("active");
+            renderDriverRunSheet();
+        }
+
+        function handleDriverSearch(val) {
+            searchQuery = val;
+            renderDriverRunSheet();
+        }
+
+        function openDeliveryProofModal(trackingNo) {
+            const parcel = parcelsList.find(p => p.trackingNo === trackingNo);
+            if (!parcel) return;
+
+            pendingDeliverTracking = trackingNo;
+            document.getElementById("proofModalTrackingNo").innerText = parcel.trackingNo;
+            document.getElementById("proofModalCustomerName").innerText = parcel.name;
+            document.getElementById("proofModalAddress").innerText = `📍 ${parcel.city || 'Lipa City, Batangas'}`;
+            document.getElementById("proofModalCodDisplay").value = parcel.cod || "₱0.00";
+            document.getElementById("proofModalReceivedBy").value = parcel.name;
+
+            const m = document.getElementById("driverProofModal");
+            if (m) {
+                m.style.display = "flex";
+                m.classList.remove("hidden");
+            }
+        }
+
+        function closeDriverProofModal() {
+            const m = document.getElementById("driverProofModal");
+            if (m) {
+                m.style.display = "none";
+                m.classList.add("hidden");
+            }
+            pendingDeliverTracking = null;
+        }
+
+        async function submitDeliveryProof() {
+            if (!pendingDeliverTracking) return;
+            const btn = document.getElementById("btnConfirmDeliveryProof");
+            btn.disabled = true;
+            btn.innerText = "Logging Delivery...";
+
+            const tracking = pendingDeliverTracking;
+            const parcel = parcelsList.find(p => p.trackingNo === tracking);
+
+            await updateParcelStatusRecord(
+                tracking, 
+                "Delivered", 
+                driverSession.name, 
+                driverSession.vehicleType, 
+                driverSession.uid
+            );
+
+            btn.disabled = false;
+            btn.innerText = "Confirm & Log Delivery";
+            closeDriverProofModal();
+
+            showToast(`Consignment ${tracking} marked as Delivered! COD collected: ${parcel?.cod || '₱0.00'}`);
+            renderDriverRunSheet();
+        }
+
+        async function demoAssignNextParcel() {
+            // Find first parcel with status "Out for Delivery" that is unassigned or assigned to someone else
+            const available = parcelsList.find(p => (p.status || "").includes("Out for Delivery") && (!p.assignedDriver || p.assignedDriver !== driverSession.name)) ||
+                              parcelsList.find(p => (p.status || "").includes("Hub"));
+
+            if (available) {
+                await updateParcelStatusRecord(
+                    available.trackingNo, 
+                    "Out for Delivery", 
+                    driverSession.name, 
+                    driverSession.vehicleType || "Motorcycle (Express 2-Wheeler)", 
+                    driverSession.uid
+                );
+                showToast(`Assigned ${available.trackingNo} (${available.name}) to your route!`);
+                renderDriverRunSheet();
+            } else {
+                showToast("All current branch shipments have already been assigned.");
+            }
+        }
+    </script>
+</body>
+</html>

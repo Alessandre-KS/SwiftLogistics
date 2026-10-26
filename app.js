@@ -585,11 +585,13 @@ async function signInStaff(email, password) {
                     : "Management (Branch Dispatcher)";
 
                 const totpSec = data.totpSecret || ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(clean) : "JBSWY3DPEHPK3PXP");
+                const vehicleCategory = data.vehicleType || ((roleLabel.includes("Driver") || roleLabel.includes("Rider")) ? "Motorcycle (Express 2-Wheeler)" : "");
                 const user = {
                     uid: doc.id,
                     email: clean,
                     name: data.name || "Employee",
                     role: roleLabel,
+                    vehicleType: vehicleCategory,
                     totpSecret: totpSec
                 };
                 localStorage.setItem("swift_session_user", JSON.stringify(user));
@@ -618,13 +620,14 @@ async function signInStaff(email, password) {
     if (matched) {
         if (matched.status === "active" || matched.verified === true) {
             const totpSec = matched.totpSecret || ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(clean) : "JBSWY3DPEHPK3PXP");
+            const isDriv = matched.role && (matched.role.toLowerCase().includes("driver") || matched.role === "rider");
+            const vehicleCategory = matched.vehicleType || (isDriv ? "Motorcycle (Express 2-Wheeler)" : "");
             const user = {
                 uid: matched.id || ("usr_" + clean.split("@")[0]),
                 email: clean,
                 name: matched.name,
-                role: (matched.role && (matched.role.toLowerCase().includes("driver") || matched.role === "rider"))
-                    ? "Driver (Delivery Courier Rider)" 
-                    : "Management (Branch Dispatcher)",
+                role: isDriv ? "Driver (Delivery Courier Rider)" : "Management (Branch Dispatcher)",
+                vehicleType: vehicleCategory,
                 totpSecret: totpSec
             };
             localStorage.setItem("swift_session_user", JSON.stringify(user));

@@ -1,161 +1,112 @@
-# SwiftLogistics Hub
+# 🚚 SwiftLogistics Hub
 
-> **Regional Courier Dispatch & Delivery Management System for Philippine MSMEs**  
-> *Fortified with Built-In Zero-Trust RFC 6238 TOTP Multi-Factor Authentication & TripwireJS Automated Breach Containment Engine*  
-> *Strict Compliance with Republic Act 10173 (Data Privacy Act of 2012) & National Privacy Commission (NPC) Circular 16-03*
-
----
-
-## 1. Executive Summary & Problem Rationale
-
-In the Philippines, Micro, Small, and Medium Enterprises (MSMEs) represent 99.5% of all registered businesses, serving as the economic backbone of regional supply chains and e-commerce logistics. Regional courier sorting facilities and branch dispatch desks handle thousands of daily parcels containing sensitive customer Personally Identifiable Information (PII)—including recipient names, physical home addresses, contact numbers, and Cash on Delivery (COD) amounts.
-
-However, commercial logistics and Enterprise Resource Planning (ERP) platforms with enterprise-grade cybersecurity (such as CrowdStrike, AWS WAF, or Palo Alto Networks) are prohibitively expensive for local courier operators, often starting at $500–$2,000 per month. Consequently, regional courier branches operate with minimal digital defense, exposing them to credential phishing, session hijacking, and automated scraping.
-
-Under **Republic Act 10173 (Data Privacy Act of 2012)** and **NPC Circular 16-03**, logistics providers are legally classified as Personal Information Controllers (PICs). Failure to protect consumer PII or report an active personal data breach within 72 hours results in administrative penalties of up to ₱5,000,000 and criminal imprisonment.
-
-**SwiftLogistics Hub** solves this operational and legal crisis by delivering an enterprise-grade Courier Dispatch & Delivery Management Hub that integrates a **dual-layer zero-trust security engine** with **₱0.00 Total Cost of Ownership (TCO)**, operating completely within Google Cloud Platform's free tier.
+> **A Regional Courier Dispatch & Delivery Management System with Automated Zero-Trust Cybersecurity**  
+> *Built for Philippine MSME logistics • 100% Free Tier (₱0.00 infrastructure cost) on Google Cloud Platform*  
+> *Compliant with the Philippine Data Privacy Act of 2012 (RA 10173) & NPC Circular 16-03*
 
 ---
 
-## 2. System Architecture & Component Hierarchy
+## 📌 What is SwiftLogistics Hub?
 
-SwiftLogistics Hub operates as the flagship operational platform, backed by a dual-tier security subsystem:
+Regional couriers and delivery branches handle sensitive customer data every day (names, phone numbers, home addresses, and cash-on-delivery amounts). However, commercial enterprise cybersecurity tools cost thousands of dollars per month—leaving local couriers vulnerable to credential theft, account hijacking, and automated customer data scraping.
 
-```
-                                  GOOGLE CLOUD FIRESTORE
-                                (swiftlogistics-hub-9821)
-                                            │
-                    ┌───────────────────────┴───────────────────────┐
-                    ▼                                               ▼
-         SWIFTLOGISTICS HUB                                     TRIPWIREJS
-    Flagship Courier Dispatch System                      Owner Security Console (SOC)
- https://swiftlogistics-hub-9821.web.app           https://tripwirejs-capstone-9821.web.app
- ┌──────────────────────────────────────┐          ┌──────────────────────────────────────┐
- │ • Core Delivery Operations Terminal  │          │ • Administrative Threat Telemetry    │
- │ • Personal Information Controller    │          │ • Central Security Governance        │
- │ • Left-Sidebar Logistics Navigation  │          │ • Real-Time Burst Velocity Gauge     │
- │ • Barcode & Consignment Waybills     │          │ • Remote Kill-Switch & Account Reset │
- │ • Pre-Auth: RFC 6238 TOTP MFA Engine │          │ • NPC Section 20 Compliance Dossier  │
- │ • Post-Auth: TripwireJS Sentry SDK   │          │ • Zero-AI Tells (Dark SOC Aesthetic) │
- │ • Decoy Canary Trap (TRK-0000)       │          │ • Tamper-Proof Threat Audit Log      │
- └──────────────────────────────────────┘          └──────────────────────────────────────┘
+**SwiftLogistics Hub** solves this by providing a complete, role-separated logistics management system with built-in cybersecurity at zero operational cost:
+- 🏢 **Role Separation**: Dedicated hubs for **Branch Management** (desktop dispatch counter) and **Delivery Drivers** (mobile-friendly transit run-sheet).
+- 🔐 **Pre-Auth Protection**: RFC 6238 Multi-Factor Authentication (compatible with Google Authenticator).
+- 🛡️ **Post-Auth Defense**: **TripwireJS** automated sentry that detects scraping and severs compromised sessions in under 18 milliseconds.
+
+---
+
+## 🌐 The 3 Portals at a Glance
+
+| Portal | Intended User | Live Link | Key Capabilities |
+| :--- | :--- | :--- | :--- |
+| **🏢 Branch Dispatch Desk** | Dispatchers & Counter Clerks | [Launch Dispatch Desk](https://swiftlogistics-hub-9821.web.app/index.html) | • Manifest new waybills (`manifest.html`)<br>• Sort packages by status (Hub Sorting, Out for Delivery, Delivered)<br>• Assign shipments to Motorcycle or Cargo Truck couriers<br>• Customer phone number masking (RA 10173) |
+| **🛵 Driver Transit Hub** | Delivery Riders & Truck Drivers | [Launch Driver Run-Sheet](https://swiftlogistics-hub-9821.web.app/driver.html) | • Mobile-first run-sheet of assigned stops<br>• 1-tap `📞 Call Recipient` & `📍 Map Directions`<br>• 1-tap **"✓ Mark Consignment as Delivered"** & POD logging<br>• Real-time Cash on Delivery (COD) collection tracking |
+| **🛡️ Owner Security Console (SOC)** | Business Owner (Bossing Jeff) | [Launch SOC Console](https://tripwirejs-capstone-9821.web.app) | • Approve/reject prospective staff registration requests<br>• View employee 2FA Authenticator QR codes & delete accounts<br>• Real-time query velocity gauge & canary honeypot (`TRK-0000`)<br>• Instant cloud kill-switch & pre-filled NPC 72-Hour Breach Forensic Report |
+
+---
+
+## 🔄 How the System Works (End-to-End)
+
+```mermaid
+flowchart LR
+    A["1. Staff Registers<br/>(login.html)"] --> B["2. Owner Approves<br/>(TripwireJS SOC)"]
+    B --> C["3. Staff Scans 2FA QR<br/>(Google Authenticator)"]
+    C --> D{"4. Role-Based Routing"}
+    D -->|Management| E["🏢 index.html<br/>(Dispatch & Manifest Counter)"]
+    D -->|Driver / Rider| F["🛵 driver.html<br/>(Driver Delivery Run-Sheet)"]
 ```
 
-### Component Overview
-- **SwiftLogistics Hub (Root: [`index.html`](file:///w:/IAS%20CAPSTONE/index.html) & [`login.html`](file:///w:/IAS%20CAPSTONE/login.html))**:
-  - The primary operational courier application for branch clerks, dispatchers, and delivery riders.
-  - Manages parcels, active shipments, consignment notes, delivery routes, and COD collections across Batangas province.
-  - Implements **Pre-Authentication RFC 6238 TOTP Multi-Factor Authentication** to prevent unauthorized access from stolen passwords or headless API bots.
-  - Embeds the **TripwireJS Sentry SDK** to detect and block post-authentication scraping in under 18 milliseconds.
-- **TripwireJS Security Operations Console ([`TripwireJS/`](file:///w:/IAS%20CAPSTONE/TripwireJS))**:
-  - The business owner (Bossing Jeff) administrative portal.
-  - Monitors real-time query velocities, contains compromised employee accounts via Cloud Firestore Security Rules, and pre-fills NPC 72-Hour Breach Forensic reports.
+1. **Staff Onboarding**: A staff member registers on `login.html` with their corporate email, mobile number, role, and vehicle category (Motorcycle Express or Cargo Truck Heavy).
+2. **Owner Approval**: Bossing Jeff verifies the registration on the Owner Console (`TripwireJS`), provisioning the account into Cloud Firestore `/staff`.
+3. **2FA Enrollment & Login**: The staff member enters their password, scans their unique QR code into Google Authenticator, and inputs the 6-digit TOTP code.
+4. **Role-Based Workspaces**:
+   - **Dispatchers** land on `index.html` to book parcels and assign shipments to riders.
+   - **Drivers** land on `driver.html` to see only their assigned stops and record completed deliveries.
 
 ---
 
-## 3. Flagship Delivery Hub Features
+## 🛡️ Built-In Cybersecurity Features (Plain English)
 
-### A. Regional Logistics Operations Desk
-- **Branch #04 Intranet**: Tailored for regional dispatch hubs (Lipa City Sorting Facility, Batangas).
-- **Consignment Waybill Manifest**: Real-time tabular tracking of customer consignments, delivery riders, Batangas municipalities, package descriptions, and COD balances.
-- **Track & Trace Barcode Scanner**: Barcode-scanner styled input for rapid package lookups.
-- **Dynamic 4-Stage Delivery Timeline**:
-  1. *Manifested* (Received at Hub)
-  2. *Sorting Center* (Passed regional sorting)
-  3. *With Courier* (Out for delivery with assigned rider)
-  4. *Delivered & Signed* (Recipient confirmed)
-- **RA 10173 PII Masking**: Customer telephone numbers are strictly masked on all operational displays (e.g. `0917-***-1146`) to safeguard consignee data against visual theft.
+### 1. Two-Factor Authentication (2FA / TOTP)
+- Uses the industry-standard **RFC 6238** algorithm with a 30-second rotating window.
+- Compatible with **Google Authenticator**, **Microsoft Authenticator**, and **Authy**.
+- Neutralizes stolen passwords and automated bots before they can access company data.
 
-### B. Pre-Authentication Defense: RFC 6238 TOTP Multi-Factor Authentication
-To neutralize credential stuffing, phishing, and headless terminal API scripts, all staff counter sessions mandate Time-based One-Time Password (TOTP) verification:
-- **RFC 6238 Standard**: Utilizes native Web Crypto HMAC-SHA1 with a 30-second timestep and 6-digit dynamic truncation.
-- **Universal Authenticator Compatibility**: Synchronizes natively with **Google Authenticator**, **Microsoft Authenticator**, and **Authy** via standard `otpauth://` QR code enrollment.
-- **Clock Drift Tolerance**: Evaluates token validity across a $\pm 30$-second window ($t_{-1}, t_0, t_{+1}$) to absorb real-world mobile device clock discrepancies.
-- **Headless Script Immunity**: Even if an attacker steals Maria Santos's email and password (`maria.santos@swiftlogistics.ph` / `password123`), a headless Python script or `curl` loop cannot generate valid Firebase session credentials without the physical smartphone token.
+### 2. TripwireJS Automated Breach Containment
+- **Velocity Rate Limiting**: If an account requests more than 30 queries in 5 seconds (indicating an automated scraper or compromised session), TripwireJS blocks the browser in ~18ms.
+- **Honeypot Decoy (`TRK-0000`)**: A synthetic waybill is planted in the database. Anyone querying it is instantly identified as an attacker.
+- **Zero-Cost Cloud Kill-Switch**: Compromised accounts are automatically quarantined via Cloud Firestore Security Rules, cutting off database access worldwide without requiring a backend server.
 
-### C. Post-Authentication Defense: TripwireJS Sentry Engine
-If an authenticated device is hijacked in-session (via XSS or rogue operator misuse), TripwireJS monitors behavioral velocity and canary boundaries:
-- **Layer-7 Pre-Flight Velocity Gate**: Enforces a sliding-window rate limit (30 queries / 5 seconds). Excess velocity triggers local execution termination in ~18ms before network packets are dispatched to Google Cloud, preserving free-tier read quotas.
-- **Honeypot Decoy Canary Trap (`TRK-0000`)**: A synthetic waybill (`TRK-0000`) is planted inside the `/parcels` collection. Any automated query targeting it trips the sentry on Request #1.
-- **0ms Edge Cloud Kill-Switch**: Compromised accounts have their `/staff/{uid}.status` flipped to `quarantined`. Cloud Firestore Security Rules evaluate `isNotQuarantined()`, severing database access across all Google Cloud nodes worldwide with zero server compute required.
-- **"Rules Are Not Filters" Bulk Scraper Block**: Because `TRK-0000` is denied by rule, naive bulk collection queries (`collection.get()`) are rejected in full with `PERMISSION_DENIED`, returning zero customer records.
+### 3. Data Privacy Compliance (RA 10173)
+- **Principle of Least Privilege**: Drivers only see the packages on their delivery route, not the entire branch customer directory.
+- **Customer PII Masking**: Customer contact numbers are automatically masked (`0917-***-1146`) to prevent visual shoulder-surfing.
 
 ---
 
-## 4. Live Deployments
+## 🎯 Capstone Defense Demonstration Guide
 
-| System | Role | Live URL |
-| :--- | :--- | :--- |
-| **SwiftLogistics Hub (Login & TOTP)** | Primary Courier Access Gateway | https://swiftlogistics-hub-9821.web.app/login.html |
-| **SwiftLogistics Hub (Terminal Desk)** | Branch Courier Operations Intranet | https://swiftlogistics-hub-9821.web.app |
-| **TripwireJS Security Console** | Owner Security Operations Center (SOC) | https://tripwirejs-capstone-9821.web.app |
-| **GitHub Remote Repository** | Source Code & Version Control | https://github.com/Alessandre-KS/TripwireJS |
+Follow this 5-minute walkthrough to demonstrate the system to your panel:
 
----
-
-## 5. Academic Defense Demonstration Workflow
-
-To demonstrate SwiftLogistics Hub during your capstone defense presentation, open both portals side-by-side:
-
-```
-┌──────────────────────────────────────────────┐  ┌──────────────────────────────────────────────┐
-│ TAB 1: SWIFTLOGISTICS HUB                    │  │ TAB 2: TRIPWIREJS OWNER CONSOLE              │
-│ https://swiftlogistics-hub-9821.web.app      │  │ https://tripwirejs-capstone-9821.web.app     │
-└──────────────────────────────────────────────┘  └──────────────────────────────────────────────┘
-```
-
-1. **Demonstrate Courier Operations & Zero-Trust TOTP Login**:
-   - Open Tab 1 and navigate to `/login.html`.
-   - Select **Maria Santos (Dispatcher)** to autofill credentials.
-   - Point out to the panel: *"Even with valid credentials, access is gated by our Pre-Authentication RFC 6238 TOTP engine."*
-   - Click **Scan QR Code** and invite an examiner to scan it with their phone's **Google Authenticator**, or click **Quick-Fill** to show live code verification.
-   - Access the main Dispatcher Desk and perform normal human parcel lookups (e.g. `TRK-1001`, `TRK-1002`) to demonstrate 0ms added overhead.
-2. **Demonstrate Store Health**:
-   - Open Tab 2 to show the owner's dashboard at `100% STORE HEALTH SAFE` with zero active anomalies.
-3. **Simulate Scraper Attack**:
-   - In Tab 1, run an automated scraper loop or search for the decoy canary `TRK-0000`.
-4. **Observe Automated Containment**:
-   - In Tab 1, at Query #31 (or Request #1 on the canary), the screen locks instantly with:  
-     `🚫 401 UNAUTHORIZED: SESSION REVOKED BY TRIPWIREJS`  
-     *Account quarantined across Google Cloud in 18ms.*
-   - In Tab 2, Bossing Jeff's SOC console reflects the containment in real time: 31 records isolated, 4,969 preserved safe (99.38%), and the pre-filled NPC Circular 16-03 72-Hour Breach Report generated for export.
-5. **Administrative Recovery**:
-   - In Tab 2, click **Re-activate Maria Santos** to clear the quarantine flag and restore branch operations.
+1. **Show Driver & Dispatcher Separation**:
+   - Log in as **Bossing Jeff** or a Dispatcher $\rightarrow$ lands on the **Dispatch Counter** (`index.html`) to show waybill creation and dispatching.
+   - Log in as a **Driver** $\rightarrow$ automatically routes to the **Driver Transit Hub** (`driver.html`) showing active stops and 1-tap "Mark Delivered".
+2. **Show Staff Registration & Owner Approval**:
+   - On `login.html`, click **"Register as New Staff"**, enter test details, and submit.
+   - On the **Owner SOC Console**, show the new request appearing in the **Pending Registrations** queue. Click **Verify & Approve** to generate their authenticator QR code.
+3. **Show Automated Attack Containment**:
+   - On the Dispatch Desk, perform a burst lookup or query the decoy tracking number (`TRK-0000`).
+   - Observe the instant session revocation (`🚫 Session Terminated by TripwireJS`).
+   - Switch to the Owner SOC Console: show the breach alert, the 99%+ data preservation rate, and the pre-filled NPC 72-Hour Breach Forensic Report.
+4. **Recover Account**:
+   - On the Owner Console, click **Re-activate Staff** to restore access immediately.
 
 ---
 
-## 6. Repository Structure
+## 📁 Repository Structure
 
-```
-├── .gitignore                                 # Git ignore configuration
-├── README.md                                  # Flagship project documentation & threat model
-├── index.html                                 # [MAIN PRODUCT] Dispatch terminal desk (Sidebar layout)
-├── login.html                                 # Zero-trust TOTP MFA challenge login
-├── app.js                                     # Courier operations & Firestore integration
-├── totp.js                                    # Native RFC 6238 Web Crypto TOTP engine
-├── style.css                                  # Cargo freight design system
-├── firestore.rules                            # Production Layer-7 edge security rules
-├── firebase.json                              # Hosting headers & caching configuration
-├── .firebaserc                                # Firebase project configuration (swiftlogistics-hub-9821)
-├── vendor/
-│   └── tripwire.js                            # Embedded TripwireJS Sentry SDK
-│
-└── TripwireJS/                                # [SECURITY SUBSYSTEM] Owner SOC Console
-    ├── index.html                             # Owner security console (Dark SOC layout)
-    ├── app.js                                 # Forensic telemetry & audit logger
-    ├── totp.js                                # TOTP policy monitor
-    ├── style.css                              # Dark cyber console styling
-    ├── tripwire.js                            # Standalone TripwireJS engine
-    ├── firestore.rules                        # Threat log tamper-proof rules
-    ├── firestore.indexes.json                 # Composite Firestore indexes
-    ├── firebase.json                          # Hosting configuration
-    └── .firebaserc                            # Firebase project configuration (tripwirejs-capstone-9821)
+```text
+├── index.html            # Management Dispatch Terminal (Waybill tracking, sorting, fleet dispatch)
+├── manifest.html         # Counter Waybill Encoder (Printable consignment notes & barcode generation)
+├── driver.html           # Dedicated Driver Transit Terminal (Mobile-friendly route run-sheet & POD)
+├── login.html            # Two-Factor Authentication gateway (Google Authenticator TOTP verification)
+├── app.js                # Core logistics logic, Firestore sync, and role-based session management
+├── totp.js               # Standalone RFC 6238 TOTP Web Crypto implementation
+├── style.css             # Courier freight design system
+├── firestore.rules       # Cloud Firestore security rules (Role validation & kill-switch)
+├── firebase.json         # Firebase Hosting configuration & caching headers
+└── TripwireJS/           # Owner SOC Security Console (Telemetry, quarantine kill-switch, approvals)
+    ├── index.html        # SOC Dark-mode command console
+    ├── app.js            # Threat logging, forensic telemetry & staff account management
+    ├── firestore.rules   # Security rules for threat logs and owner operations
+    └── tripwire.js       # TripwireJS Layer-7 Sentry & containment engine
 ```
 
 ---
 
-## 7. License & Academic Attribution
-
-Developed for academic research and capstone defense at the University of Batangas - Lipa City (UB-Lipa CITEC) under the Bachelor of Science in Information Technology (BSIT) program.
-All rights reserved under Republic Act 10173 and applicable intellectual property guidelines.
+## 🎓 Academic Attribution & Credits
+- **Project**: SwiftLogistics Hub (Branch #04 Regional Dispatch Desk)
+- **Institution**: University of Batangas – Lipa City (UB-Lipa CITEC)
+- **Program**: Bachelor of Science in Information Technology (BSIT)
+- **Course**: Information Assurance & Security (IAS) Capstone Project

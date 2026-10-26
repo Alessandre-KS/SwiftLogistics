@@ -74,6 +74,10 @@
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                     <span>Delivered History</span>
                 </a>
+                <a href="driver.html" class="sidebar-nav-link" style="color: #BAE6FD;">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                    <span>Courier Run-Sheet View</span>
+                </a>
 
                 <div class="menu-category-label" style="margin-top: 24px;">Security Baseline</div>
                 <div class="sidebar-sentry-box">
@@ -458,6 +462,12 @@
             const session = getStaffSession();
             if (!session) {
                 window.location.href = "login.html";
+                return;
+            }
+
+            // Role Separation: If logged-in user is a Driver/Rider, route directly to Driver Run-Sheet
+            if (session.role && (session.role.toLowerCase().includes("driver") || session.role.toLowerCase().includes("rider"))) {
+                window.location.href = "driver.html";
                 return;
             }
 

@@ -534,7 +534,11 @@
                 }
 
                 setTimeout(() => {
-                    window.location.href = "index.html";
+                    const isDriver = pendingUser && pendingUser.role && (
+                        pendingUser.role.toLowerCase().includes("driver") || 
+                        pendingUser.role.toLowerCase().includes("rider")
+                    );
+                    window.location.href = isDriver ? "driver.html" : "index.html";
                 }, 400);
             } else {
                 failedAttempts++;
