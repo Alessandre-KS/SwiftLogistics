@@ -451,6 +451,69 @@
             updateLiveSticker();
         });
 
+        let activeGeocodeScript = null;
+        let geocodeDebounceTimer = null;
+
+        /**
+         * Real-Time Street & Purok Resolver via OpenStreetMap JSONP
+         */
+        function reverseGeocodeWithStreet(lat, lng, callback) {
+            const cbName = "_osm_rev_" + Math.floor(Math.random() * 1000000);
+            
+            if (activeGeocodeScript && activeGeocodeScript.parentNode) {
+                activeGeocodeScript.parentNode.removeChild(activeGeocodeScript);
+            }
+
+            const timer = setTimeout(() => {
+                delete window[cbName];
+                if (script.parentNode) script.parentNode.removeChild(script);
+                callback(null);
+            }, 3500);
+
+            window[cbName] = function (data) {
+                clearTimeout(timer);
+                delete window[cbName];
+                if (script.parentNode) script.parentNode.removeChild(script);
+
+                if (!data || !data.address) {
+                    callback(null);
+                    return;
+                }
+
+                const addr = data.address;
+                const road = addr.road || addr.pedestrian || addr.street || addr.amenity || "";
+                const purok = addr.neighbourhood || addr.suburb || addr.quarter || addr.village || addr.city_district || "";
+                const city = addr.city || addr.town || addr.municipality || "Lipa City";
+                const state = addr.state || "Batangas";
+                const fullCity = city.includes("Batangas") ? city : `${city}, ${state}`;
+
+                let streetPurok = "";
+                if (road && purok) {
+                    streetPurok = `${road}, ${purok.startsWith("Brgy.") ? purok : (purok.toLowerCase().includes("purok") || purok.toLowerCase().includes("sitio") ? purok : "Brgy. " + purok)}`;
+                } else if (road) {
+                    streetPurok = road;
+                } else if (purok) {
+                    streetPurok = purok.startsWith("Brgy.") ? purok : "Brgy. " + purok;
+                } else {
+                    streetPurok = "Pinned Waypoint";
+                }
+
+                callback({
+                    road: road,
+                    purok: purok,
+                    city: fullCity,
+                    streetPurok: streetPurok,
+                    displayName: data.display_name
+                });
+            };
+
+            const script = document.createElement("script");
+            script.src = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&json_callback=${cbName}`;
+            script.async = true;
+            activeGeocodeScript = script;
+            document.body.appendChild(script);
+        }
+
         function onCityOrBarangayChange() {
             customPinnedCoords = null;
             updateLiveSticker();
@@ -461,60 +524,10 @@
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
 
-            const nearest = (typeof findNearestPreset === "function") 
-                ? findNearestPreset(lat, lng) 
-                : { name: "Lipa City Area", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
-
-            if (isManualPin) {
-                const currentBgy = document.getElementById("inputBarangay")?.value.trim() || "";
-                const currentCity = document.getElementById("inputCity")?.value || "Lipa City, Batangas";
-
-                customPinnedCoords = { 
-                    lat, 
-                    lng, 
-                    distanceKm: dist, 
-                    city: currentCity, 
-                    barangay: currentBgy || nearest.barangay 
-                };
-
-                // 1. Update Top Orange Destination Bar with User Address + Exact High-Precision GPS
-                const routeDestEl = document.getElementById("routePreviewDest");
-                if (routeDestEl) {
-                    const displayDest = currentBgy ? `${currentBgy}, ${currentCity}` : nearest.name;
-                    routeDestEl.innerHTML = `<span style="color: #0F172A; font-weight: 800;">${displayDest}</span> &bull; <span style="font-size: 11px; color: var(--courier-orange); font-family: monospace; font-weight: 700;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</span>`;
-                }
-
-                // 2. Only autofill Barangay if the field was currently blank (never overwrite user's typed input!)
-                const bgyInput = document.getElementById("inputBarangay");
-                if (bgyInput && !bgyInput.value.trim() && nearest.barangay) {
-                    bgyInput.value = nearest.barangay;
-                }
-
-                // 3. Keep Live Waybill Sticker synchronized with user's actual consignee input
-                const stickerCityEl = document.getElementById("stickerCity");
-                const stickerBarangayEl = document.getElementById("stickerBarangay");
-                if (stickerCityEl) stickerCityEl.innerText = currentCity;
-                if (stickerBarangayEl) stickerBarangayEl.innerText = currentBgy || nearest.barangay;
-            }
-
+            // 1. Immediately update pin and route line on canvas
             if (destMarker) {
-                const currentBgy = document.getElementById("inputBarangay")?.value.trim() || "";
-                const currentCity = document.getElementById("inputCity")?.value || "Lipa City, Batangas";
-                const displayTitle = currentBgy ? `${currentBgy}, ${currentCity}` : nearest.name;
-
                 destMarker.setLatLng([lat, lng]);
-                destMarker.setPopupContent(`
-                    <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Pinned Consignment Drop-Off</div>
-                    <div style="font-size: 12px; font-weight: 700; color: #0F172A;">${displayTitle}</div>
-                    <div style="font-size: 11px; color: var(--courier-orange); font-family: monospace; font-weight: 700; margin-top: 2px;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
-                    <div style="font-size: 10.5px; color: #475569; font-weight: 600; margin-top: 2px;">⚡ ${dist} km from UB Lipa Central Hub</div>
-                    <div style="font-size: 9.5px; color: #64748B; margin-top: 3px;">(Exact waypoint saved for courier route navigation)</div>
-                `);
-                if (isManualPin) {
-                    destMarker.openPopup();
-                }
             }
-
             if (routePolyline) {
                 routePolyline.setLatLngs([[hubLat, hubLng], [lat, lng]]);
             }
@@ -529,9 +542,85 @@
                     : `⚡ Est. Distance: <strong>${dist} km</strong> from Hub`;
             }
             if (mapDistEl) mapDistEl.innerText = `${dist} km`;
-            if (mapDestEl && isManualPin) {
-                const currentBgy = document.getElementById("inputBarangay")?.value.trim() || "";
-                mapDestEl.innerText = `${currentBgy || 'Exact Pin'} (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
+
+            if (isManualPin) {
+                // Immediate feedback while resolving exact street/purok
+                const routeDestEl = document.getElementById("routePreviewDest");
+                if (routeDestEl) {
+                    routeDestEl.innerHTML = `<span style="color: #64748B;">📍 Resolving exact street & purok...</span> &bull; <span style="font-size: 11px; color: var(--courier-orange); font-family: monospace;">(${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E)</span>`;
+                }
+
+                // Debounce high-precision reverse-geocoding (street + purok)
+                clearTimeout(geocodeDebounceTimer);
+                geocodeDebounceTimer = setTimeout(() => {
+                    reverseGeocodeWithStreet(lat, lng, (result) => {
+                        let finalStreetPurok = "";
+                        let finalCity = "Lipa City, Batangas";
+
+                        if (result && result.streetPurok) {
+                            finalStreetPurok = result.streetPurok;
+                            finalCity = result.city;
+                        } else {
+                            const nearest = (typeof findNearestPreset === "function") 
+                                ? findNearestPreset(lat, lng) 
+                                : { name: "Lipa City Area", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
+                            finalStreetPurok = nearest.barangay || nearest.name;
+                            finalCity = nearest.city || "Lipa City, Batangas";
+                        }
+
+                        // 1. UPDATE TOP ORANGE DESTINATION BAR WITH EXACT STREET & PUROK!
+                        if (routeDestEl) {
+                            routeDestEl.innerHTML = `<span style="color: #0F172A; font-weight: 800;">${finalStreetPurok}, ${finalCity}</span> &bull; <span style="font-size: 11px; color: var(--courier-orange); font-family: monospace; font-weight: 700;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</span>`;
+                        }
+
+                        // 2. UPDATE FORM INPUT BARANGAY WITH EXACT STREET / PUROK!
+                        const bgyInput = document.getElementById("inputBarangay");
+                        if (bgyInput) {
+                            bgyInput.value = finalStreetPurok;
+                        }
+
+                        // 3. SYNC CITY DROPDOWN
+                        const citySelect = document.getElementById("inputCity");
+                        if (citySelect) {
+                            for (let i = 0; i < citySelect.options.length; i++) {
+                                if (finalCity.toLowerCase().includes(citySelect.options[i].value.toLowerCase().split(",")[0].trim())) {
+                                    citySelect.selectedIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 4. SYNC LIVE THERMAL WAYBILL STICKER
+                        const stickerCityEl = document.getElementById("stickerCity");
+                        const stickerBarangayEl = document.getElementById("stickerBarangay");
+                        if (stickerCityEl) stickerCityEl.innerText = citySelect ? citySelect.value : finalCity;
+                        if (stickerBarangayEl) stickerBarangayEl.innerText = finalStreetPurok;
+
+                        if (mapDestEl) {
+                            mapDestEl.innerText = `${finalStreetPurok} (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
+                        }
+
+                        // 5. UPDATE MARKER POPUP WITH PRECISE STREET & PUROK
+                        if (destMarker) {
+                            destMarker.setPopupContent(`
+                                <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Pinned Consignment Destination</div>
+                                <div style="font-size: 12px; font-weight: 700; color: #0F172A;">${finalStreetPurok}</div>
+                                <div style="font-size: 11px; color: #475569;">${finalCity}</div>
+                                <div style="font-size: 11px; color: var(--courier-orange); font-family: monospace; font-weight: 700; margin-top: 2px;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                                <div style="font-size: 10.5px; color: #059669; font-weight: 700; margin-top: 3px;">⚡ ${dist} km from UB Lipa Central Hub</div>
+                            `).openPopup();
+                        }
+
+                        // Save accurate coordinates and street details
+                        customPinnedCoords = { 
+                            lat, 
+                            lng, 
+                            distanceKm: dist, 
+                            city: citySelect ? citySelect.value : finalCity, 
+                            barangay: finalStreetPurok 
+                        };
+                    });
+                }, 120);
             }
         }
 
