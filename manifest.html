@@ -466,56 +466,49 @@
                 : { name: "Lipa City Area", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
 
             if (isManualPin) {
+                const currentBgy = document.getElementById("inputBarangay")?.value.trim() || "";
+                const currentCity = document.getElementById("inputCity")?.value || "Lipa City, Batangas";
+
                 customPinnedCoords = { 
                     lat, 
                     lng, 
                     distanceKm: dist, 
-                    city: nearest.city, 
-                    barangay: nearest.barangay 
+                    city: currentCity, 
+                    barangay: currentBgy || nearest.barangay 
                 };
 
-                // 1. Update Top Orange Destination Bar immediately!
+                // 1. Update Top Orange Destination Bar with User Address + Exact High-Precision GPS
                 const routeDestEl = document.getElementById("routePreviewDest");
                 if (routeDestEl) {
-                    routeDestEl.innerHTML = `<span style="color: #0F172A; font-weight: 800;">${nearest.name}</span> <span style="font-size: 10px; color: var(--courier-orange); font-family: monospace;">(${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E)</span>`;
+                    const displayDest = currentBgy ? `${currentBgy}, ${currentCity}` : nearest.name;
+                    routeDestEl.innerHTML = `<span style="color: #0F172A; font-weight: 800;">${displayDest}</span> &bull; <span style="font-size: 11px; color: var(--courier-orange); font-family: monospace; font-weight: 700;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</span>`;
                 }
 
-                // 2. Synchronize Input Fields to reflect pinned spot
+                // 2. Only autofill Barangay if the field was currently blank (never overwrite user's typed input!)
                 const bgyInput = document.getElementById("inputBarangay");
-                if (bgyInput && nearest.barangay) {
+                if (bgyInput && !bgyInput.value.trim() && nearest.barangay) {
                     bgyInput.value = nearest.barangay;
                 }
-                const citySelect = document.getElementById("inputCity");
-                if (citySelect && nearest.city) {
-                    citySelect.value = nearest.city;
-                }
 
-                // 3. Synchronize Live Thermal Waybill Sticker on right pane
+                // 3. Keep Live Waybill Sticker synchronized with user's actual consignee input
                 const stickerCityEl = document.getElementById("stickerCity");
                 const stickerBarangayEl = document.getElementById("stickerBarangay");
-                if (stickerCityEl) stickerCityEl.innerText = nearest.city || "Lipa City, Batangas";
-                if (stickerBarangayEl) stickerBarangayEl.innerText = nearest.barangay || "Pinned Location";
-
-                // Update Sort Code
-                let sortCode = "LIP-04-A";
-                const c = (nearest.city || "").toLowerCase();
-                if (c.includes("tanauan")) sortCode = "TAN-02-B";
-                else if (c.includes("malvar")) sortCode = "MAL-01-A";
-                else if (c.includes("tomas")) sortCode = "STO-03-C";
-                else if (c.includes("san jose")) sortCode = "SJO-05-A";
-                else if (c.includes("batangas city")) sortCode = "BAT-01-M";
-                const sortEl = document.getElementById("stickerSortCode");
-                if (sortEl) sortEl.innerText = sortCode;
+                if (stickerCityEl) stickerCityEl.innerText = currentCity;
+                if (stickerBarangayEl) stickerBarangayEl.innerText = currentBgy || nearest.barangay;
             }
 
             if (destMarker) {
+                const currentBgy = document.getElementById("inputBarangay")?.value.trim() || "";
+                const currentCity = document.getElementById("inputCity")?.value || "Lipa City, Batangas";
+                const displayTitle = currentBgy ? `${currentBgy}, ${currentCity}` : nearest.name;
+
                 destMarker.setLatLng([lat, lng]);
                 destMarker.setPopupContent(`
-                    <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Pinned Consignment Destination</div>
-                    <div style="font-size: 11.5px; font-weight: 700; color: #0F172A;">${nearest.name}</div>
-                    <div style="font-size: 10.5px; color: #475569; margin-top: 1px;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
-                    <div style="font-size: 10.5px; color: #EA580C; font-weight: 700; margin-top: 3px;">⚡ ${dist} km from UB Lipa Hub</div>
-                    <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">(Drag pin or click map anytime to fine-tune)</div>
+                    <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Pinned Consignment Drop-Off</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #0F172A;">${displayTitle}</div>
+                    <div style="font-size: 11px; color: var(--courier-orange); font-family: monospace; font-weight: 700; margin-top: 2px;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                    <div style="font-size: 10.5px; color: #475569; font-weight: 600; margin-top: 2px;">⚡ ${dist} km from UB Lipa Central Hub</div>
+                    <div style="font-size: 9.5px; color: #64748B; margin-top: 3px;">(Exact waypoint saved for courier route navigation)</div>
                 `);
                 if (isManualPin) {
                     destMarker.openPopup();
@@ -537,7 +530,8 @@
             }
             if (mapDistEl) mapDistEl.innerText = `${dist} km`;
             if (mapDestEl && isManualPin) {
-                mapDestEl.innerText = `${nearest.name} (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
+                const currentBgy = document.getElementById("inputBarangay")?.value.trim() || "";
+                mapDestEl.innerText = `${currentBgy || 'Exact Pin'} (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
             }
         }
 
