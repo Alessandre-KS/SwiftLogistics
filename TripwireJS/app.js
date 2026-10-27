@@ -29,8 +29,8 @@ function handleNewStaffRoleChange() {
 // -----------------------------------------------------------------------------
 // 1. FIREBASE INITIALIZATION & REAL-TIME CLOUD LISTENER
 // -----------------------------------------------------------------------------
-const firebaseConfig = {
-    apiKey: "AIzaSyAtoLR9SVRQIgnFgwqQ6kPuTVA23cp0Ibw",
+const firebaseConfig = (typeof window !== "undefined" && window.FIREBASE_CONFIG) ? window.FIREBASE_CONFIG : {
+    apiKey: "YOUR_FIREBASE_API_KEY",
     authDomain: "swiftlogistics-hub-9821.firebaseapp.com",
     projectId: "swiftlogistics-hub-9821",
     storageBucket: "swiftlogistics-hub-9821.firebasestorage.app",

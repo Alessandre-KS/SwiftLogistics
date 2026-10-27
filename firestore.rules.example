@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// ==============================================================================
+// SWIFTLOGISTICS HUB — CLOUD FIRESTORE SECURITY RULES (TEMPLATE)
+// Production rules with TripwireJS Layer-7 Sentry & Cloud Kill-Switch
+// are managed locally and deployed directly via Firebase CLI.
+// ==============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny Posture
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Public Staff Directory Read for Counter Login & SOC Monitoring
+    match /staff/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Parcels Manifest Collection
+    match /parcels/{trackingNo} {
+      allow read, write: if request.auth != null && trackingNo != 'TRK-0000';
+    }
+
+    // Prospective Registrations Collection
+    match /registrations/{regId} {
+      allow read: if true;
+      allow create: if request.resource.data.status == 'pending_verification';
+      allow update, delete: if true;
+    }
+  }
+}

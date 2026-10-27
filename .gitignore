@@ -20,3 +20,10 @@ Thumbs.db
 # Documents & Presentations
 *.docx
 *.pptx
+
+# Sensitive Credentials & Live Security Rules (Kept Local for Deployment)
+firebase-config.js
+TripwireJS/firebase-config.js
+firestore.rules
+TripwireJS/firestore.rules
+
