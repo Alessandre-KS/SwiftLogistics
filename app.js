@@ -109,22 +109,45 @@ const UB_LIPA_HUB = {
 
 // Batangas Towns & Lipa Barangays GPS Lookup Table (Pure Stdlib, Offline, 0ms)
 const BATANGAS_GEO_PRESETS = {
-    "LIPA_HUB": { lat: 13.9692, lng: 121.1594, name: "UB Lipa Central Hub (Leviste Hwy)" },
-    "MARAWOY": { lat: 13.9575, lng: 121.1633, name: "Brgy. Marawoy, Lipa City" },
-    "TAMBO": { lat: 13.9430, lng: 121.1620, name: "Brgy. Tambo, Lipa City" },
-    "SABANG": { lat: 13.9392, lng: 121.1585, name: "Brgy. Sabang, Lipa City" },
-    "INOSLOBAN": { lat: 13.9740, lng: 121.1650, name: "Brgy. Inosloban, Lipa City" },
-    "BALINTAWAK": { lat: 13.9480, lng: 121.1660, name: "Brgy. Balintawak, Lipa City" },
-    "MALVAR": { lat: 14.0450, lng: 121.1570, name: "Malvar, Batangas" },
-    "TANAUAN": { lat: 14.0863, lng: 121.1500, name: "Tanauan City, Batangas" },
-    "STO_TOMAS": { lat: 14.1080, lng: 121.1415, name: "Sto. Tomas, Batangas" },
-    "BALETE": { lat: 14.0200, lng: 121.0960, name: "Balete, Batangas" },
-    "MATAASNAKAHOY": { lat: 13.9700, lng: 121.1100, name: "Mataasnakahoy, Batangas" },
-    "SAN_JOSE": { lat: 13.8680, lng: 121.1070, name: "San Jose, Batangas" },
-    "PADRE_GARCIA": { lat: 13.8780, lng: 121.2130, name: "Padre Garcia, Batangas" },
-    "ROSARIO": { lat: 13.8470, lng: 121.2050, name: "Rosario, Batangas" },
-    "BATANGAS_CITY": { lat: 13.7565, lng: 121.0583, name: "Batangas City, Batangas" }
+    "LIPA_HUB": { lat: 13.9692, lng: 121.1594, name: "UB Lipa Central Hub (Leviste Hwy)", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" },
+    "MARAWOY": { lat: 13.9575, lng: 121.1633, name: "Brgy. Marawoy, Lipa City", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" },
+    "TAMBO": { lat: 13.9430, lng: 121.1620, name: "Brgy. Tambo, Lipa City", barangay: "Brgy. Tambo", city: "Lipa City, Batangas" },
+    "SABANG": { lat: 13.9392, lng: 121.1585, name: "Brgy. Sabang, Lipa City", barangay: "Brgy. Sabang", city: "Lipa City, Batangas" },
+    "SICO": { lat: 13.9350, lng: 121.1480, name: "Brgy. Sico / Banaybanay, Lipa City", barangay: "Brgy. Sico", city: "Lipa City, Batangas" },
+    "POBLACION": { lat: 13.9405, lng: 121.1625, name: "Poblacion (Cathedral), Lipa City", barangay: "Brgy. Poblacion", city: "Lipa City, Batangas" },
+    "ANTIPOLO": { lat: 13.9510, lng: 121.1820, name: "Brgy. Antipolo del Norte, Lipa City", barangay: "Brgy. Antipolo del Norte", city: "Lipa City, Batangas" },
+    "INOSLOBAN": { lat: 13.9740, lng: 121.1650, name: "Brgy. Inosloban, Lipa City", barangay: "Brgy. Inosloban", city: "Lipa City, Batangas" },
+    "BALINTAWAK": { lat: 13.9480, lng: 121.1660, name: "Brgy. Balintawak, Lipa City", barangay: "Brgy. Balintawak", city: "Lipa City, Batangas" },
+    "MALVAR": { lat: 14.0450, lng: 121.1570, name: "Malvar, Batangas", barangay: "Poblacion, Malvar", city: "Malvar, Batangas" },
+    "TANAUAN": { lat: 14.0863, lng: 121.1500, name: "Tanauan City, Batangas", barangay: "Poblacion, Tanauan", city: "Tanauan City, Batangas" },
+    "STO_TOMAS": { lat: 14.1080, lng: 121.1415, name: "Sto. Tomas, Batangas", barangay: "Poblacion, Sto. Tomas", city: "Sto. Tomas, Batangas" },
+    "BALETE": { lat: 14.0200, lng: 121.0960, name: "Balete, Batangas", barangay: "Poblacion, Balete", city: "Balete, Batangas" },
+    "MATAASNAKAHOY": { lat: 13.9700, lng: 121.1100, name: "Mataasnakahoy, Batangas", barangay: "Poblacion, Mataasnakahoy", city: "Mataasnakahoy, Batangas" },
+    "SAN_JOSE": { lat: 13.8680, lng: 121.1070, name: "San Jose, Batangas", barangay: "Poblacion, San Jose", city: "San Jose, Batangas" },
+    "PADRE_GARCIA": { lat: 13.8780, lng: 121.2130, name: "Padre Garcia, Batangas", barangay: "Poblacion, Padre Garcia", city: "Padre Garcia, Batangas" },
+    "ROSARIO": { lat: 13.8470, lng: 121.2050, name: "Rosario, Batangas", barangay: "Poblacion, Rosario", city: "Rosario, Batangas" },
+    "BATANGAS_CITY": { lat: 13.7565, lng: 121.0583, name: "Batangas City, Batangas", barangay: "Poblacion, Batangas City", city: "Batangas City, Batangas" }
 };
+
+/**
+ * Reverse geocode / find nearest known Batangas barangay/town from GPS coordinates
+ */
+function findNearestPreset(lat, lng) {
+    if (lat == null || lng == null) return { name: "Brgy. Marawoy, Lipa City", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
+    let closest = null;
+    let minDistance = Infinity;
+
+    for (const key of Object.keys(BATANGAS_GEO_PRESETS)) {
+        if (key === "LIPA_HUB") continue;
+        const preset = BATANGAS_GEO_PRESETS[key];
+        const d = calculateDistanceKm(lat, lng, preset.lat, preset.lng);
+        if (d < minDistance) {
+            minDistance = d;
+            closest = { ...preset, distanceToPresetKm: d };
+        }
+    }
+    return closest || { name: "Lipa City Area", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
+}
 
 /**
  * Resolve coordinates for any Batangas city/barangay

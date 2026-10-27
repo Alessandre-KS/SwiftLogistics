@@ -461,17 +461,61 @@
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
 
+            const nearest = (typeof findNearestPreset === "function") 
+                ? findNearestPreset(lat, lng) 
+                : { name: "Lipa City Area", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
+
             if (isManualPin) {
-                customPinnedCoords = { lat, lng, distanceKm: dist };
+                customPinnedCoords = { 
+                    lat, 
+                    lng, 
+                    distanceKm: dist, 
+                    city: nearest.city, 
+                    barangay: nearest.barangay 
+                };
+
+                // 1. Update Top Orange Destination Bar immediately!
+                const routeDestEl = document.getElementById("routePreviewDest");
+                if (routeDestEl) {
+                    routeDestEl.innerHTML = `<span style="color: #0F172A; font-weight: 800;">${nearest.name}</span> <span style="font-size: 10px; color: var(--courier-orange); font-family: monospace;">(${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E)</span>`;
+                }
+
+                // 2. Synchronize Input Fields to reflect pinned spot
+                const bgyInput = document.getElementById("inputBarangay");
+                if (bgyInput && nearest.barangay) {
+                    bgyInput.value = nearest.barangay;
+                }
+                const citySelect = document.getElementById("inputCity");
+                if (citySelect && nearest.city) {
+                    citySelect.value = nearest.city;
+                }
+
+                // 3. Synchronize Live Thermal Waybill Sticker on right pane
+                const stickerCityEl = document.getElementById("stickerCity");
+                const stickerBarangayEl = document.getElementById("stickerBarangay");
+                if (stickerCityEl) stickerCityEl.innerText = nearest.city || "Lipa City, Batangas";
+                if (stickerBarangayEl) stickerBarangayEl.innerText = nearest.barangay || "Pinned Location";
+
+                // Update Sort Code
+                let sortCode = "LIP-04-A";
+                const c = (nearest.city || "").toLowerCase();
+                if (c.includes("tanauan")) sortCode = "TAN-02-B";
+                else if (c.includes("malvar")) sortCode = "MAL-01-A";
+                else if (c.includes("tomas")) sortCode = "STO-03-C";
+                else if (c.includes("san jose")) sortCode = "SJO-05-A";
+                else if (c.includes("batangas city")) sortCode = "BAT-01-M";
+                const sortEl = document.getElementById("stickerSortCode");
+                if (sortEl) sortEl.innerText = sortCode;
             }
 
             if (destMarker) {
                 destMarker.setLatLng([lat, lng]);
                 destMarker.setPopupContent(`
                     <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Pinned Consignment Destination</div>
-                    <div style="font-size: 11px; color: #334155;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                    <div style="font-size: 11.5px; font-weight: 700; color: #0F172A;">${nearest.name}</div>
+                    <div style="font-size: 10.5px; color: #475569; margin-top: 1px;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
                     <div style="font-size: 10.5px; color: #EA580C; font-weight: 700; margin-top: 3px;">⚡ ${dist} km from UB Lipa Hub</div>
-                    <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">(Drag pin or click map to reposition)</div>
+                    <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">(Drag pin or click map anytime to fine-tune)</div>
                 `);
                 if (isManualPin) {
                     destMarker.openPopup();
@@ -493,7 +537,7 @@
             }
             if (mapDistEl) mapDistEl.innerText = `${dist} km`;
             if (mapDestEl && isManualPin) {
-                mapDestEl.innerText = `Custom Pin (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
+                mapDestEl.innerText = `${nearest.name} (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
             }
         }
 
