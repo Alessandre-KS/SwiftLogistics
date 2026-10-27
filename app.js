@@ -93,6 +93,85 @@ try {
 }
 
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// 2. UB LIPA CENTRAL LOGISTICS HUB & GEOLOCATION SERVICE (LEAFLET / OSM READY)
+// Anchor: UB Lipa (X595+MQ6, Leviste Hwy, Lipa City, Batangas)
+// -----------------------------------------------------------------------------
+const UB_LIPA_HUB = {
+    name: "SwiftLogistics Hub #04 (UB Lipa)",
+    shortName: "UB Lipa Central Hub",
+    code: "HUB-04-LIP",
+    plusCode: "X595+MQ6",
+    address: "Leviste Hwy, Lipa City, Batangas",
+    lat: 13.9692,
+    lng: 121.1594
+};
+
+// Batangas Towns & Lipa Barangays GPS Lookup Table (Pure Stdlib, Offline, 0ms)
+const BATANGAS_GEO_PRESETS = {
+    "LIPA_HUB": { lat: 13.9692, lng: 121.1594, name: "UB Lipa Central Hub (Leviste Hwy)" },
+    "MARAWOY": { lat: 13.9575, lng: 121.1633, name: "Brgy. Marawoy, Lipa City" },
+    "TAMBO": { lat: 13.9430, lng: 121.1620, name: "Brgy. Tambo, Lipa City" },
+    "SABANG": { lat: 13.9392, lng: 121.1585, name: "Brgy. Sabang, Lipa City" },
+    "INOSLOBAN": { lat: 13.9740, lng: 121.1650, name: "Brgy. Inosloban, Lipa City" },
+    "BALINTAWAK": { lat: 13.9480, lng: 121.1660, name: "Brgy. Balintawak, Lipa City" },
+    "MALVAR": { lat: 14.0450, lng: 121.1570, name: "Malvar, Batangas" },
+    "TANAUAN": { lat: 14.0863, lng: 121.1500, name: "Tanauan City, Batangas" },
+    "STO_TOMAS": { lat: 14.1080, lng: 121.1415, name: "Sto. Tomas, Batangas" },
+    "BALETE": { lat: 14.0200, lng: 121.0960, name: "Balete, Batangas" },
+    "MATAASNAKAHOY": { lat: 13.9700, lng: 121.1100, name: "Mataasnakahoy, Batangas" },
+    "SAN_JOSE": { lat: 13.8680, lng: 121.1070, name: "San Jose, Batangas" },
+    "PADRE_GARCIA": { lat: 13.8780, lng: 121.2130, name: "Padre Garcia, Batangas" },
+    "ROSARIO": { lat: 13.8470, lng: 121.2050, name: "Rosario, Batangas" },
+    "BATANGAS_CITY": { lat: 13.7565, lng: 121.0583, name: "Batangas City, Batangas" }
+};
+
+/**
+ * Resolve coordinates for any Batangas city/barangay
+ */
+function getCityCoordinates(city = "", barangay = "") {
+    const raw = `${city} ${barangay}`.toLowerCase();
+    if (raw.includes("marawoy")) return { ...BATANGAS_GEO_PRESETS.MARAWOY };
+    if (raw.includes("tambo")) return { ...BATANGAS_GEO_PRESETS.TAMBO };
+    if (raw.includes("sabang")) return { ...BATANGAS_GEO_PRESETS.SABANG };
+    if (raw.includes("inosloban")) return { ...BATANGAS_GEO_PRESETS.INOSLOBAN };
+    if (raw.includes("balintawak")) return { ...BATANGAS_GEO_PRESETS.BALINTAWAK };
+    if (raw.includes("tanauan")) return { ...BATANGAS_GEO_PRESETS.TANAUAN };
+    if (raw.includes("malvar")) return { ...BATANGAS_GEO_PRESETS.MALVAR };
+    if (raw.includes("tomas")) return { ...BATANGAS_GEO_PRESETS.STO_TOMAS };
+    if (raw.includes("balete")) return { ...BATANGAS_GEO_PRESETS.BALETE };
+    if (raw.includes("mataasnakahoy") || raw.includes("kahoy")) return { ...BATANGAS_GEO_PRESETS.MATAASNAKAHOY };
+    if (raw.includes("san jose")) return { ...BATANGAS_GEO_PRESETS.SAN_JOSE };
+    if (raw.includes("garcia")) return { ...BATANGAS_GEO_PRESETS.PADRE_GARCIA };
+    if (raw.includes("rosario")) return { ...BATANGAS_GEO_PRESETS.ROSARIO };
+    if (raw.includes("batangas city")) return { ...BATANGAS_GEO_PRESETS.BATANGAS_CITY };
+    // Default Lipa City area
+    return { lat: 13.9575, lng: 121.1633, name: city || "Lipa City, Batangas" };
+}
+
+/**
+ * Standard Haversine distance formula (in km, 1 decimal)
+ */
+function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 0;
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c * 10) / 10;
+}
+
+/**
+ * Calculate distance from UB Lipa Central Hub to coordinate
+ */
+function getDistanceFromHub(lat, lng) {
+    return calculateDistanceKm(UB_LIPA_HUB.lat, UB_LIPA_HUB.lng, lat, lng);
+}
+
 // 2. BASELINE DATASET (AUTHENTIC BRANCH #04 MANIFEST)
 // -----------------------------------------------------------------------------
 const INITIAL_PARCELS = [
@@ -373,6 +452,16 @@ const INITIAL_PARCELS = [
 ];
 
 // Active state initialized to manifest
+// Auto-bind coordinates and hub distance to baseline dataset
+INITIAL_PARCELS.forEach(p => {
+    if (!p.lat || !p.lng) {
+        const coords = getCityCoordinates(p.city, p.barangay || "");
+        p.lat = coords.lat;
+        p.lng = coords.lng;
+        p.distanceKm = getDistanceFromHub(p.lat, p.lng);
+    }
+});
+
 let parcelsList = [];
 let currentSelectedTracking = null;
 let activeTabFilter = "ALL";
@@ -385,7 +474,17 @@ function getLocalParcels() {
         const stored = localStorage.getItem("swift_parcels_db");
         if (stored) {
             const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                parsed.forEach(p => {
+                    if (!p.lat || !p.lng) {
+                        const coords = getCityCoordinates(p.city, p.barangay || "");
+                        p.lat = coords.lat;
+                        p.lng = coords.lng;
+                        p.distanceKm = getDistanceFromHub(p.lat, p.lng);
+                    }
+                });
+                return parsed;
+            }
         }
     } catch (e) {}
     return [...INITIAL_PARCELS];
@@ -422,6 +521,11 @@ async function loadParcels() {
 
 async function addParcelRecord(parcelData) {
     const newTracking = parcelData.trackingNo || ("TRK-" + Math.floor(1000 + Math.random() * 9000));
+    const coords = (parcelData.lat && parcelData.lng)
+        ? { lat: parcelData.lat, lng: parcelData.lng }
+        : getCityCoordinates(parcelData.city, parcelData.barangay);
+    const dist = getDistanceFromHub(coords.lat, coords.lng);
+
     const newRecord = {
         trackingNo: newTracking,
         name: parcelData.name,
@@ -430,6 +534,9 @@ async function addParcelRecord(parcelData) {
         barangay: parcelData.barangay || "",
         addressDetails: parcelData.addressDetails || "",
         landmarks: parcelData.landmarks || "",
+        lat: coords.lat,
+        lng: coords.lng,
+        distanceKm: dist,
         status: parcelData.status || "Out for Delivery",
         assignedDriver: parcelData.assignedDriver || "",
         driverVehicle: parcelData.driverVehicle || "",
