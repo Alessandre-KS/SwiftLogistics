@@ -608,7 +608,7 @@
     <script src="firebase-config.js"></script>
     <!-- LEAFLET.JS V1.9.4 MAP ENGINE (OPENSTREETMAP) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="app.js?v=4.2.0"></script>
+    <script src="app.js?v=4.4.0"></script>
 
     <!-- DRIVER RUN-SHEET CONTROLLER -->
     <script>
@@ -620,6 +620,7 @@
         let driverHubMarker = null;
         let driverStopMarkers = [];
         let driverRoutePolyline = null;
+        let activeDriverRouteReqId = 0;
 
         document.addEventListener("DOMContentLoaded", async () => {
             driverSession = getStaffSession();
@@ -776,6 +777,9 @@
             });
 
             if (activeDeliveries.length > 0) {
+                const reqId = ++activeDriverRouteReqId;
+
+                // Immediate dashed preview line
                 driverRoutePolyline = L.polyline(routeCoords, {
                     color: "#EA580C",
                     weight: 3.5,
@@ -787,6 +791,28 @@
                     padding: [40, 40],
                     maxZoom: 15
                 });
+
+                // Fetch real turn-by-turn road route connecting all delivery stops
+                if (typeof fetchRoadRoute === "function") {
+                    fetchRoadRoute(routeCoords).then(roadData => {
+                        if (reqId !== activeDriverRouteReqId) return; // Stale request, ignore
+                        if (roadData && roadData.latLngs && driverRoutePolyline) {
+                            driverRoutePolyline.setStyle({
+                                color: "#EA580C",
+                                weight: 4.5,
+                                dashArray: null, // Solid road line
+                                opacity: 0.9,
+                                lineJoin: "round",
+                                lineCap: "round"
+                            });
+                            driverRoutePolyline.setLatLngs(roadData.latLngs);
+                            const totalKmEl = document.getElementById("driverRouteTotalKm");
+                            if (totalKmEl) {
+                                totalKmEl.innerText = `${roadData.distanceKm} km (~${roadData.durationMins}m)`;
+                            }
+                        }
+                    }).catch(() => {});
+                }
             } else {
                 driverMap.setView([hubLat, hubLng], 13);
             }

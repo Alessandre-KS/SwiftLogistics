@@ -195,6 +195,44 @@ function getDistanceFromHub(lat, lng) {
     return calculateDistanceKm(UB_LIPA_HUB.lat, UB_LIPA_HUB.lng, lat, lng);
 }
 
+/**
+ * Fetch real turn-by-turn driving road route from OSRM (Open Source Routing Machine)
+ * Supports 2 or more waypoints: [[lat1, lng1], [lat2, lng2], ...]
+ * Returns { latLngs: [[lat, lng], ...], distanceKm: number, durationMins: number }
+ */
+async function fetchRoadRoute(waypoints) {
+    if (!waypoints || waypoints.length < 2) return null;
+    try {
+        // OSRM expects coordinates in "longitude,latitude" order separated by semicolons
+        const coordString = waypoints.map(pt => {
+            const lat = Number(pt[0]);
+            const lng = Number(pt[1]);
+            return `${lng.toFixed(6)},${lat.toFixed(6)}`;
+        }).join(";");
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson`;
+        const resp = await fetch(url);
+        if (!resp.ok) return null;
+        const data = await resp.json();
+
+        if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+            const route = data.routes[0];
+            // Convert GeoJSON [lng, lat] back to Leaflet [lat, lng]
+            const latLngs = route.geometry.coordinates.map(pt => [pt[1], pt[0]]);
+            const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
+            const durationMins = Math.max(1, Math.round(route.duration / 60));
+            return {
+                latLngs,
+                distanceKm,
+                durationMins
+            };
+        }
+    } catch (err) {
+        console.warn("OSRM road routing fallback:", err);
+    }
+    return null;
+}
+
 // 2. BASELINE DATASET (AUTHENTIC BRANCH #04 MANIFEST)
 // -----------------------------------------------------------------------------
 const INITIAL_PARCELS = [

@@ -12,6 +12,7 @@ Regional couriers and delivery branches handle sensitive customer data every day
 
 **SwiftLogistics Hub** solves this by providing a complete, role-separated logistics management system with built-in cybersecurity at zero operational cost:
 - 🏢 **Role Separation**: Dedicated hubs for **Branch Management** (desktop dispatch counter) and **Delivery Drivers** (mobile-friendly transit run-sheet).
+- 🗺️ **Turn-by-Turn Road Routing**: Interactive Leaflet maps anchored at the **UB Lipa Central Hub** (`X595+MQ6`, Leviste Hwy) with draggable pin micro-targeting (exact street/purok reverse geocoding) and real highway road geometries via OSRM (Open Source Routing Machine, ₱0.00 cost).
 - 🔐 **Pre-Auth Protection**: RFC 6238 Multi-Factor Authentication (compatible with Google Authenticator).
 - 🛡️ **Post-Auth Defense**: **TripwireJS** automated sentry that detects scraping and severs compromised sessions in under 18 milliseconds.
 
@@ -21,8 +22,8 @@ Regional couriers and delivery branches handle sensitive customer data every day
 
 | Portal | Intended User | Live Link | Key Capabilities |
 | :--- | :--- | :--- | :--- |
-| **🏢 Branch Dispatch Desk** | Dispatchers & Counter Clerks | [Launch Dispatch Desk](https://swiftlogistics-hub-9821.web.app/index.html) | • Manifest new waybills (`manifest.html`)<br>• Sort packages by status (Hub Sorting, Out for Delivery, Delivered)<br>• Assign shipments to Motorcycle or Cargo Truck couriers<br>• Customer phone number masking (RA 10173) |
-| **🛵 Driver Transit Hub** | Delivery Riders & Truck Drivers | [Launch Driver Run-Sheet](https://swiftlogistics-hub-9821.web.app/driver.html) | • Mobile-first run-sheet of assigned stops<br>• 1-tap `📞 Call Recipient` & `📍 Map Directions`<br>• 1-tap **"✓ Mark Consignment as Delivered"** & POD logging<br>• Real-time Cash on Delivery (COD) collection tracking |
+| **🏢 Branch Dispatch Desk** | Dispatchers & Counter Clerks | [Launch Dispatch Desk](https://swiftlogistics-hub-9821.web.app/index.html) | • Manifest new waybills (`manifest.html`)<br>• Sort packages by status (Hub Sorting, Out for Delivery, Delivered)<br>• Assign shipments to Motorcycle or Cargo Truck couriers<br>• Customer phone number masking (RA 10173)<br>• Interactive Leaflet map with draggable precision street/purok pinning & turn-by-turn road routing from UB Lipa Hub |
+| **🛵 Driver Transit Hub** | Delivery Riders & Truck Drivers | [Launch Driver Run-Sheet](https://swiftlogistics-hub-9821.web.app/driver.html) | • Mobile-first run-sheet of assigned stops<br>• 1-tap `📞 Call Recipient` & `📍 Map Directions`<br>• Turn-by-turn multi-stop road route navigation via OSRM & ArcGIS basemap<br>• 1-tap **"✓ Mark Consignment as Delivered"** & POD logging<br>• Real-time Cash on Delivery (COD) collection tracking |
 | **🛡️ Owner Security Console (SOC)** | Business Owner (Bossing Jeff) | [Launch SOC Console](https://tripwirejs-capstone-9821.web.app) | • Approve/reject prospective staff registration requests<br>• View employee 2FA Authenticator QR codes & delete accounts<br>• Real-time query velocity gauge & canary honeypot (`TRK-0000`)<br>• Instant cloud kill-switch & pre-filled NPC 72-Hour Breach Forensic Report |
 
 ---

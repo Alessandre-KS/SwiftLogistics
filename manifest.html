@@ -428,7 +428,7 @@
     <script src="firebase-config.js"></script>
     <!-- LEAFLET.JS V1.9.4 MAP ENGINE (OPENSTREETMAP) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="app.js?v=4.3.0"></script>
+    <script src="app.js?v=4.4.0"></script>
 
     <script>
         let currentSelectedPayment = "COD";
@@ -438,6 +438,7 @@
         let destMarker = null;
         let routePolyline = null;
         let customPinnedCoords = null;
+        let activeRouteRequestId = 0;
 
         document.addEventListener("DOMContentLoaded", () => {
             const opEl = document.getElementById("activeOperatorName");
@@ -519,18 +520,65 @@
             updateLiveSticker();
         }
 
+        /**
+         * Update Leaflet polyline to trace actual roads and highways using OSRM
+         */
+        function updateManifestRoadRoute(hubLat, hubLng, destLat, destLng, fallbackDist) {
+            const reqId = ++activeRouteRequestId;
+
+            // Immediate straight dashed line preview for instant feedback
+            if (routePolyline) {
+                routePolyline.setStyle({
+                    color: "#EA580C",
+                    weight: 3.5,
+                    dashArray: "6, 8",
+                    opacity: 0.75
+                });
+                routePolyline.setLatLngs([[hubLat, hubLng], [destLat, destLng]]);
+            }
+
+            // Fetch actual road geometry from OSRM
+            if (typeof fetchRoadRoute === "function") {
+                fetchRoadRoute([[hubLat, hubLng], [destLat, destLng]]).then(roadData => {
+                    if (reqId !== activeRouteRequestId) return; // Stale request, discard
+                    if (roadData && roadData.latLngs && routePolyline) {
+                        routePolyline.setStyle({
+                            color: "#EA580C",
+                            weight: 4.5,
+                            dashArray: null, // Solid road line
+                            opacity: 0.9,
+                            lineJoin: "round",
+                            lineCap: "round"
+                        });
+                        routePolyline.setLatLngs(roadData.latLngs);
+
+                        const routeDistEl = document.getElementById("routeDistancePill");
+                        const mapDistEl = document.getElementById("mapCanvasDistLabel");
+                        if (routeDistEl) {
+                            routeDistEl.innerHTML = `🚗 Road Route: <strong>${roadData.distanceKm} km</strong> (~${roadData.durationMins} mins)`;
+                        }
+                        if (mapDistEl) {
+                            mapDistEl.innerText = `${roadData.distanceKm} km (${roadData.durationMins}m)`;
+                        }
+                        if (customPinnedCoords) {
+                            customPinnedCoords.roadDistanceKm = roadData.distanceKm;
+                            customPinnedCoords.durationMins = roadData.durationMins;
+                        }
+                    }
+                }).catch(() => {});
+            }
+        }
+
         function handlePinUpdate(lat, lng, isManualPin = true) {
             const dist = (typeof getDistanceFromHub === "function") ? getDistanceFromHub(lat, lng) : 1.4;
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
 
-            // 1. Immediately update pin and route line on canvas
+            // 1. Immediately update pin and road routing on canvas
             if (destMarker) {
                 destMarker.setLatLng([lat, lng]);
             }
-            if (routePolyline) {
-                routePolyline.setLatLngs([[hubLat, hubLng], [lat, lng]]);
-            }
+            updateManifestRoadRoute(hubLat, hubLng, lat, lng, dist);
 
             const routeDistEl = document.getElementById("routeDistancePill");
             const mapDistEl = document.getElementById("mapCanvasDistLabel");
@@ -538,8 +586,8 @@
 
             if (routeDistEl) {
                 routeDistEl.innerHTML = isManualPin 
-                    ? `🎯 Custom Pin: <strong>${dist} km</strong> from Hub`
-                    : `⚡ Est. Distance: <strong>${dist} km</strong> from Hub`;
+                    ? `🎯 Custom Pin: <strong>${dist} km</strong> (Calculating road...)`
+                    : `⚡ Est. Distance: <strong>${dist} km</strong> (Calculating road...)`;
             }
             if (mapDistEl) mapDistEl.innerText = `${dist} km`;
 
@@ -688,12 +736,23 @@
 
             routePolyline = L.polyline([[hubLat, hubLng], [initCoords.lat, initCoords.lng]], {
                 color: "#EA580C",
-                weight: 3.5,
-                dashArray: "6, 8",
+                weight: 4.5,
                 opacity: 0.85
             }).addTo(manifestMap);
 
-            // Drag event on marker
+            // Fetch actual turn-by-turn road route
+            updateManifestRoadRoute(hubLat, hubLng, initCoords.lat, initCoords.lng, 1.4);
+
+            // Live straight-line tracking while user is dragging
+            destMarker.on("drag", function (e) {
+                const pos = e.target.getLatLng();
+                if (routePolyline) {
+                    routePolyline.setStyle({ dashArray: "4, 6", weight: 3 });
+                    routePolyline.setLatLngs([[hubLat, hubLng], [pos.lat, pos.lng]]);
+                }
+            });
+
+            // Snap to actual road route on drag end
             destMarker.on("dragend", function (e) {
                 const pos = e.target.getLatLng();
                 handlePinUpdate(pos.lat, pos.lng, true);
@@ -797,7 +856,7 @@
                         <div style="font-size: 10px; color: #EA580C; font-weight: 700; margin-top: 2px;">⚡ ${dist} km from UB Lipa Hub</div>
                         <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">(💡 Drag pin or click map to fine-tune exact drop-off spot)</div>
                     `);
-                    routePolyline.setLatLngs([[hubLat, hubLng], [coords.lat, coords.lng]]);
+                    updateManifestRoadRoute(hubLat, hubLng, coords.lat, coords.lng, dist);
                     manifestMap.fitBounds([[hubLat, hubLng], [coords.lat, coords.lng]], {
                         padding: [30, 30],
                         maxZoom: 15
