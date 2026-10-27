@@ -125,7 +125,7 @@
                         <div class="form-grid-2col">
                             <div class="form-group-row">
                                 <label class="form-label-custom">City / Municipality *</label>
-                                <select id="inputCity" class="form-input-custom" required onchange="updateLiveSticker()">
+                                <select id="inputCity" class="form-input-custom" required onchange="onCityOrBarangayChange()">
                                     <option value="Lipa City, Batangas" selected>Lipa City, Batangas</option>
                                     <option value="Tanauan City, Batangas">Tanauan City, Batangas</option>
                                     <option value="Malvar, Batangas">Malvar, Batangas</option>
@@ -139,7 +139,7 @@
 
                             <div class="form-group-row">
                                 <label class="form-label-custom">Barangay</label>
-                                <input type="text" id="inputBarangay" class="form-input-custom" placeholder="e.g. Brgy. Marawoy" value="Brgy. Marawoy" oninput="updateLiveSticker()">
+                                <input type="text" id="inputBarangay" class="form-input-custom" placeholder="e.g. Brgy. Marawoy" value="Brgy. Marawoy" oninput="onCityOrBarangayChange()">
                             </div>
                         </div>
 
@@ -193,7 +193,7 @@
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
                                     <span style="font-weight: 700; font-size: 12px; color: var(--text-title);">Consignment Geo-Pinning & Route Preview</span>
                                 </div>
-                                <span class="badge-osm-ready">OpenStreetMap / Leaflet Slot Ready</span>
+                                <span class="badge-osm-ready" style="background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE;">🎯 Click map or drag pin to fine-tune</span>
                             </div>
                             <div id="manifestMapCanvas" class="manifest-map-canvas">
                                 <div class="map-placeholder-content">
@@ -437,6 +437,7 @@
         let hubMarker = null;
         let destMarker = null;
         let routePolyline = null;
+        let customPinnedCoords = null;
 
         document.addEventListener("DOMContentLoaded", () => {
             const opEl = document.getElementById("activeOperatorName");
@@ -449,6 +450,52 @@
             initManifestMap();
             updateLiveSticker();
         });
+
+        function onCityOrBarangayChange() {
+            customPinnedCoords = null;
+            updateLiveSticker();
+        }
+
+        function handlePinUpdate(lat, lng, isManualPin = true) {
+            const dist = (typeof getDistanceFromHub === "function") ? getDistanceFromHub(lat, lng) : 1.4;
+            const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
+            const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
+
+            if (isManualPin) {
+                customPinnedCoords = { lat, lng, distanceKm: dist };
+            }
+
+            if (destMarker) {
+                destMarker.setLatLng([lat, lng]);
+                destMarker.setPopupContent(`
+                    <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Pinned Consignment Destination</div>
+                    <div style="font-size: 11px; color: #334155;">GPS: ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                    <div style="font-size: 10.5px; color: #EA580C; font-weight: 700; margin-top: 3px;">⚡ ${dist} km from UB Lipa Hub</div>
+                    <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">(Drag pin or click map to reposition)</div>
+                `);
+                if (isManualPin) {
+                    destMarker.openPopup();
+                }
+            }
+
+            if (routePolyline) {
+                routePolyline.setLatLngs([[hubLat, hubLng], [lat, lng]]);
+            }
+
+            const routeDistEl = document.getElementById("routeDistancePill");
+            const mapDistEl = document.getElementById("mapCanvasDistLabel");
+            const mapDestEl = document.getElementById("mapCanvasDestLabel");
+
+            if (routeDistEl) {
+                routeDistEl.innerHTML = isManualPin 
+                    ? `🎯 Custom Pin: <strong>${dist} km</strong> from Hub`
+                    : `⚡ Est. Distance: <strong>${dist} km</strong> from Hub`;
+            }
+            if (mapDistEl) mapDistEl.innerText = `${dist} km`;
+            if (mapDestEl && isManualPin) {
+                mapDestEl.innerText = `Custom Pin (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
+            }
+        }
 
         function initManifestMap() {
             const canvas = document.getElementById("manifestMapCanvas");
@@ -487,23 +534,29 @@
                 <div style="font-size: 10px; color: #64748B; font-family: monospace; margin-top: 2px;">Plus Code: X595+MQ6 (13.9692° N, 121.1594° E)</div>
             `);
 
-            // Custom Consignee Destination Marker
+            // Custom Consignee Destination Marker (Draggable)
             const consigneeIcon = L.divIcon({
                 className: "leaflet-consignee-pin",
-                html: '<div class="consignee-marker-pin" title="Consignment Destination">📍</div>',
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
+                html: '<div class="consignee-marker-pin" title="Drag pin or click map to pinpoint exact location">📍</div>',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
             });
 
             const initCoords = (typeof getCityCoordinates === "function") 
                 ? getCityCoordinates("Lipa City, Batangas", "Brgy. Marawoy") 
                 : { lat: 13.9575, lng: 121.1633 };
 
-            destMarker = L.marker([initCoords.lat, initCoords.lng], { icon: consigneeIcon }).addTo(manifestMap);
+            destMarker = L.marker([initCoords.lat, initCoords.lng], { 
+                icon: consigneeIcon,
+                draggable: true,
+                autoPan: true
+            }).addTo(manifestMap);
+
             destMarker.bindPopup(`
                 <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Consignment Destination</div>
                 <div style="font-size: 11px; color: #334155;">Brgy. Marawoy, Lipa City, Batangas</div>
                 <div style="font-size: 10px; color: #EA580C; font-weight: 700; margin-top: 2px;">⚡ 1.4 km from UB Lipa Hub</div>
+                <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">(💡 Drag pin or click map to fine-tune exact drop-off spot)</div>
             `);
 
             routePolyline = L.polyline([[hubLat, hubLng], [initCoords.lat, initCoords.lng]], {
@@ -512,6 +565,17 @@
                 dashArray: "6, 8",
                 opacity: 0.85
             }).addTo(manifestMap);
+
+            // Drag event on marker
+            destMarker.on("dragend", function (e) {
+                const pos = e.target.getLatLng();
+                handlePinUpdate(pos.lat, pos.lng, true);
+            });
+
+            // Click event anywhere on the map to pin
+            manifestMap.on("click", function (e) {
+                handlePinUpdate(e.latlng.lat, e.latlng.lng, true);
+            });
 
             manifestMap.fitBounds([[hubLat, hubLng], [initCoords.lat, initCoords.lng]], {
                 padding: [30, 30],
@@ -595,8 +659,8 @@
                 if (mapDestEl) mapDestEl.innerText = destText;
                 if (mapDistEl) mapDistEl.innerText = `${dist} km`;
 
-                // Live Leaflet map update
-                if (manifestMap && destMarker && routePolyline && typeof UB_LIPA_HUB !== "undefined") {
+                // Live Leaflet map update (if not custom pinned)
+                if (!customPinnedCoords && manifestMap && destMarker && routePolyline && typeof UB_LIPA_HUB !== "undefined") {
                     const hubLat = UB_LIPA_HUB.lat;
                     const hubLng = UB_LIPA_HUB.lng;
                     destMarker.setLatLng([coords.lat, coords.lng]);
@@ -604,6 +668,7 @@
                         <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Consignment Destination</div>
                         <div style="font-size: 11px; color: #334155;">${destText}</div>
                         <div style="font-size: 10px; color: #EA580C; font-weight: 700; margin-top: 2px;">⚡ ${dist} km from UB Lipa Hub</div>
+                        <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">(💡 Drag pin or click map to fine-tune exact drop-off spot)</div>
                     `);
                     routePolyline.setLatLngs([[hubLat, hubLng], [coords.lat, coords.lng]]);
                     manifestMap.fitBounds([[hubLat, hubLng], [coords.lat, coords.lng]], {
@@ -673,8 +738,8 @@
                 maskedPhone = phone.slice(0, 4) + "-***-" + phone.slice(-4);
             }
 
-            const coords = (typeof getCityCoordinates === "function") ? getCityCoordinates(city, barangay) : { lat: 13.9575, lng: 121.1633 };
-            const dist = (typeof getDistanceFromHub === "function") ? getDistanceFromHub(coords.lat, coords.lng) : 1.5;
+            const coords = customPinnedCoords || ((typeof getCityCoordinates === "function") ? getCityCoordinates(city, barangay) : { lat: 13.9575, lng: 121.1633 });
+            const dist = (customPinnedCoords && customPinnedCoords.distanceKm != null) ? customPinnedCoords.distanceKm : ((typeof getDistanceFromHub === "function") ? getDistanceFromHub(coords.lat, coords.lng) : 1.5);
 
             const parcelData = {
                 trackingNo: autoTrackingNo,

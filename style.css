@@ -1945,7 +1945,7 @@ body.courier-body {
 }
 
 .manifest-map-canvas {
-    height: 180px;
+    height: 230px;
     width: 100%;
     background: #F8FAFC;
     border: 1px dashed var(--border-medium);
@@ -1955,6 +1955,7 @@ body.courier-body {
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: crosshair;
 }
 
 .map-placeholder-content {
@@ -2106,8 +2107,8 @@ body.courier-body {
 }
 
 .consignee-marker-pin {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     background: #2563EB;
     border: 2px solid #FFFFFF;
     border-radius: 50%;
@@ -2115,9 +2116,20 @@ body.courier-body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 15px;
-    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.4);
-    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.45);
+    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.consignee-marker-pin:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.6);
+}
+
+.consignee-marker-pin:active {
+    cursor: grabbing;
+    transform: scale(1.25);
 }
 
 /* Ensure Leaflet controls and tile panes don't clip */
