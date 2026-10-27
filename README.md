@@ -87,26 +87,53 @@ Follow this 5-minute walkthrough to demonstrate the system to your panel:
 ## 📁 Repository Structure
 
 ```text
-├── index.html            # Management Dispatch Terminal (Waybill tracking, sorting, fleet dispatch)
-├── manifest.html         # Counter Waybill Encoder (Printable consignment notes & barcode generation)
-├── driver.html           # Dedicated Driver Transit Terminal (Mobile-friendly route run-sheet & POD)
-├── login.html            # Two-Factor Authentication gateway (Google Authenticator TOTP verification)
-├── app.js                # Core logistics logic, Firestore sync, and role-based session management
-├── totp.js               # Standalone RFC 6238 TOTP Web Crypto implementation
-├── style.css             # Courier freight design system
-├── firestore.rules       # Cloud Firestore security rules (Role validation & kill-switch)
-├── firebase.json         # Firebase Hosting configuration & caching headers
-└── TripwireJS/           # Owner SOC Security Console (Telemetry, quarantine kill-switch, approvals)
-    ├── index.html        # SOC Dark-mode command console
-    ├── app.js            # Threat logging, forensic telemetry & staff account management
-    ├── firestore.rules   # Security rules for threat logs and owner operations
-    └── tripwire.js       # TripwireJS Layer-7 Sentry & containment engine
+├── index.html                  # Management Dispatch Terminal (Waybill tracking, sorting, fleet dispatch)
+├── manifest.html               # Counter Waybill Encoder (Printable consignment notes, barcode & hub distance)
+├── driver.html                 # Dedicated Driver Transit Terminal (Mobile-friendly route run-sheet, transit map & POD)
+├── login.html                  # Two-Factor Authentication gateway (Google Authenticator TOTP verification)
+├── app.js                      # Core logistics logic, UB Lipa Hub geolocation, Firestore sync & role-based sessions
+├── totp.js                     # Standalone RFC 6238 TOTP Web Crypto implementation
+├── style.css                   # Courier freight design system & responsive map slots
+├── firebase-config.example.js  # Safe template configuration for Firebase credentials
+├── firestore.rules.example     # Template Cloud Firestore security rules
+├── firebase.json               # Firebase Hosting configuration & caching headers
+└── TripwireJS/                 # Owner SOC Security Console (Telemetry, quarantine kill-switch, approvals)
+    ├── index.html              # SOC Dark-mode command console
+    ├── app.js                  # Threat logging, forensic telemetry & staff account management
+    └── tripwire.js             # TripwireJS Layer-7 Sentry & containment engine
 ```
+
+---
+
+## 🚀 Quick Start (Local Setup for Evaluators & Teammates)
+
+To run the project locally without exposing production credentials:
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Alessandre-KS/SwiftLogistics.git
+   cd SwiftLogistics
+   ```
+
+2. **Configure Firebase Credentials**:
+   Copy the example config and add your project keys (or request the team's local `firebase-config.js`):
+   ```bash
+   # On Windows (PowerShell)
+   Copy-Item firebase-config.example.js firebase-config.js
+   ```
+
+3. **Open the application**:
+   Simply open `index.html` or `login.html` in any modern web browser, or serve locally:
+   ```bash
+   npx serve .
+   ```
 
 ---
 
 ## 🎓 Academic Attribution & Credits
 - **Project**: SwiftLogistics Hub (Branch #04 Regional Dispatch Desk)
-- **Institution**: University of Batangas – Lipa City (UB-Lipa CITEC)
+- **Central Logistics Hub**: University of Batangas – Lipa City (UB-Lipa CITEC)
+- **Hub Location**: `X595+MQ6`, Leviste Hwy, Lipa City, Batangas (`13.9692° N, 121.1594° E`)
+- **Institution**: University of Batangas – Lipa City
 - **Program**: Bachelor of Science in Information Technology (BSIT)
 - **Course**: Information Assurance & Security (IAS) Capstone Project
