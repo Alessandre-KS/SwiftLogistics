@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SwiftLogistics Hub — Manifest New Shipment</title>
     <link rel="stylesheet" href="style.css?v=6.1.0">
+    <!-- LEAFLET.JS V1.9.4 MAP STYLES -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <style>
         @media print {
             body * {
@@ -424,11 +426,17 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js"></script>
+    <!-- LEAFLET.JS V1.9.4 MAP ENGINE (OPENSTREETMAP) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="app.js?v=4.3.0"></script>
 
     <script>
         let currentSelectedPayment = "COD";
         let autoTrackingNo = "TRK-" + Math.floor(1031 + Math.random() * 50);
+        let manifestMap = null;
+        let hubMarker = null;
+        let destMarker = null;
+        let routePolyline = null;
 
         document.addEventListener("DOMContentLoaded", () => {
             const opEl = document.getElementById("activeOperatorName");
@@ -438,8 +446,82 @@
             }
             document.getElementById("liveGeneratedTracking").innerText = autoTrackingNo;
             document.getElementById("stickerTracking").innerText = autoTrackingNo;
+            initManifestMap();
             updateLiveSticker();
         });
+
+        function initManifestMap() {
+            const canvas = document.getElementById("manifestMapCanvas");
+            if (!canvas || typeof L === "undefined") return;
+
+            canvas.innerHTML = "";
+            canvas.style.border = "1px solid var(--border-subtle)";
+
+            const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
+            const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
+
+            manifestMap = L.map("manifestMapCanvas", {
+                center: [hubLat, hubLng],
+                zoom: 13,
+                zoomControl: true,
+                attributionControl: false
+            });
+
+            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+                maxZoom: 18,
+                attribution: '&copy; <a href="https://www.esri.com/" target="_blank">Esri</a> &bull; ArcGIS Logistics Basemap'
+            }).addTo(manifestMap);
+
+            // Custom Hub Marker (UB Lipa Anchor)
+            const hubIcon = L.divIcon({
+                className: "leaflet-hub-pin",
+                html: '<div class="hub-marker-pin" title="UB Lipa Central Hub"><span class="hub-pulse"></span>🏢</div>',
+                iconSize: [34, 34],
+                iconAnchor: [17, 17]
+            });
+
+            hubMarker = L.marker([hubLat, hubLng], { icon: hubIcon }).addTo(manifestMap);
+            hubMarker.bindPopup(`
+                <div style="font-weight: 800; color: #EA580C; margin-bottom: 2px;">🏢 SwiftLogistics Central Hub #04</div>
+                <div style="font-size: 11px; color: #334155;">UB Lipa &bull; Leviste Hwy, Lipa City</div>
+                <div style="font-size: 10px; color: #64748B; font-family: monospace; margin-top: 2px;">Plus Code: X595+MQ6 (13.9692° N, 121.1594° E)</div>
+            `);
+
+            // Custom Consignee Destination Marker
+            const consigneeIcon = L.divIcon({
+                className: "leaflet-consignee-pin",
+                html: '<div class="consignee-marker-pin" title="Consignment Destination">📍</div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            const initCoords = (typeof getCityCoordinates === "function") 
+                ? getCityCoordinates("Lipa City, Batangas", "Brgy. Marawoy") 
+                : { lat: 13.9575, lng: 121.1633 };
+
+            destMarker = L.marker([initCoords.lat, initCoords.lng], { icon: consigneeIcon }).addTo(manifestMap);
+            destMarker.bindPopup(`
+                <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Consignment Destination</div>
+                <div style="font-size: 11px; color: #334155;">Brgy. Marawoy, Lipa City, Batangas</div>
+                <div style="font-size: 10px; color: #EA580C; font-weight: 700; margin-top: 2px;">⚡ 1.4 km from UB Lipa Hub</div>
+            `);
+
+            routePolyline = L.polyline([[hubLat, hubLng], [initCoords.lat, initCoords.lng]], {
+                color: "#EA580C",
+                weight: 3.5,
+                dashArray: "6, 8",
+                opacity: 0.85
+            }).addTo(manifestMap);
+
+            manifestMap.fitBounds([[hubLat, hubLng], [initCoords.lat, initCoords.lng]], {
+                padding: [30, 30],
+                maxZoom: 15
+            });
+
+            setTimeout(() => {
+                if (manifestMap) manifestMap.invalidateSize();
+            }, 300);
+        }
 
         function selectPaymentMethod(method) {
             currentSelectedPayment = method;
@@ -512,6 +594,23 @@
                 if (routeDistEl) routeDistEl.innerHTML = `⚡ Est. Distance: <strong>${dist} km</strong> from Hub`;
                 if (mapDestEl) mapDestEl.innerText = destText;
                 if (mapDistEl) mapDistEl.innerText = `${dist} km`;
+
+                // Live Leaflet map update
+                if (manifestMap && destMarker && routePolyline && typeof UB_LIPA_HUB !== "undefined") {
+                    const hubLat = UB_LIPA_HUB.lat;
+                    const hubLng = UB_LIPA_HUB.lng;
+                    destMarker.setLatLng([coords.lat, coords.lng]);
+                    destMarker.setPopupContent(`
+                        <div style="font-weight: 800; color: #2563EB; margin-bottom: 2px;">📍 Consignment Destination</div>
+                        <div style="font-size: 11px; color: #334155;">${destText}</div>
+                        <div style="font-size: 10px; color: #EA580C; font-weight: 700; margin-top: 2px;">⚡ ${dist} km from UB Lipa Hub</div>
+                    `);
+                    routePolyline.setLatLngs([[hubLat, hubLng], [coords.lat, coords.lng]]);
+                    manifestMap.fitBounds([[hubLat, hubLng], [coords.lat, coords.lng]], {
+                        padding: [30, 30],
+                        maxZoom: 15
+                    });
+                }
             }
 
             // Payment box styling
