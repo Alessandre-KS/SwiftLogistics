@@ -949,7 +949,8 @@ body.courier-body {
     padding: 16px;
 }
 
-.modal-content-card {
+.modal-content-card,
+.modal-card {
     background: #FFFFFF;
     border-radius: var(--radius-md);
     width: 100%;
@@ -980,8 +981,58 @@ body.courier-body {
     margin: 0;
 }
 
-.modal-body-pad {
+.modal-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-icon-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.modal-title-text {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--text-title);
+    margin: 0;
+}
+
+.modal-subtitle-text {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin: 2px 0 0 0;
+}
+
+.modal-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.modal-close-btn:hover {
+    background: var(--border-subtle);
+    color: var(--text-title);
+}
+
+.modal-body-pad,
+.modal-body-content {
     padding: 20px;
+    background: #FFFFFF;
 }
 
 .form-group-row {

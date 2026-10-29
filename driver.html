@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SwiftLogistics Hub — Driver Transit Terminal & Run-Sheet</title>
-    <link rel="stylesheet" href="style.css?v=6.1.0">
+    <link rel="stylesheet" href="style.css?v=6.2.0">
     <!-- LEAFLET.JS V1.9.4 MAP STYLES -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <style>
@@ -545,7 +545,7 @@
          DELIVERY CONFIRMATION & PROOF OF DELIVERY (POD) MODAL
          ==================================================================== -->
     <div id="driverProofModal" class="modal-overlay hidden" style="display: none;">
-        <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-content-card" style="max-width: 480px;">
             <div class="modal-header-bar">
                 <div class="modal-title-wrap">
                     <div class="modal-icon-badge" style="background: #ECFDF5; color: #059669;">✓</div>
@@ -557,7 +557,7 @@
                 <button class="modal-close-btn" onclick="closeDriverProofModal()">&times;</button>
             </div>
 
-            <div class="modal-body-content">
+            <div class="modal-body-pad">
                 <div style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                         <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Waybill Reference</span>
