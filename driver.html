@@ -418,6 +418,10 @@
                         <span id="driverHeroRole">Field Logistics / Delivery Rider</span>
                         <span>•</span>
                         <span style="color: #34D399; font-weight: 700;">✓ TOTP MFA Verified</span>
+                        <span>•</span>
+                        <span style="color: #38BDF8; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" id="driverGpsLiveBadge">
+                            <span class="pulse-dot" style="background: #38BDF8; width: 6px; height: 6px;"></span> GPS Broadcasting
+                        </span>
                     </p>
                 </div>
             </div>
@@ -676,6 +680,7 @@
             initDriverRouteMap();
             await loadParcels();
             renderDriverRunSheet();
+            startDriverLocationBroadcasting();
         });
 
         function initDriverRouteMap() {
@@ -1125,6 +1130,98 @@
             } else {
                 showToast("All current branch shipments have already been assigned.");
             }
+        }
+
+        // ---------------------------------------------------------------------
+        // LIVE DRIVER GPS TELEMETRY BROADCASTER (FOR DISPATCH FLEET RADAR)
+        // ---------------------------------------------------------------------
+        let driverBroadcastTimer = null;
+        let driverWatchPositionId = null;
+
+        function startDriverLocationBroadcasting() {
+            if (!driverSession || !driverSession.uid) return;
+            const driverId = driverSession.uid;
+
+            const broadcast = (lat, lng, streetName) => {
+                if (!parcelsList || parcelsList.length === 0) {
+                    parcelsList = (typeof getLocalParcels === "function") ? getLocalParcels() : [];
+                }
+
+                const activeCount = parcelsList.filter(p => 
+                    (p.status || "").includes("Out for Delivery") &&
+                    (p.assignedDriver === driverSession.name || p.assignedDriverUid === driverId)
+                ).length;
+
+                const firstActive = parcelsList.find(p => 
+                    (p.status || "").includes("Out for Delivery") &&
+                    (p.assignedDriver === driverSession.name || p.assignedDriverUid === driverId)
+                );
+
+                const locPayload = {
+                    driverId: driverId,
+                    driverName: driverSession.name || "Field Courier",
+                    vehicleType: driverSession.vehicleType || "Motorcycle (Express 2-Wheeler)",
+                    lat: Number(lat),
+                    lng: Number(lng),
+                    status: activeCount > 0 ? "Out for Delivery" : "Available at Hub",
+                    currentStreet: streetName || "Lipa City Logistics Corridor",
+                    activeParcelsCount: activeCount,
+                    nextStopTracking: firstActive ? firstActive.trackingNo : ""
+                };
+
+                if (typeof updateDriverLiveLocation === "function") {
+                    updateDriverLiveLocation(locPayload);
+                }
+            };
+
+            // 1. Try real GPS hardware via Geolocation API
+            if (navigator.geolocation) {
+                driverWatchPositionId = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        const nearest = (typeof findNearestPreset === "function") ? findNearestPreset(lat, lng) : null;
+                        const street = nearest ? `${nearest.barangay || nearest.name}, ${nearest.city}` : "Batangas Regional Corridor";
+                        broadcast(lat, lng, street);
+                    },
+                    (err) => {
+                        console.info("Hardware GPS unavailable or permission denied, using active delivery corridor telemetry:", err.message);
+                        runActiveCorridorSimulation(broadcast);
+                    },
+                    { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 }
+                );
+            } else {
+                runActiveCorridorSimulation(broadcast);
+            }
+        }
+
+        function runActiveCorridorSimulation(broadcastFn) {
+            if (driverBroadcastTimer) clearInterval(driverBroadcastTimer);
+
+            const isCarlo = (driverSession.uid === "usr_carlo" || (driverSession.name && driverSession.name.toLowerCase().includes("carlo")));
+            const waypoints = isCarlo ? [
+                { lat: 13.9630, lng: 121.1650, street: "Pres. J.P. Laurel Hwy, Lipa City" },
+                { lat: 13.9575, lng: 121.1633, street: "Brgy. Marawoy, Lipa City" },
+                { lat: 13.9510, lng: 121.1628, street: "Ayala Hwy (Near SM City Lipa)" },
+                { lat: 13.9430, lng: 121.1620, street: "Brgy. Tambo, Lipa City" },
+                { lat: 13.9392, lng: 121.1585, street: "Brgy. Sabang, Lipa City" }
+            ] : [
+                { lat: 13.9850, lng: 121.1580, street: "Leviste Hwy, Lipa North" },
+                { lat: 14.0150, lng: 121.1560, street: "Pres. J.P. Laurel Hwy, Malvar" },
+                { lat: 14.0450, lng: 121.1570, street: "Malvar Town Center Corridor" },
+                { lat: 14.0720, lng: 121.1530, street: "Tanauan City Junction" }
+            ];
+
+            let step = 0;
+            broadcastFn(waypoints[0].lat, waypoints[0].lng, waypoints[0].street);
+
+            driverBroadcastTimer = setInterval(() => {
+                step = (step + 1) % waypoints.length;
+                const wp = waypoints[step];
+                const jitterLat = wp.lat + (Math.sin(Date.now() / 10000) * 0.00015);
+                const jitterLng = wp.lng + (Math.cos(Date.now() / 10000) * 0.00015);
+                broadcastFn(jitterLat, jitterLng, wp.street);
+            }, 12000);
         }
     </script>
 </body>

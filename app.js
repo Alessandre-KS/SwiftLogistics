@@ -233,6 +233,159 @@ async function fetchRoadRoute(waypoints) {
     return null;
 }
 
+// -----------------------------------------------------------------------------
+// 2B. COURIER FLEET RADAR & LIVE DRIVER GPS TELEMETRY
+// -----------------------------------------------------------------------------
+const DEFAULT_DRIVER_LOCATIONS = {
+    "usr_carlo": {
+        driverId: "usr_carlo",
+        driverName: "Carlo Reyes",
+        vehicleType: "Motorcycle (Express 2-Wheeler)",
+        lat: 13.9630,
+        lng: 121.1650,
+        status: "Out for Delivery",
+        currentStreet: "Pres. J.P. Laurel Hwy, Lipa City",
+        activeParcelsCount: 3,
+        updatedAt: new Date().toISOString()
+    },
+    "usr_juan": {
+        driverId: "usr_juan",
+        driverName: "Juan Dela Cruz",
+        vehicleType: "Cargo Truck (Heavy 4/6-Wheeler)",
+        lat: 14.0450,
+        lng: 121.1570,
+        status: "Out for Delivery",
+        currentStreet: "Pres. J.P. Laurel Hwy, Malvar - Tanauan",
+        activeParcelsCount: 2,
+        updatedAt: new Date().toISOString()
+    }
+};
+
+function getLocalDriverLocations() {
+    try {
+        const raw = localStorage.getItem("SWIFT_DRIVER_LOCATIONS");
+        if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { ...DEFAULT_DRIVER_LOCATIONS };
+}
+
+function saveLocalDriverLocations(locations) {
+    try {
+        localStorage.setItem("SWIFT_DRIVER_LOCATIONS", JSON.stringify(locations));
+        window.dispatchEvent(new CustomEvent("swift_driver_locations_updated", { detail: locations }));
+    } catch (e) {}
+}
+
+async function updateDriverLiveLocation(driverData) {
+    if (!driverData || !driverData.driverId) return;
+    const locations = getLocalDriverLocations();
+    locations[driverData.driverId] = {
+        ...(locations[driverData.driverId] || {}),
+        ...driverData,
+        updatedAt: new Date().toISOString()
+    };
+    saveLocalDriverLocations(locations);
+
+    if (isFirebaseOnline && db) {
+        try {
+            await db.collection("driver_locations").doc(driverData.driverId).set({
+                driverId: driverData.driverId,
+                driverName: driverData.driverName || "Field Driver",
+                vehicleType: driverData.vehicleType || "Motorcycle (Express 2-Wheeler)",
+                lat: Number(driverData.lat),
+                lng: Number(driverData.lng),
+                status: driverData.status || "Out for Delivery",
+                activeParcelsCount: Number(driverData.activeParcelsCount || 0),
+                nextStopTracking: driverData.nextStopTracking || "",
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        } catch (e) {
+            console.warn("Firestore driver_locations fallback:", e.message);
+        }
+    }
+}
+
+function listenToDriverLiveLocations(callback) {
+    if (typeof callback !== "function") return;
+
+    // 1. Initial emission from local cache
+    callback(getLocalDriverLocations());
+
+    // 2. Cross-tab storage event
+    window.addEventListener("storage", (e) => {
+        if (e.key === "SWIFT_DRIVER_LOCATIONS") {
+            callback(getLocalDriverLocations());
+        }
+    });
+
+    window.addEventListener("swift_driver_locations_updated", (e) => {
+        if (e.detail) callback(e.detail);
+    });
+
+    // 3. Firestore onSnapshot real-time listener
+    if (isFirebaseOnline && db) {
+        try {
+            db.collection("driver_locations").onSnapshot((snapshot) => {
+                const current = getLocalDriverLocations();
+                let hasChanges = false;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data && data.driverId) {
+                        current[data.driverId] = {
+                            ...(current[data.driverId] || {}),
+                            ...data
+                        };
+                        hasChanges = true;
+                    }
+                });
+                if (hasChanges) {
+                    try {
+                        localStorage.setItem("SWIFT_DRIVER_LOCATIONS", JSON.stringify(current));
+                    } catch (e) {}
+                    callback(current);
+                }
+            }, (err) => {
+                console.warn("Firestore driver_locations snapshot fallback:", err.message);
+            });
+        } catch (e) {
+            console.warn("Firestore driver_locations listener fallback:", e);
+        }
+    }
+}
+
+function focusDriverLocationByParcel(trackingNo) {
+    if (!trackingNo) return;
+    if (!parcelsList || parcelsList.length === 0) parcelsList = getLocalParcels();
+    const p = parcelsList.find(x => x.trackingNo === trackingNo);
+    if (!p) {
+        showToast("Consignment not found in manifest.", "warning");
+        return;
+    }
+
+    let driverId = p.assignedDriverUid;
+    if (!driverId && p.assignedDriver) {
+        const name = p.assignedDriver.toLowerCase();
+        if (name.includes("carlo")) driverId = "usr_carlo";
+        else if (name.includes("juan")) driverId = "usr_juan";
+    }
+
+    if (!driverId) {
+        showToast(`Consignment ${trackingNo} is not yet assigned to an active field courier.`, "info");
+        return;
+    }
+
+    const radarEl = document.getElementById("fleetRadarSection");
+    if (radarEl) {
+        radarEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    if (typeof window.focusFleetRadarDriver === "function") {
+        window.focusFleetRadarDriver(driverId);
+    } else {
+        showToast(`Locating courier for ${trackingNo}...`, "info");
+    }
+}
+
 // 2. BASELINE DATASET (AUTHENTIC BRANCH #04 MANIFEST)
 // -----------------------------------------------------------------------------
 const INITIAL_PARCELS = [
@@ -943,7 +1096,17 @@ function lookupParcel(query, showAlert = false) {
         const elAssignedDriver = document.getElementById("cardAssignedDriver");
         if (elAssignedDriver) {
             if (found.assignedDriver) {
-                elAssignedDriver.innerHTML = `<span style="display:inline-flex; align-items:center; gap:4px; background:#EFF6FF; border:1px solid #BFDBFE; color:#1E40AF; padding:2px 8px; border-radius:12px;">${getVehicleEmoji(found.driverVehicle)} <strong>${found.assignedDriver}</strong> (${found.driverVehicle || 'Motorcycle'})</span>`;
+                const isOut = (found.status || "").includes("Out for Delivery");
+                elAssignedDriver.innerHTML = `
+                    <span style="display:inline-flex; align-items:center; gap:4px; background:#EFF6FF; border:1px solid #BFDBFE; color:#1E40AF; padding:2px 8px; border-radius:12px;">
+                        ${getVehicleEmoji(found.driverVehicle)} <strong>${found.assignedDriver}</strong> (${found.driverVehicle || 'Motorcycle'})
+                    </span>
+                    ${isOut ? `
+                        <button class="btn-table-track" style="margin-left:6px;" onclick="focusDriverLocationByParcel('${found.trackingNo}')" title="View live driver location on Fleet Radar">
+                            📍 Live Driver GPS
+                        </button>
+                    ` : ''}
+                `;
             } else {
                 elAssignedDriver.innerHTML = `<span style="color:#94A3B8; font-weight:500; font-size:10.5px;">Courier: Unassigned</span>`;
             }
@@ -1047,6 +1210,9 @@ function renderManifestTable() {
             <td style="text-align:right;">
                 <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px;" onclick="quickLookup('${p.trackingNo}', true)">Track</button>
                 <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px; margin-left:4px;" onclick="openUpdateStatusModal('${p.trackingNo}')">Dispatch</button>
+                ${p.status.includes("Out for Delivery") ? `
+                    <button class="btn-table-track" style="margin-left:4px;" onclick="focusDriverLocationByParcel('${p.trackingNo}')" title="Locate courier live GPS on Fleet Radar">📍 Driver GPS</button>
+                ` : ''}
             </td>
         `;
         tbody.appendChild(tr);
