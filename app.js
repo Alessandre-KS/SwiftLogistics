@@ -362,7 +362,7 @@ function focusDriverLocationByParcel(trackingNo) {
         return;
     }
 
-    let driverId = p.assignedDriverUid;
+    let driverId = p.assignedDriverId || p.assignedDriverUid;
     if (!driverId && p.assignedDriver) {
         const name = p.assignedDriver.toLowerCase();
         if (name.includes("carlo")) driverId = "usr_carlo";
@@ -714,8 +714,9 @@ async function loadParcels() {
     parcelsList = getLocalParcels();
     renderManifestTable();
 
-    // Attempt Firestore fetch if authenticated
-    if (isFirebaseOnline && db && auth && auth.currentUser) {
+    // Attempt Firestore fetch if staff session is active
+    const staffSession = getStaffSession();
+    if (isFirebaseOnline && db && staffSession) {
         try {
             const snapshot = await db.collection("parcels").where("trackingNo", ">", "TRK-0000").get();
             if (!snapshot.empty) {
@@ -1108,7 +1109,10 @@ function lookupParcel(query, showAlert = false) {
                     ` : ''}
                 `;
             } else {
-                elAssignedDriver.innerHTML = `<span style="color:#94A3B8; font-weight:500; font-size:10.5px;">Courier: Unassigned</span>`;
+                const isOut = (found.status || "").includes("Out for Delivery");
+                elAssignedDriver.innerHTML = isOut
+                    ? `<span style="color:#DC2626; font-weight:600; font-size:11px;">⚠️ Courier: Unassigned (Click 'Dispatch & Update' to assign)</span>`
+                    : `<span style="color:#94A3B8; font-weight:500; font-size:10.5px;">Courier: Unassigned</span>`;
             }
         }
         updateTimeline(found.status);

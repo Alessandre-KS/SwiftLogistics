@@ -242,39 +242,6 @@
         </div>
     </div>
 
-    <div id="enrollQrModal" class="modal-overlay hidden" style="display: none;">
-        <div class="modal-content-card" style="max-width: 440px;">
-            <div class="modal-header-bar">
-                <h3>Authenticator App Enrollment</h3>
-                <button class="btn-courier-sm btn-courier-outline" onclick="closeEnrollQrModal()">✕</button>
-            </div>
-            <div class="qr-modal-content">
-                <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px 0;">
-                    Scan this QR code with <strong>Google Authenticator</strong>, <strong>Microsoft Authenticator</strong>, or <strong>Authy</strong> on your mobile phone:
-                </p>
-
-                <div class="qr-code-img-frame">
-                    <img id="totpQrImage" src="" alt="TOTP Enrollment QR Code">
-                </div>
-
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
-                    Or enter this secret key manually:
-                </div>
-                <div class="qr-secret-key-box" id="totpSecretKeyText">
-                    JBSWY3DPEHPK3PXP
-                </div>
-
-                <p style="font-size: 11px; color: #059669; font-weight: 600; margin: 8px 0 16px 0;">
-                    Standard RFC 6238 (SHA-1 • 30-Second Timestep • 6 Digits)
-                </p>
-
-                <button type="button" class="btn-courier-primary" onclick="closeEnrollQrModal()" style="width: 100%; justify-content: center;">
-                    Done (Ready to Enter Code)
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- FIREBASE COMPAT SDK & TOTP ENGINE -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -353,11 +320,6 @@
                 : ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) 
                     ? TOTP.getSecretForEmail(user.email) 
                     : (user.email.includes("carlo") ? TOTP.STAFF_SECRETS["usr_carlo"].secret : TOTP.STAFF_SECRETS["usr_maria"].secret));
-
-            // Setup QR image in modal
-            const qrUri = TOTP.getOtpAuthUrl(user.email, activeSecret, "SwiftLogistics");
-            document.getElementById("totpQrImage").src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(qrUri);
-            document.getElementById("totpSecretKeyText").innerText = activeSecret;
 
             // Setup auto-advance for the 6 digit inputs
             setupOtpInputs();
@@ -464,13 +426,6 @@
 
             if (bar) bar.style.width = percent + "%";
             if (text) text.innerText = `Code expires in ${remaining}s`;
-
-            // Compute current live code
-            const currentLiveCode = await TOTP.getCode(activeSecret);
-            const demoEl = document.getElementById("demoTotpCode");
-            if (demoEl) {
-                demoEl.innerText = `${currentLiveCode.slice(0, 3)} ${currentLiveCode.slice(3, 6)}`;
-            }
         }
 
         function startTotpTicker() {
@@ -537,31 +492,6 @@
                     }, 15000);
                 }
             }
-        }
-
-        // Modal Controls
-        function openEnrollQrModal() {
-            const m = document.getElementById("enrollQrModal");
-            if (m) {
-                m.style.display = "flex";
-                m.classList.remove("hidden");
-            }
-        }
-
-        function closeEnrollQrModal() {
-            const m = document.getElementById("enrollQrModal");
-            if (m) {
-                m.style.display = "none";
-                m.classList.add("hidden");
-            }
-        }
-
-        function quickLoginAs(userType) {
-            if (userType === 'jeff') {
-                document.getElementById("staffIdInput").value = "jeff@swiftlogistics.ph";
-                document.getElementById("staffPasswordInput").value = "password123";
-            }
-            handleStep1Credentials();
         }
 
         function openRegistrationModal() {

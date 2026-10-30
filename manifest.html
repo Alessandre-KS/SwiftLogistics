@@ -425,6 +425,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="vendor/tripwire.js?v=2.1.0"></script>
     <script src="firebase-config.js"></script>
     <!-- LEAFLET.JS V1.9.4 MAP ENGINE (OPENSTREETMAP) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -441,11 +442,27 @@
         let activeRouteRequestId = 0;
 
         document.addEventListener("DOMContentLoaded", () => {
-            const opEl = document.getElementById("activeOperatorName");
             const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
-            if (session && opEl) {
+            if (!session) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            const opEl = document.getElementById("activeOperatorName");
+            if (opEl) {
                 opEl.innerText = session.name || "Bossing Jeff";
             }
+
+            if (typeof TripwireJS !== "undefined") {
+                TripwireJS.init({
+                    protectedCollection: "parcels",
+                    staffCollection: "staff",
+                    canaryId: "TRK-0000",
+                    burstLimit: 30,
+                    burstWindowSec: 5
+                });
+            }
+
             document.getElementById("liveGeneratedTracking").innerText = autoTrackingNo;
             document.getElementById("stickerTracking").innerText = autoTrackingNo;
             initManifestMap();

@@ -836,14 +836,12 @@
             const dEmail = (driverSession.email || "").toLowerCase().trim();
 
             return parcelsList.filter(p => {
-                if (!p.assignedDriver) return false;
-                const assigned = p.assignedDriver.toLowerCase().trim();
-                const assignedId = (p.assignedDriverId || "").toLowerCase().trim();
+                if (!p.assignedDriver && !p.assignedDriverId && !p.assignedDriverUid) return false;
+                const assigned = (p.assignedDriver || "").toLowerCase().trim();
+                const assignedId = (p.assignedDriverId || p.assignedDriverUid || "").toLowerCase().trim();
 
-                return assigned.includes(dName) || 
-                       dName.includes(assigned) || 
-                       assignedId === dUid || 
-                       assignedId === dEmail;
+                return (assigned && (assigned.includes(dName) || dName.includes(assigned))) || 
+                       (assignedId && (assignedId === dUid || assignedId === dEmail));
             });
         }
 
@@ -1014,8 +1012,8 @@
                             <div>
                                 <div class="detail-item-label">Delivery Destination</div>
                                 <div class="detail-item-val" style="color: #1E293B;">
-                                    📍 ${p.city || 'Lipa City, Batangas'} ${p.distanceKm != null ? `&bull; <strong style="color: var(--courier-orange);">${p.distanceKm} km</strong> from UB Lipa Hub` : ''}
-                                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.city + ' Batangas')}" target="_blank" class="map-pin-btn">
+                                    📍 ${p.barangay ? `<strong>${p.barangay}</strong>, ` : ''}${p.city || 'Lipa City, Batangas'}${p.addressDetails ? ` &bull; <span style="font-size:12px; color:#475569;">${p.addressDetails}</span>` : ''} ${p.distanceKm != null ? `&bull; <strong style="color: var(--courier-orange);">${p.distanceKm} km</strong> from UB Lipa Hub` : ''}
+                                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.addressDetails ? p.addressDetails + ' ' : '') + (p.barangay ? p.barangay + ' ' : '') + (p.city || '') + ' Batangas')}" target="_blank" class="map-pin-btn">
                                         Map Directions &rarr;
                                     </a>
                                 </div>
@@ -1067,7 +1065,8 @@
             pendingDeliverTracking = trackingNo;
             document.getElementById("proofModalTrackingNo").innerText = parcel.trackingNo;
             document.getElementById("proofModalCustomerName").innerText = parcel.name;
-            document.getElementById("proofModalAddress").innerText = `📍 ${parcel.city || 'Lipa City, Batangas'}`;
+            const fullProofAddr = (parcel.barangay ? parcel.barangay + ', ' : '') + (parcel.city || 'Lipa City, Batangas') + (parcel.addressDetails ? ' • ' + parcel.addressDetails : '');
+            document.getElementById("proofModalAddress").innerText = `📍 ${fullProofAddr}`;
             document.getElementById("proofModalCodDisplay").value = parcel.cod || "₱0.00";
             document.getElementById("proofModalReceivedBy").value = parcel.name;
 
@@ -1110,6 +1109,7 @@
 
             showToast(`Consignment ${tracking} marked as Delivered! COD collected: ${parcel?.cod || '₱0.00'}`);
             renderDriverRunSheet();
+            if (typeof window.broadcastDriverLocationNow === "function") window.broadcastDriverLocationNow();
         }
 
         async function demoAssignNextParcel() {
@@ -1127,6 +1127,7 @@
                 );
                 showToast(`Assigned ${available.trackingNo} (${available.name}) to your route!`);
                 renderDriverRunSheet();
+                if (typeof window.broadcastDriverLocationNow === "function") window.broadcastDriverLocationNow();
             } else {
                 showToast("All current branch shipments have already been assigned.");
             }
@@ -1137,24 +1138,35 @@
         // ---------------------------------------------------------------------
         let driverBroadcastTimer = null;
         let driverWatchPositionId = null;
+        let lastKnownCoords = null;
+
+        window.broadcastDriverLocationNow = function() {
+            if (lastKnownCoords && typeof lastKnownCoords.fn === "function") {
+                lastKnownCoords.fn();
+            }
+        };
 
         function startDriverLocationBroadcasting() {
             if (!driverSession || !driverSession.uid) return;
             const driverId = driverSession.uid;
 
             const broadcast = (lat, lng, streetName) => {
+                lastKnownCoords = {
+                    lat, lng, streetName,
+                    fn: () => broadcast(lat, lng, streetName)
+                };
                 if (!parcelsList || parcelsList.length === 0) {
                     parcelsList = (typeof getLocalParcels === "function") ? getLocalParcels() : [];
                 }
 
                 const activeCount = parcelsList.filter(p => 
                     (p.status || "").includes("Out for Delivery") &&
-                    (p.assignedDriver === driverSession.name || p.assignedDriverUid === driverId)
+                    (p.assignedDriver === driverSession.name || p.assignedDriverId === driverId || p.assignedDriverUid === driverId)
                 ).length;
 
                 const firstActive = parcelsList.find(p => 
                     (p.status || "").includes("Out for Delivery") &&
-                    (p.assignedDriver === driverSession.name || p.assignedDriverUid === driverId)
+                    (p.assignedDriver === driverSession.name || p.assignedDriverId === driverId || p.assignedDriverUid === driverId)
                 );
 
                 const locPayload = {

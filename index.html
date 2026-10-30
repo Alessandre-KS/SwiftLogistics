@@ -514,7 +514,9 @@
             const avatarEl = document.getElementById("navUserAvatar");
             if (nameEl) nameEl.innerText = `${session.name} (${session.role})`;
             if (avatarEl) {
-                avatarEl.innerText = (session.uid === "usr_carlo") ? "CR" : "MS";
+                const parts = (session.name || "Staff Member").trim().split(/\s+/);
+                const initials = parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0].slice(0, 2).toUpperCase();
+                avatarEl.innerText = initials || "ST";
             }
 
             // Initialize TripwireJS Sentry
@@ -687,7 +689,11 @@
         }
 
         window.focusFleetRadarDriver = function(driverId) {
-            if (!fleetRadarMap || !currentDriverLocations[driverId]) return;
+            if (!fleetRadarMap) return;
+            if (!currentDriverLocations[driverId]) {
+                if (typeof showToast === "function") showToast("Courier has not broadcasted live GPS telemetry yet.", "info");
+                return;
+            }
             const d = currentDriverLocations[driverId];
             fleetRadarMap.flyTo([d.lat, d.lng], 15, { duration: 1.2 });
             if (fleetDriverMarkers[driverId]) {
