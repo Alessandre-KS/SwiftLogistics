@@ -399,7 +399,7 @@ const INITIAL_PARCELS = [
         city: "Lipa City, Batangas",
         package: "Mechanical Keyboard & Keycaps",
         cod: "₱1,250.00",
-        status: "Out for Delivery",
+        status: "Waiting to be Assigned to Driver",
         assignedDriver: "",
         driverVehicle: ""
     },
@@ -410,7 +410,7 @@ const INITIAL_PARCELS = [
         city: "Tanauan City, Batangas",
         package: "UB-Lipa CITEC Department Uniform",
         cod: "₱850.00",
-        status: "Out for Delivery",
+        status: "Waiting to be Assigned to Driver",
         assignedDriver: "",
         driverVehicle: ""
     },
@@ -439,7 +439,7 @@ const INITIAL_PARCELS = [
         city: "Batangas City, Batangas",
         package: "Auto Parts & Motorcycle Helmet",
         cod: "₱1,750.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1006",
@@ -457,7 +457,7 @@ const INITIAL_PARCELS = [
         city: "Padre Garcia, Batangas",
         package: "Wireless Ergonomic Mouse",
         cod: "₱1,490.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1008",
@@ -484,7 +484,7 @@ const INITIAL_PARCELS = [
         city: "Balete, Batangas",
         package: "Arduino Sensor Development Kit",
         cod: "₱950.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1011",
@@ -511,7 +511,7 @@ const INITIAL_PARCELS = [
         city: "Sto. Tomas, Batangas",
         package: "Solar Outdoor Security Floodlight",
         cod: "₱1,650.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1014",
@@ -529,7 +529,7 @@ const INITIAL_PARCELS = [
         city: "Batangas City, Batangas",
         package: "Ergonomic Mesh Chair Components",
         cod: "₱4,200.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1016",
@@ -556,7 +556,7 @@ const INITIAL_PARCELS = [
         city: "Rosario, Batangas",
         package: "Ceramic Dinnerware Set",
         cod: "₱1,450.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1019",
@@ -574,7 +574,7 @@ const INITIAL_PARCELS = [
         city: "Balete, Batangas",
         package: "Robotics STEM Learning Kit",
         cod: "₱1,890.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1021",
@@ -601,7 +601,7 @@ const INITIAL_PARCELS = [
         city: "Sto. Tomas, Batangas",
         package: "Waterproof Outdoor Camping Tent",
         cod: "₱2,300.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1024",
@@ -619,7 +619,7 @@ const INITIAL_PARCELS = [
         city: "Batangas City, Batangas",
         package: "Barako Specialty Coffee Beans (1kg)",
         cod: "₱750.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1026",
@@ -637,7 +637,7 @@ const INITIAL_PARCELS = [
         city: "Padre Garcia, Batangas",
         package: "Raspberry Pi 4 Micro-Server Case",
         cod: "₱1,100.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1028",
@@ -655,7 +655,7 @@ const INITIAL_PARCELS = [
         city: "Mataasnakahoy, Batangas",
         package: "Smart Home Wi-Fi Security Camera",
         cod: "₱1,800.00",
-        status: "Out for Delivery"
+        status: "Waiting to be Assigned to Driver"
     },
     {
         trackingNo: "TRK-1030",
@@ -692,14 +692,24 @@ function getLocalParcels() {
         if (stored) {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.length > 0) {
+                let modified = false;
                 parsed.forEach(p => {
                     if (!p.lat || !p.lng) {
                         const coords = getCityCoordinates(p.city, p.barangay || "");
                         p.lat = coords.lat;
                         p.lng = coords.lng;
                         p.distanceKm = getDistanceFromHub(p.lat, p.lng);
+                        modified = true;
+                    }
+                    // Business Rule: A parcel cannot be "Out for Delivery" without an assigned courier!
+                    if ((!p.assignedDriver && !p.assignedDriverId) && (p.status || "").includes("Out for Delivery")) {
+                        p.status = "Waiting to be Assigned to Driver";
+                        modified = true;
                     }
                 });
+                if (modified) {
+                    saveLocalParcels(parsed);
+                }
                 return parsed;
             }
         }
@@ -725,7 +735,15 @@ async function loadParcels() {
             if (!snapshot.empty) {
                 const cloudParcels = [];
                 snapshot.forEach(doc => {
-                    cloudParcels.push(doc.data());
+                    const data = doc.data();
+                    // Business Rule: Normalize any unassigned Firestore parcel to "Waiting to be Assigned to Driver"
+                    if ((!data.assignedDriver && !data.assignedDriverId) && (data.status || "").includes("Out for Delivery")) {
+                        data.status = "Waiting to be Assigned to Driver";
+                        if (db) {
+                            db.collection("parcels").doc(doc.id).update({ status: "Waiting to be Assigned to Driver" }).catch(() => {});
+                        }
+                    }
+                    cloudParcels.push(data);
                 });
                 parcelsList = cloudParcels;
                 saveLocalParcels(parcelsList);
@@ -755,7 +773,7 @@ async function addParcelRecord(parcelData) {
         lat: coords.lat,
         lng: coords.lng,
         distanceKm: dist,
-        status: parcelData.status || "Out for Delivery",
+        status: parcelData.status || (parcelData.assignedDriver ? "Out for Delivery" : "Waiting to be Assigned to Driver"),
         assignedDriver: parcelData.assignedDriver || "",
         driverVehicle: parcelData.driverVehicle || "",
         assignedDriverId: parcelData.assignedDriverId || "",
@@ -1112,9 +1130,9 @@ function lookupParcel(query, showAlert = false) {
                     ` : ''}
                 `;
             } else {
-                const isOut = (found.status || "").includes("Out for Delivery");
-                elAssignedDriver.innerHTML = isOut
-                    ? `<span style="color:#DC2626; font-weight:600; font-size:11px;">⚠️ Courier: Unassigned (Click 'Dispatch & Update' to assign)</span>`
+                const isWaiting = (found.status || "").includes("Waiting") || (!found.assignedDriver && !found.assignedDriverId);
+                elAssignedDriver.innerHTML = isWaiting
+                    ? `<span style="color:#D97706; font-weight:600; font-size:11px;">⚠️ Waiting to be Assigned to Driver</span>`
                     : `<span style="color:#94A3B8; font-weight:500; font-size:10.5px;">Courier: Unassigned</span>`;
             }
         }
@@ -1142,9 +1160,9 @@ function renderManifestTable() {
     let filtered = parcelsList;
 
     if (activeTabFilter === "OUT") {
-        filtered = filtered.filter(p => p.status.includes("Out for Delivery"));
+        filtered = filtered.filter(p => p.status.includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId));
     } else if (activeTabFilter === "HUB") {
-        filtered = filtered.filter(p => p.status.includes("Hub") || p.status.includes("Transit") || p.status.includes("Pickup"));
+        filtered = filtered.filter(p => p.status.includes("Hub") || p.status.includes("Transit") || p.status.includes("Pickup") || p.status.includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId && !p.status.includes("Delivered")));
     } else if (activeTabFilter === "DELIVERED") {
         filtered = filtered.filter(p => p.status.includes("Delivered"));
     }
@@ -1170,7 +1188,7 @@ function renderManifestTable() {
         let badgeColor = "background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;";
         if (p.status.includes("Delivered")) {
             badgeColor = "background:#ECFDF5; color:#047857; border:1px solid #A7F3D0;";
-        } else if (p.status.includes("Hub") || p.status.includes("Pickup")) {
+        } else if (p.status.includes("Hub") || p.status.includes("Pickup") || p.status.includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId)) {
             badgeColor = "background:#FEF3C7; color:#B45309; border:1px solid #FDE68A;";
         }
 
@@ -1210,14 +1228,12 @@ function renderManifestTable() {
                             ${getVehicleEmoji(p.driverVehicle)} ${p.assignedDriver}
                         </span>
                     </div>
-                ` : (p.status.includes("Out for Delivery") ? `
-                    <div style="font-size:10px; color:#DC2626; font-weight:600; margin-top:3px;">⚠️ Unassigned Driver</div>
-                ` : '')}
+                ` : ''}
             </td>
             <td style="text-align:right;">
                 <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px;" onclick="quickLookup('${p.trackingNo}', true)">Track</button>
                 <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px; margin-left:4px;" onclick="openUpdateStatusModal('${p.trackingNo}')">Dispatch</button>
-                ${p.status.includes("Out for Delivery") ? `
+                ${p.status.includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId) ? `
                     <button class="btn-table-track" style="margin-left:4px;" onclick="focusDriverLocationByParcel('${p.trackingNo}')" title="Locate courier live GPS on Fleet Radar">📍 Driver GPS</button>
                 ` : ''}
             </td>
@@ -1228,8 +1244,8 @@ function renderManifestTable() {
 
 function updateKPIs() {
     const total = parcelsList.length;
-    const out = parcelsList.filter(p => p.status.includes("Out for Delivery")).length;
-    const hub = parcelsList.filter(p => p.status.includes("Hub") || p.status.includes("Transit") || p.status.includes("Pickup")).length;
+    const out = parcelsList.filter(p => p.status.includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId)).length;
+    const hub = parcelsList.filter(p => p.status.includes("Hub") || p.status.includes("Transit") || p.status.includes("Pickup") || p.status.includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId && !p.status.includes("Delivered"))).length;
     const delivered = parcelsList.filter(p => p.status.includes("Delivered")).length;
 
     let totalCod = 0;
@@ -1322,8 +1338,9 @@ async function openUpdateStatusModal(trackingNo) {
     if (found) {
         document.getElementById("updateModalTrackingNo").innerText = found.trackingNo;
         document.getElementById("updateModalCustomerName").innerText = found.name;
-        let targetStatus = found.status || "Out for Delivery";
-        if (targetStatus.includes("Out for Delivery")) targetStatus = "Out for Delivery";
+        let targetStatus = found.status || "Waiting to be Assigned to Driver";
+        if (targetStatus.includes("Waiting")) targetStatus = "Waiting to be Assigned to Driver";
+        else if (targetStatus.includes("Out for Delivery")) targetStatus = "Out for Delivery";
         document.getElementById("updateStatusSelect").value = targetStatus;
 
         // Populate Driver select dynamically
@@ -1359,7 +1376,7 @@ function closeUpdateStatusModal() {
 
 async function confirmStatusUpdate() {
     if (!editingTrackingNo) return;
-    const newStatus = document.getElementById("updateStatusSelect").value;
+    let newStatus = document.getElementById("updateStatusSelect").value;
     const driverSelect = document.getElementById("updateDriverSelect");
     let assignedDriver = "";
     let driverVehicle = "";
@@ -1369,6 +1386,12 @@ async function confirmStatusUpdate() {
         assignedDriver = parts[0] || "";
         driverVehicle = parts[1] || "";
         assignedDriverId = parts[2] || "";
+    }
+
+    // Business Rule: Parcel cannot be "Out for Delivery" if unassigned
+    if (newStatus.includes("Out for Delivery") && !assignedDriver) {
+        newStatus = "Waiting to be Assigned to Driver";
+        showToast("No courier selected. Status set to 'Waiting to be Assigned to Driver'.", "info");
     }
 
     await updateParcelStatusRecord(editingTrackingNo, newStatus, assignedDriver, driverVehicle, assignedDriverId);

@@ -1113,8 +1113,8 @@
         }
 
         async function demoAssignNextParcel() {
-            // Find first parcel with status "Out for Delivery" that is unassigned or assigned to someone else
-            const available = parcelsList.find(p => (p.status || "").includes("Out for Delivery") && (!p.assignedDriver || p.assignedDriver !== driverSession.name)) ||
+            // Find first parcel with status "Waiting to be Assigned to Driver" or "Hub"
+            const available = parcelsList.find(p => (p.status || "").includes("Waiting")) ||
                               parcelsList.find(p => (p.status || "").includes("Hub"));
 
             if (available) {
