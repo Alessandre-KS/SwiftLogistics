@@ -8,8 +8,7 @@ function getVehicleEmoji(type) {
 
 async function getRegisteredDrivers() {
     let drivers = [
-        { id: "usr_carlo", name: "Carlo Reyes", role: "Driver", vehicleType: "Motorcycle (Express 2-Wheeler)" },
-        { id: "usr_juan", name: "Juan Dela Cruz", role: "Driver", vehicleType: "Cargo Truck (Heavy 4/6-Wheeler)" }
+        { id: "usr_juan", name: "Juan Dela Cruz", role: "Driver", vehicleType: "Motorcycle (Express 2-Wheeler)" }
     ];
 
     try {
@@ -237,17 +236,6 @@ async function fetchRoadRoute(waypoints) {
 // 2B. COURIER FLEET RADAR & LIVE DRIVER GPS TELEMETRY
 // -----------------------------------------------------------------------------
 const DEFAULT_DRIVER_LOCATIONS = {
-    "usr_carlo": {
-        driverId: "usr_carlo",
-        driverName: "Carlo Reyes",
-        vehicleType: "Motorcycle (Express 2-Wheeler)",
-        lat: 13.9630,
-        lng: 121.1650,
-        status: "Out for Delivery",
-        currentStreet: "Pres. J.P. Laurel Hwy, Lipa City",
-        activeParcelsCount: 3,
-        updatedAt: new Date().toISOString()
-    },
     "usr_juan": {
         driverId: "usr_juan",
         driverName: "Juan Dela Cruz",
@@ -365,8 +353,7 @@ function focusDriverLocationByParcel(trackingNo) {
     let driverId = p.assignedDriverId || p.assignedDriverUid;
     if (!driverId && p.assignedDriver) {
         const name = p.assignedDriver.toLowerCase();
-        if (name.includes("carlo")) driverId = "usr_carlo";
-        else if (name.includes("juan")) driverId = "usr_juan";
+        if (name.includes("juan")) driverId = "usr_juan";
     }
 
     if (!driverId) {
@@ -397,7 +384,7 @@ const INITIAL_PARCELS = [
         package: "Mechanical Keyboard & Keycaps",
         cod: "₱1,250.00",
         status: "Out for Delivery",
-        assignedDriver: "Carlo Reyes",
+        assignedDriver: "Juan Dela Cruz",
         driverVehicle: "Motorcycle (Express 2-Wheeler)"
     },
     {

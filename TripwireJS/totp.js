@@ -25,9 +25,9 @@ const TOTP = (function () {
             role: 'Branch Dispatcher',
             secret: 'KRUGS4ZANFZSAYJA'
         },
-        'usr_carlo': {
-            email: 'carlo.reyes@swiftlogistics.ph',
-            name: 'Carlo Reyes',
+        'usr_juan': {
+            email: 'juan.delacruz@swiftlogistics.ph',
+            name: 'Juan Dela Cruz',
             role: 'Delivery Rider',
             vehicleType: 'Motorcycle',
             secret: 'MZXW633PN5XW6MZX'
@@ -158,7 +158,7 @@ const TOTP = (function () {
             }
         }
         if (clean.includes('jeff') || clean.includes('bossing')) return STAFF_SECRETS['usr_jeff'].secret;
-        if (clean.includes('carlo')) return STAFF_SECRETS['usr_carlo'].secret;
+        if (clean.includes('juan')) return STAFF_SECRETS['usr_juan'].secret;
         if (clean.includes('maria')) return STAFF_SECRETS['usr_maria'].secret;
 
         let stored = null;

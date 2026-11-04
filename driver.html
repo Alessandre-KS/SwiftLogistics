@@ -1210,8 +1210,8 @@
         function runActiveCorridorSimulation(broadcastFn) {
             if (driverBroadcastTimer) clearInterval(driverBroadcastTimer);
 
-            const isCarlo = (driverSession.uid === "usr_carlo" || (driverSession.name && driverSession.name.toLowerCase().includes("carlo")));
-            const waypoints = isCarlo ? [
+            const isMotorcycle = (driverSession.vehicleType || "").toLowerCase().includes("motorcycle");
+            const waypoints = isMotorcycle ? [
                 { lat: 13.9630, lng: 121.1650, street: "Pres. J.P. Laurel Hwy, Lipa City" },
                 { lat: 13.9575, lng: 121.1633, street: "Brgy. Marawoy, Lipa City" },
                 { lat: 13.9510, lng: 121.1628, street: "Ayala Hwy (Near SM City Lipa)" },

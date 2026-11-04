@@ -319,7 +319,7 @@
                 ? user.totpSecret 
                 : ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) 
                     ? TOTP.getSecretForEmail(user.email) 
-                    : (user.email.includes("carlo") ? TOTP.STAFF_SECRETS["usr_carlo"].secret : TOTP.STAFF_SECRETS["usr_maria"].secret));
+                    : (user.email.includes("juan") ? TOTP.STAFF_SECRETS["usr_juan"].secret : TOTP.STAFF_SECRETS["usr_maria"].secret));
 
             // Setup auto-advance for the 6 digit inputs
             setupOtpInputs();
