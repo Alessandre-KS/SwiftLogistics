@@ -1,7 +1,7 @@
 # 🚚 SwiftLogistics Hub
 
 > **A Regional Courier Dispatch & Delivery Management System with Automated Zero-Trust Cybersecurity**  
-> *Built for regional logistics • 100% Free Tier (₱0.00 infrastructure cost) on Google Cloud Platform*  
+> *Built for regional logistics • Scalable Serverless Architecture on Google Cloud Platform*  
 > *Compliant with the Philippine Data Privacy Act of 2012 (RA 10173) & NPC Circular 16-03*
 
 ---
@@ -10,9 +10,9 @@
 
 Regional couriers and delivery branches handle sensitive customer data every day (names, phone numbers, home addresses, and cash-on-delivery amounts). However, commercial enterprise cybersecurity tools cost thousands of dollars per month—leaving local couriers vulnerable to credential theft, account hijacking, and automated customer data scraping.
 
-**SwiftLogistics Hub** solves this by providing a complete, role-separated logistics management system with built-in cybersecurity at zero operational cost:
+**SwiftLogistics Hub** solves this by providing a complete, role-separated logistics management system with built-in, automated cybersecurity:
 - 🏢 **Role Separation**: Dedicated hubs for **Branch Management** (desktop dispatch counter) and **Delivery Drivers** (mobile-friendly transit run-sheet).
-- 🗺️ **Turn-by-Turn Road Routing**: Interactive Leaflet maps anchored at the **Regional Central Dispatch Hub** with draggable pin micro-targeting (exact street/purok reverse geocoding) and real highway road geometries via OSRM (Open Source Routing Machine, ₱0.00 cost).
+- 🗺️ **Turn-by-Turn Road Routing**: Interactive Leaflet maps anchored at the **Regional Central Dispatch Hub** with draggable pin micro-targeting (exact street/purok reverse geocoding) and real highway road geometries via OSRM (Open Source Routing Machine road geometries).
 - 🔐 **Pre-Auth Protection**: RFC 6238 Multi-Factor Authentication (compatible with Google Authenticator).
 - 🛡️ **Post-Auth Defense**: **TripwireJS** automated sentry that detects scraping and severs compromised sessions in under 18 milliseconds.
 
@@ -58,7 +58,7 @@ flowchart LR
 ### 2. TripwireJS Automated Breach Containment
 - **Velocity Rate Limiting**: If an account requests more than 30 queries in 5 seconds (indicating an automated scraper or compromised session), TripwireJS blocks the browser in ~18ms.
 - **Honeypot Decoy (`TRK-0000`)**: A synthetic waybill is planted in the database. Anyone querying it is instantly identified as an attacker.
-- **Zero-Cost Cloud Kill-Switch**: Compromised accounts are automatically quarantined via Cloud Firestore Security Rules, cutting off database access worldwide without requiring a backend server.
+- **Automated Cloud Kill-Switch**: Compromised accounts are automatically quarantined via Cloud Firestore Security Rules, cutting off database access worldwide without requiring a backend server.
 
 ### 3. Data Privacy Compliance (RA 10173)
 - **Principle of Least Privilege**: Drivers only see the packages on their delivery route, not the entire branch customer directory.
