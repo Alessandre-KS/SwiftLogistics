@@ -1,7 +1,7 @@
 # 🚚 SwiftLogistics Hub
 
 > **A Regional Courier Dispatch & Delivery Management System with Automated Zero-Trust Cybersecurity**  
-> *Built for Philippine MSME logistics • 100% Free Tier (₱0.00 infrastructure cost) on Google Cloud Platform*  
+> *Built for regional logistics • 100% Free Tier (₱0.00 infrastructure cost) on Google Cloud Platform*  
 > *Compliant with the Philippine Data Privacy Act of 2012 (RA 10173) & NPC Circular 16-03*
 
 ---
@@ -132,6 +132,6 @@ To run the project locally without exposing production credentials:
 ---
 
 ## 🎓 Academic Attribution & Credits
-- **Project**: SwiftLogistics Hub (Branch #04 Regional Dispatch Desk)
+- **Project**: SwiftLogistics
 - **Program**: Bachelor of Science in Information Technology (BSIT)
 - **Course**: Information Assurance & Security (IAS) Capstone Project
