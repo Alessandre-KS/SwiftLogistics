@@ -1148,6 +1148,25 @@
 
         function startDriverLocationBroadcasting() {
             if (!driverSession || !driverSession.uid) return;
+            const role = (driverSession.role || "").toLowerCase();
+            // Crucial: Only actual Couriers/Drivers broadcast GPS to Fleet Radar!
+            // Management (Branch Dispatcher / Owner) must NEVER broadcast as a courier on the radar!
+            if (!role.includes("driver") && !role.includes("rider") && !role.includes("courier")) {
+                console.log("Management / Dispatcher session detected (" + driverSession.role + "). Courier GPS broadcast skipped.");
+                // If a management account was previously saved in driver_locations, clean it up
+                if (typeof isFirebaseOnline !== "undefined" && isFirebaseOnline && typeof db !== "undefined" && db) {
+                    db.collection("driver_locations").doc(driverSession.uid).delete().catch(() => {});
+                }
+                try {
+                    const raw = localStorage.getItem("SWIFT_DRIVER_LOCATIONS");
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        delete parsed[driverSession.uid];
+                        localStorage.setItem("SWIFT_DRIVER_LOCATIONS", JSON.stringify(parsed));
+                    }
+                } catch(e) {}
+                return;
+            }
             const driverId = driverSession.uid;
 
             const broadcast = (lat, lng, streetName) => {

@@ -552,6 +552,23 @@
         let currentDriverLocations = {};
 
         function initFleetRadarMap() {
+            // Immediate purge of obsolete/mock courier records from localStorage
+            try {
+                const raw = localStorage.getItem("SWIFT_DRIVER_LOCATIONS");
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    delete parsed["usr_carlo"];
+                    delete parsed["usr_juan"];
+                    for (const k in parsed) {
+                        const n = (parsed[k]?.driverName || "").toLowerCase();
+                        if (n.includes("carlo") || n.includes("juan") || n.includes("alessandre")) {
+                            delete parsed[k];
+                        }
+                    }
+                    localStorage.setItem("SWIFT_DRIVER_LOCATIONS", JSON.stringify(parsed));
+                }
+            } catch(e) {}
+
             const canvas = document.getElementById("fleetRadarMapCanvas");
             if (!canvas || typeof L === "undefined") return;
 
@@ -611,9 +628,16 @@
                         🌐 All Couriers
                     </button>
                     <button type="button" class="btn-radar-driver" onclick="focusFleetRadarHub()">
-                        🏢 UB Lipa Hub
+                        🏢 Central Hub
                     </button>
                 `;
+
+                if (driverIds.length === 0) {
+                    const emptyNotice = document.createElement("span");
+                    emptyNotice.style.cssText = "font-size: 11px; color: var(--text-muted); font-weight: 500; display: inline-flex; align-items: center; padding: 0 6px;";
+                    emptyNotice.innerText = "No active couriers on the road";
+                    controls.appendChild(emptyNotice);
+                }
 
                 driverIds.forEach(id => {
                     const d = locations[id];

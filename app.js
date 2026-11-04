@@ -7,9 +7,7 @@ function getVehicleEmoji(type) {
 }
 
 async function getRegisteredDrivers() {
-    let drivers = [
-        { id: "usr_juan", name: "Juan Dela Cruz", role: "Driver", vehicleType: "Motorcycle (Express 2-Wheeler)" }
-    ];
+    let drivers = [];
 
     try {
         const stored = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
@@ -235,26 +233,28 @@ async function fetchRoadRoute(waypoints) {
 // -----------------------------------------------------------------------------
 // 2B. COURIER FLEET RADAR & LIVE DRIVER GPS TELEMETRY
 // -----------------------------------------------------------------------------
-const DEFAULT_DRIVER_LOCATIONS = {
-    "usr_juan": {
-        driverId: "usr_juan",
-        driverName: "Juan Dela Cruz",
-        vehicleType: "Cargo Truck (Heavy 4/6-Wheeler)",
-        lat: 14.0450,
-        lng: 121.1570,
-        status: "Out for Delivery",
-        currentStreet: "Pres. J.P. Laurel Hwy, Malvar - Tanauan",
-        activeParcelsCount: 2,
-        updatedAt: new Date().toISOString()
-    }
-};
+const DEFAULT_DRIVER_LOCATIONS = {};
 
 function getLocalDriverLocations() {
     try {
         const raw = localStorage.getItem("SWIFT_DRIVER_LOCATIONS");
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            const clean = {};
+            for (const id in parsed) {
+                const d = parsed[id];
+                const name = (d.driverName || "").toLowerCase();
+                const role = (d.role || "").toLowerCase();
+                // Strictly filter out Carlo, Juan, Alessandre (Management), or any non-courier
+                if (!name.includes("carlo") && !name.includes("juan") && !name.includes("alessandre") && !role.includes("management") && !role.includes("dispatcher")) {
+                    clean[id] = d;
+                }
+            }
+            localStorage.setItem("SWIFT_DRIVER_LOCATIONS", JSON.stringify(clean));
+            return clean;
+        }
     } catch (e) {}
-    return { ...DEFAULT_DRIVER_LOCATIONS };
+    return {};
 }
 
 function saveLocalDriverLocations(locations) {
@@ -318,11 +318,27 @@ function listenToDriverLiveLocations(callback) {
                 let hasChanges = false;
                 snapshot.forEach(doc => {
                     const data = doc.data();
+                    const name = (data?.driverName || "").toLowerCase();
+                    // Permanently delete Carlo, Juan, or Management accounts (like Alessandre) from driver_locations collection
+                    if (doc.id === "usr_carlo" || doc.id === "usr_juan" || name.includes("carlo") || name.includes("juan") || name.includes("alessandre")) {
+                        db.collection("driver_locations").doc(doc.id).delete().catch(() => {});
+                        if (current[doc.id]) {
+                            delete current[doc.id];
+                            hasChanges = true;
+                        }
+                        return;
+                    }
                     if (data && data.driverId) {
                         current[data.driverId] = {
                             ...(current[data.driverId] || {}),
                             ...data
                         };
+                        hasChanges = true;
+                    }
+                });
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === "removed" && current[change.doc.id]) {
+                        delete current[change.doc.id];
                         hasChanges = true;
                     }
                 });
@@ -384,8 +400,8 @@ const INITIAL_PARCELS = [
         package: "Mechanical Keyboard & Keycaps",
         cod: "₱1,250.00",
         status: "Out for Delivery",
-        assignedDriver: "Juan Dela Cruz",
-        driverVehicle: "Motorcycle (Express 2-Wheeler)"
+        assignedDriver: "",
+        driverVehicle: ""
     },
     {
         trackingNo: "TRK-1002",
@@ -395,8 +411,8 @@ const INITIAL_PARCELS = [
         package: "UB-Lipa CITEC Department Uniform",
         cod: "₱850.00",
         status: "Out for Delivery",
-        assignedDriver: "Juan Dela Cruz",
-        driverVehicle: "Cargo Truck (Heavy 4/6-Wheeler)"
+        assignedDriver: "",
+        driverVehicle: ""
     },
     {
         trackingNo: "TRK-1003",
