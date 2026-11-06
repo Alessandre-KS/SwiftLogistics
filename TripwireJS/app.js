@@ -507,16 +507,16 @@ function renderStaffTable() {
         const initials = staff.name.split(" ").map(n => n[0]).join("");
         const statusBadge = staff.active 
             ? `<span class="status-pill status-pill-success">Active</span>` 
-            : `<span class="status-pill status-pill-danger">Quarantined</span>`;
+            : `<span class="status-pill status-pill-danger">Quarantined</span>${staff.quarantineReason ? `<div style="font-size:10px; color:#F87171; font-weight:600; margin-top:3px; max-width:180px; line-height:1.2; word-break:break-word;">⚠️ ${escapeHtml(staff.quarantineReason)}</div>` : ''}`;
 
         let actionBtn = "";
         if (staff.id === "usr_jeff") {
             actionBtn = `<span class="text-muted" style="font-size:12px;">Administrator</span>`;
         } else {
             const quarantineBtn = staff.active 
-                ? `<button class="btn btn-sm btn-outline text-danger" onclick="toggleStaffAccount('${staff.id}')">Quarantine</button>` 
+                ? `<button class="btn btn-sm btn-outline text-danger" onclick="openAdminConfirmModal('quarantine', '${staff.id}')">Quarantine</button>` 
                 : `<button class="btn btn-sm btn-primary" onclick="toggleStaffAccount('${staff.id}')">Restore</button>`;
-            const deleteBtn = `<button class="btn btn-sm btn-outline text-danger" style="margin-left: 6px; border-color: #FECACA; background: #FEF2F2;" onclick="handleDeleteStaffAccount('${staff.id}')" title="Permanently delete staff account">Delete</button>`;
+            const deleteBtn = `<button class="btn btn-sm btn-outline text-danger" style="margin-left: 6px; border-color: #FECACA; background: #FEF2F2;" onclick="openAdminConfirmModal('delete', '${staff.id}')" title="Permanently delete staff account">Delete</button>`;
             actionBtn = `<div style="display: flex; align-items: center; gap: 4px;">${quarantineBtn}${deleteBtn}</div>`;
         }
 
@@ -562,30 +562,34 @@ async function toggleStaffAccount(staffId) {
     if (!staff) return;
 
     const newActiveState = !staff.active;
-    staff.active = newActiveState;
 
     if (!newActiveState) {
-        staff.velocity = "0.0 req/s (Revoked)";
-        staff.isFlagged = true;
-        showToast(`Account Quarantined: ${staff.name} access revoked across Google Cloud.`);
-    } else {
-        staff.velocity = "0.2 req/s (Nominal)";
-        staff.isFlagged = false;
-        showToast(`Account Restored: ${staff.name} authorized for dispatch operations.`);
+        // Quarantine action requires administrative confirmation with password and reason
+        openAdminConfirmModal('quarantine', staffId);
+        return;
     }
+
+    // Account Restoration
+    staff.active = true;
+    staff.velocity = "0.2 req/s (Nominal)";
+    staff.isFlagged = false;
+    staff.quarantineReason = "";
+    showToast(`Account Restored: ${staff.name} authorized for dispatch operations.`);
 
     // Sync to Cloud Firestore
     if (db) {
         try {
             await db.collection("staff").doc(staffId).update({
-                status: newActiveState ? "active" : "quarantined",
+                status: "active",
+                quarantineReason: "",
                 velocity: staff.velocity
             });
             await db.collection("system_status").doc("tripwire").set({
-                isQuarantined: !newActiveState,
-                status: newActiveState ? "active" : "quarantined",
+                isQuarantined: false,
+                status: "active",
                 targetStaff: staffId,
                 staffName: staff.name,
+                quarantineReason: "",
                 timestamp: new Date().toISOString()
             }, { merge: true });
         } catch (e) {
@@ -594,13 +598,21 @@ async function toggleStaffAccount(staffId) {
     }
 
     try {
-        localStorage.setItem("tripwire_quarantine_sync", newActiveState ? "active" : "quarantined");
+        localStorage.setItem("tripwire_quarantine_sync", "active");
+        let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
+        const idx = dir.findIndex(s => s.id === staffId);
+        if (idx !== -1) {
+            dir[idx].active = true;
+            dir[idx].status = "active";
+            dir[idx].quarantineReason = "";
+            localStorage.setItem("swift_staff_directory", JSON.stringify(dir));
+        }
     } catch (e) {}
 
-    if (newActiveState && currentState === "after") {
+    logSecurityEvent("RESTORE", staff.name, staffId, "Re-authorized for dispatch operations by Business Owner");
+
+    if (currentState === "after") {
         switchState("before");
-    } else if (!newActiveState && currentState === "before") {
-        switchState("after");
     }
 
     renderStaffTable();
@@ -994,6 +1006,7 @@ function initRealtimeSync() {
                             totpSecret: d.totpSecret || "",
                             email: d.email || "",
                             active: d.status !== "quarantined",
+                            quarantineReason: d.quarantineReason || "",
                             velocity: d.velocity || "0.0 req/s (Nominal)",
                             isFlagged: d.status === "quarantined"
                         });
@@ -1262,22 +1275,300 @@ function viewEmployeeQrModal(staffId) {
     openModal("verifiedOnboardingModal");
 }
 
-async function handleDeleteStaffAccount(staffId) {
+function escapeHtml(text) {
+    if (!text) return "";
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function logSecurityEvent(action, staffName, staffId, reason) {
+    if (!logList) return;
+    const time = new Date().toLocaleTimeString();
+    const tag = action === "QUARANTINE" 
+        ? '<span class="log-tag tag-danger">QUAR</span>' 
+        : (action === "DELETION" ? '<span class="log-tag tag-danger">DEL</span>' : '<span class="log-tag tag-primary">RESTORE</span>');
+    const entry = document.createElement("div");
+    entry.className = "log-entry";
+    entry.innerHTML = `
+        ${tag}
+        <span class="log-time">${time}</span>
+        <span class="log-msg"><strong>[ADMIN ${action}]</strong> ${staffName} (${staffId}) authorized by Bossing Jeff. Reason: ${escapeHtml(reason)}</span>
+    `;
+    logList.prepend(entry);
+}
+
+// -----------------------------------------------------------------------------
+// 10. ADMIN CONFIRMATION FOR QUARANTINE & DELETION (PASSWORD & REASON GATED)
+// -----------------------------------------------------------------------------
+let pendingAdminAction = null;
+
+function openAdminConfirmModal(actionType, staffId) {
     if (staffId === "usr_jeff") {
-        showToast("Cannot delete Administrator account.", "warning");
+        showToast("Cannot modify Administrator account.", "warning");
         return;
     }
 
     const staff = staffList.find(s => s.id === staffId);
+    if (!staff) return;
+
+    pendingAdminAction = {
+        type: actionType,
+        staffId: staffId,
+        staff: staff
+    };
+
+    // Target Overview Card
+    const initials = (staff.name || "ST").split(" ").map(n => n[0]).join("");
+    const avatarEl = document.getElementById("adminConfirmAvatar");
+    const nameEl = document.getElementById("adminConfirmName");
+    const roleEl = document.getElementById("adminConfirmRoleBadge");
+    const emailEl = document.getElementById("adminConfirmEmail");
+
+    if (avatarEl) avatarEl.innerText = initials || "ST";
+    if (nameEl) nameEl.innerText = staff.name;
+    if (roleEl) roleEl.innerText = staff.role;
+    if (emailEl) emailEl.innerText = staff.email || "No email on record";
+
+    // Reset Form Fields & Error Display
+    const passInput = document.getElementById("adminActionPassword");
+    const errorBanner = document.getElementById("adminActionErrorBanner");
+    const titleEl = document.getElementById("adminConfirmModalTitle");
+    const subEl = document.getElementById("adminConfirmModalSub");
+    const noticeEl = document.getElementById("adminConfirmNotice");
+    const catSelect = document.getElementById("adminActionCategory");
+    const detailsInput = document.getElementById("adminActionDetails");
+    const submitBtn = document.getElementById("btnAdminConfirmSubmit");
+
+    if (passInput) {
+        passInput.value = "";
+        passInput.style.borderColor = "rgba(239, 68, 68, 0.5)";
+    }
+    if (errorBanner) {
+        errorBanner.style.display = "none";
+        errorBanner.innerText = "";
+    }
+
+    if (actionType === "quarantine") {
+        if (titleEl) titleEl.innerHTML = `<span style="color:#EF4444;">🛡️ Confirm Account Quarantine</span>`;
+        if (subEl) subEl.innerText = "Administrative password verification & forensic justification required";
+        if (noticeEl) {
+            noticeEl.innerHTML = `
+                <strong>⚠️ Security Lockdown Warning:</strong><br>
+                Quarantining <strong>${staff.name}</strong> will instantly revoke terminal sessions across Google Cloud in &lt;18ms, set Firestore status to <code>quarantined</code>, and block logins until explicitly restored.
+            `;
+            noticeEl.style.background = "rgba(239, 68, 68, 0.12)";
+            noticeEl.style.borderColor = "rgba(239, 68, 68, 0.35)";
+        }
+        if (catSelect) {
+            catSelect.innerHTML = `
+                <option value="" disabled selected>-- Select Quarantine Reason Category --</option>
+                <option value="Velocity Threshold Exceeded">Velocity Threshold Exceeded (>30 queries in 5s)</option>
+                <option value="Canary Honeypot (TRK-0000) Access">Canary Honeypot (TRK-0000) Unauthorized Probing</option>
+                <option value="Suspected Credential Hijacking">Suspected Credential Hijacking / Token Compromise</option>
+                <option value="Suspicious Login Pattern">Suspicious Login Pattern / Off-Hours Terminal Activity</option>
+                <option value="Administrative Policy Suspension">Administrative Policy Suspension / Disciplinary</option>
+                <option value="Preventative Security Isolation">Preventative Security Isolation</option>
+                <option value="Other Security Incident">Other Security Incident (Specify in Remarks)</option>
+            `;
+        }
+        if (detailsInput) detailsInput.value = "";
+        if (submitBtn) {
+            submitBtn.innerHTML = `🔒 Authorize & Quarantine Account`;
+            submitBtn.style.background = "#DC2626";
+            submitBtn.disabled = false;
+        }
+    } else if (actionType === "delete") {
+        if (titleEl) titleEl.innerHTML = `<span style="color:#EF4444;">🗑️ Confirm Permanent Account Deletion</span>`;
+        if (subEl) subEl.innerText = "Irreversible purge of credentials, 2FA keys, and cloud records";
+        if (noticeEl) {
+            noticeEl.innerHTML = `
+                <strong>🚨 Permanent Data Purge Warning:</strong><br>
+                Deleting <strong>${staff.name}</strong> will permanently erase their account from Cloud Firestore <code>/staff/${staff.id}</code>, invalidate all 2FA TOTP secrets, and clear pending registrations. <strong>This action cannot be undone.</strong>
+            `;
+            noticeEl.style.background = "rgba(153, 27, 27, 0.2)";
+            noticeEl.style.borderColor = "rgba(239, 68, 68, 0.5)";
+        }
+        if (catSelect) {
+            catSelect.innerHTML = `
+                <option value="" disabled selected>-- Select Deletion Reason Category --</option>
+                <option value="Employee Resignation / Offboarding">Employee Resignation / Voluntary Offboarding</option>
+                <option value="Employment Termination">Employment Termination / Contract Concluded</option>
+                <option value="Severe Policy Violation">Severe Security Policy Violation</option>
+                <option value="Duplicate / Erroneous Account">Duplicate or Erroneous Staff Registration</option>
+                <option value="Test / Sandbox Account Cleanup">Test / Sandbox Account Cleanup</option>
+                <option value="Other Operational Reason">Other Operational Reason (Specify in Remarks)</option>
+            `;
+        }
+        if (detailsInput) detailsInput.value = "";
+        if (submitBtn) {
+            submitBtn.innerHTML = `🗑️ Authorize & Permanently Delete`;
+            submitBtn.style.background = "#991B1B";
+            submitBtn.disabled = false;
+        }
+    }
+
+    openModal("adminActionConfirmModal");
+    setTimeout(() => {
+        if (catSelect) catSelect.focus();
+    }, 100);
+}
+
+function handleAdminReasonCategoryChange() {
+    const catSelect = document.getElementById("adminActionCategory");
+    const detailsInput = document.getElementById("adminActionDetails");
+    if (!catSelect || !detailsInput) return;
+    const cat = catSelect.value;
+    if (cat && (!detailsInput.value || detailsInput.value.startsWith("Authorized action:"))) {
+        detailsInput.value = `Authorized action: ${cat}.`;
+    }
+}
+
+function closeAdminConfirmModal() {
+    closeModal("adminActionConfirmModal");
+    pendingAdminAction = null;
+}
+
+async function executeAdminConfirmedAction(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!pendingAdminAction) return;
+
+    const errorBanner = document.getElementById("adminActionErrorBanner");
+    const passwordInput = document.getElementById("adminActionPassword");
+    const catSelect = document.getElementById("adminActionCategory");
+    const detailsInput = document.getElementById("adminActionDetails");
+
+    const category = (catSelect ? catSelect.value : "").trim();
+    const details = (detailsInput ? detailsInput.value : "").trim();
+    const enteredPassword = (passwordInput ? passwordInput.value : "").trim();
+
+    // 1. Validate Category
+    if (!category) {
+        if (errorBanner) {
+            errorBanner.innerText = "❌ Please select an action reason category.";
+            errorBanner.style.display = "block";
+        }
+        if (catSelect) catSelect.focus();
+        return;
+    }
+
+    // 2. Validate Detailed Remarks
+    if (!details) {
+        if (errorBanner) {
+            errorBanner.innerText = "❌ Specific remarks / justification are required for audit logging.";
+            errorBanner.style.display = "block";
+        }
+        if (detailsInput) detailsInput.focus();
+        return;
+    }
+
+    // 3. Validate Administrator Password
+    // Verified against Bossing Jeff's administrator credentials ("password123")
+    if (enteredPassword !== "password123") {
+        if (errorBanner) {
+            errorBanner.innerText = "❌ Invalid Administrator Password. Authorization rejected.";
+            errorBanner.style.display = "block";
+        }
+        if (passwordInput) {
+            passwordInput.style.borderColor = "#EF4444";
+            passwordInput.focus();
+        }
+        return;
+    }
+
+    const { type, staffId, staff } = pendingAdminAction;
+    const staffName = staff ? staff.name : staffId;
+    const fullReason = `${category}: ${details}`;
+
+    const submitBtn = document.getElementById("btnAdminConfirmSubmit");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Processing Authorization...";
+    }
+
+    try {
+        if (type === "quarantine") {
+            await executeQuarantineWithAudit(staffId, staff, fullReason, category);
+        } else if (type === "delete") {
+            await executeDeleteWithAudit(staffId, staff, fullReason, category);
+        }
+        closeAdminConfirmModal();
+    } catch (err) {
+        if (errorBanner) {
+            errorBanner.innerText = `Error: ${err.message}`;
+            errorBanner.style.display = "block";
+        }
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Authorize & Execute";
+        }
+    }
+}
+
+async function executeQuarantineWithAudit(staffId, staff, fullReason, category) {
+    const staffName = staff ? staff.name : staffId;
+    staff.active = false;
+    staff.status = "quarantined";
+    staff.quarantineReason = fullReason;
+    staff.quarantineTimestamp = new Date().toISOString();
+    staff.quarantinedBy = "Bossing Jeff (Administrator)";
+    staff.velocity = "0.0 req/s (Revoked)";
+    staff.isFlagged = true;
+
+    // Update local directory cache
+    try {
+        let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
+        const idx = dir.findIndex(s => s.id === staffId);
+        if (idx !== -1) {
+            dir[idx].active = false;
+            dir[idx].status = "quarantined";
+            dir[idx].quarantineReason = fullReason;
+            dir[idx].quarantineTimestamp = staff.quarantineTimestamp;
+            dir[idx].quarantinedBy = staff.quarantinedBy;
+            dir[idx].velocity = staff.velocity;
+            localStorage.setItem("swift_staff_directory", JSON.stringify(dir));
+        }
+        localStorage.setItem("tripwire_quarantine_sync", "quarantined");
+    } catch (e) {}
+
+    // Synchronize to Cloud Firestore
+    if (db) {
+        try {
+            await db.collection("staff").doc(staffId).update({
+                status: "quarantined",
+                active: false,
+                quarantineReason: fullReason,
+                quarantineTimestamp: staff.quarantineTimestamp,
+                quarantinedBy: staff.quarantinedBy,
+                velocity: staff.velocity
+            });
+            await db.collection("system_status").doc("tripwire").set({
+                isQuarantined: true,
+                status: "quarantined",
+                targetStaff: staffId,
+                staffName: staffName,
+                quarantineReason: fullReason,
+                timestamp: staff.quarantineTimestamp
+            }, { merge: true });
+        } catch (e) {
+            console.warn("Firestore staff quarantine notice:", e.message);
+        }
+    }
+
+    logSecurityEvent("QUARANTINE", staffName, staffId, fullReason);
+    showToast(`Account Quarantined: ${staffName} access revoked. Reason: ${category}`);
+    renderStaffTable();
+}
+
+async function executeDeleteWithAudit(staffId, staff, fullReason, category) {
     const staffName = staff ? staff.name : staffId;
     const staffEmail = (staff && staff.email ? staff.email : "").toLowerCase();
 
-    const confirmed = confirm(`Are you sure you want to permanently delete the account for "${staffName}"?\n\nThis will immediately revoke their terminal access, delete their credentials from Cloud Firestore, and clear any registration records.`);
-    if (!confirmed) return;
-
     // 1. Remove from in-memory staffList
     staffList = staffList.filter(s => s.id !== staffId);
-    renderStaffTable();
 
     // 2. Remove from local directory cache
     try {
@@ -1311,5 +1602,7 @@ async function handleDeleteStaffAccount(staffId) {
         }
     }
 
-    showToast(`Account for ${staffName} permanently deleted and wiped.`);
+    logSecurityEvent("DELETION", staffName, staffId, fullReason);
+    showToast(`Account for ${staffName} permanently deleted. Reason: ${category}`);
+    renderStaffTable();
 }

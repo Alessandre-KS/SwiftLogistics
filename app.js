@@ -886,9 +886,10 @@ async function signInStaff(email, password) {
                 const data = doc.data();
 
                 if (data.status === "quarantined") {
+                    const reasonTxt = data.quarantineReason ? `\nReason: ${data.quarantineReason}` : "";
                     return {
                         success: false,
-                        message: "Access Denied: Account quarantined by TripwireJS. Contact Bossing Jeff to review."
+                        message: `Access Denied: Account quarantined by TripwireJS.${reasonTxt}\nContact Bossing Jeff to review.`
                     };
                 }
 
@@ -983,9 +984,10 @@ async function signInStaff(email, password) {
             };
         }
         if (matched.active === false || matched.status === "quarantined") {
+            const reasonTxt = matched.quarantineReason ? `\nReason: ${matched.quarantineReason}` : "";
             return {
                 success: false,
-                message: "Access Denied: Account quarantined by TripwireJS. Contact Bossing Jeff to review."
+                message: `Access Denied: Account quarantined by TripwireJS.${reasonTxt}\nContact Bossing Jeff to review.`
             };
         }
     }

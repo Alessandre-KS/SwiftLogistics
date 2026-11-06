@@ -82,6 +82,10 @@
                 </a>
 
                 <div class="menu-category-label" style="margin-top: 24px;">Security Baseline</div>
+                <a href="https://tripwirejs-capstone-9821.web.app" target="_blank" class="sidebar-nav-link" id="ownerSocLink" style="color: #FCA5A5; display: none; margin-bottom: 8px;" title="Open Owner Security Operations Console">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <span>Owner SOC Console ↗</span>
+                </a>
                 <div class="sidebar-sentry-box">
                     <div class="sentry-head">
                         <span class="sentry-beacon"></span>
@@ -518,6 +522,11 @@
                 const parts = (session.name || "Staff Member").trim().split(/\s+/);
                 const initials = parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0].slice(0, 2).toUpperCase();
                 avatarEl.innerText = initials || "ST";
+            }
+
+            if (session.role && (session.role.toLowerCase().includes("owner") || session.role.toLowerCase().includes("admin"))) {
+                const socLink = document.getElementById("ownerSocLink");
+                if (socLink) socLink.style.display = "flex";
             }
 
             // Initialize TripwireJS Sentry
