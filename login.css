@@ -1,0 +1,348 @@
+/* ==========================================================================
+   SWIFTLOGISTICS HUB — ZERO-TRUST TOTP SIGN-IN STYLESHEET (login.css)
+   PURPOSE:
+   Dedicated styling for the authentication gateway and staff registration
+   interface (login.html). Covers primary credentials, zero-trust TOTP 2FA digit
+   inputs, QR code enrollment dialogs, and emergency recovery key presentation.
+   ========================================================================== */
+
+/* ==========================================================================
+   SECTION 1: AUTHENTICATION CANVAS & CARD WRAPPER
+   ========================================================================== */
+
+/* FULL VIEWPORT CENTERING CANVAS */
+.login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #F1F5F9;
+}
+
+/* WHITE ELEVATED AUTHENTICATION CARD */
+.login-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+/* TOP CARGO-BRANDED BANNER */
+.login-top-bar {
+    background: #0F172A;
+    padding: 24px 20px 20px 20px;
+    text-align: center;
+    color: #FFFFFF;
+    border-bottom: 3px solid var(--courier-orange);
+}
+
+/* LOGO ICON FRAME */
+.login-brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: #EA580C;
+    color: #FFFFFF;
+    margin: 0 auto 10px auto;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);
+}
+
+/* BRAND TITLE HEADER */
+.login-brand-title {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin: 4px 0 2px 0;
+}
+
+/* REGIONAL FACILITY SUBTITLE */
+.login-brand-sub {
+    font-size: 11.5px;
+    color: #94A3B8;
+    margin: 0;
+}
+
+/* MAIN FORM PADDING AREA */
+.login-body {
+    padding: 24px;
+}
+
+
+/* ==========================================================================
+   SECTION 2: DUAL TAB SWITCHER (SIGN-IN VS NEW EMPLOYEE REGISTRATION)
+   ========================================================================== */
+
+/* HORIZONTAL TAB SWITCHER BAR */
+.auth-tabs-nav {
+    display: flex;
+    background: #F1F5F9;
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 20px;
+    gap: 4px;
+}
+
+/* TAB BUTTON */
+.auth-tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748B;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+}
+
+/* ACTIVE TAB BUTTON */
+.auth-tab-btn.active {
+    background: #FFFFFF;
+    color: #0F172A;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+
+/* ==========================================================================
+   SECTION 3: TOTP ZERO-TRUST MULTI-FACTOR AUTHENTICATION CHALLENGE
+   ========================================================================== */
+
+/* ANIMATED WRAPPER FOR STEP 2 TOTP CHALLENGE */
+.totp-screen-wrap {
+    animation: fadeInSlide 0.25s ease-out;
+}
+
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* TOTP STEP HEADER */
+.totp-header {
+    text-align: center;
+    margin-bottom: 18px;
+}
+
+/* SECURITY BADGE PILL */
+.totp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #FFF7ED;
+    border: 1px solid #FED7AA;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--courier-orange);
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+/* TOTP TITLE */
+.totp-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-title);
+    margin-bottom: 4px;
+}
+
+/* TOTP INSTRUCTIONAL SUBTITLE */
+.totp-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+/* VERIFIED USER CHIP ON STEP 2 SCREEN */
+.totp-user-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    margin: 14px 0;
+    font-size: 12px;
+}
+
+/* MINI AVATAR INSIDE CHIP */
+.totp-user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: var(--courier-orange);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+/* 6-DIGIT CODE INPUT GRID */
+.totp-input-grid {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 16px 0 10px 0;
+}
+
+/* INDIVIDUAL DIGIT BOX */
+.totp-digit-box {
+    width: 44px;
+    height: 52px;
+    font-size: 22px;
+    font-weight: 800;
+    text-align: center;
+    border: 2px solid var(--border-medium);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    color: var(--text-title);
+    outline: none;
+    transition: all 0.15s ease;
+    background: #FFFFFF;
+}
+
+.totp-digit-box:focus {
+    border-color: var(--courier-orange);
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.18);
+}
+
+.totp-digit-box.filled {
+    border-color: #0F172A;
+    background: #FAFAFC;
+}
+
+/* 30-SECOND RFC 6238 TIMESTEP COUNTDOWN BAR */
+.totp-timer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.totp-timer-bar-wrap {
+    height: 4px;
+    background: #E2E8F0;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.totp-timer-bar-fill {
+    height: 100%;
+    background: var(--courier-orange);
+    transition: width 1s linear;
+}
+
+/* DEMO QUICK-FILL ASSISTANT BOX */
+.totp-demo-sync-box {
+    background: #F8FAFC;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin: 14px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.totp-demo-code-val {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--courier-orange);
+}
+
+.totp-actions-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.btn-totp-secondary {
+    width: 100%;
+    padding: 9px;
+    background: transparent;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-sm);
+    color: var(--text-body);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-totp-secondary:hover {
+    background: var(--bg-subtle);
+    color: var(--text-title);
+}
+
+
+/* ==========================================================================
+   SECTION 4: QR CODE ENROLLMENT MODAL & RECOVERY KEY PRESENTATION
+   ========================================================================== */
+
+/* QR MODAL WRAPPER */
+.qr-modal-content {
+    text-align: center;
+    padding: 24px;
+}
+
+/* BORDER FRAME FOR ENROLLMENT QR IMAGE */
+.qr-code-img-frame {
+    display: inline-block;
+    padding: 12px;
+    background: #FFFFFF;
+    border: 2px solid var(--border-subtle);
+    border-radius: 8px;
+    margin: 16px 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* BASE32 SECRET SEED KEY DISPLAY BOX */
+.qr-secret-key-box {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-title);
+    margin-bottom: 16px;
+    word-break: break-all;
+}
+
+
+/* ==========================================================================
+   SECTION 5: RESPONSIVE MEDIA QUERIES
+   ========================================================================== */
+
+@media (max-width: 480px) {
+    .login-card {
+        margin: 12px;
+        width: calc(100% - 24px);
+    }
+
+    .totp-digit-box {
+        width: 38px;
+        height: 46px;
+        font-size: 18px;
+    }
+}

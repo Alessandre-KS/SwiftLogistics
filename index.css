@@ -1,0 +1,294 @@
+/* ==========================================================================
+   SWIFTLOGISTICS HUB — DISPATCH COUNTER & WORKBENCH STYLESHEET (index.css)
+   PURPOSE:
+   Dedicated styling for the main regional dispatch counter interface (index.html).
+   Controls the active consignment manifest table, courier fleet radar map,
+   real-time KPI metric bars, customer waybill tracking inspector card,
+   and dispatch assignment modal dialogs.
+   ========================================================================== */
+
+/* ==========================================================================
+   SECTION 1: DISPATCH COUNTER WORKSPACE & KPI METRICS BAR
+   ========================================================================== */
+
+/* MAIN WORKBENCH APPLICATION WRAPPER */
+.courier-app-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* MAIN CONTENT STAGE */
+.courier-main-stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+/* TOP STATUS KPI METRICS STRIP */
+.counter-kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 20px 24px;
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+/* INDIVIDUAL KPI STAT CARD */
+.counter-kpi-card {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    background: var(--bg-subtle);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.counter-kpi-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* KPI ICON FRAME */
+.kpi-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+
+/* ==========================================================================
+   SECTION 2: COURIER FLEET RADAR & LIVE GEOLOCATION MAP STAGE
+   ========================================================================== */
+
+/* RADAR ACCORDION CONTAINER ON MAIN COUNTER */
+.radar-panel-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    margin: 20px 24px 0 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+/* RADAR PANEL HEADER WITH LIVE PULSE */
+.radar-panel-header {
+    padding: 14px 20px;
+    background: #0F172A;
+    color: #FFFFFF;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+/* LEAFLET RADAR MAP CANVAS CONTAINER */
+.radar-leaflet-stage {
+    height: 290px;
+    width: 100%;
+    background: #E2E8F0;
+}
+
+
+/* ==========================================================================
+   SECTION 3: CONSIGNMENT MANIFEST TABLE & SEARCH TOOLBAR
+   ========================================================================== */
+
+/* WORKBENCH TABLE CONTAINER CARD */
+.manifest-workbench-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    margin: 20px 24px 40px 24px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+/* FILTER AND SEARCH TOOLBAR */
+.manifest-toolbar {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: #FFFFFF;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+/* SEARCH INPUT GROUP WITH ICON */
+.manifest-search-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 380px;
+}
+
+.manifest-search-input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    outline: none;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+}
+
+.manifest-search-input:focus {
+    border-color: var(--courier-orange);
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+}
+
+.manifest-search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+/* FILTER BUTTONS & DROPDOWNS */
+.manifest-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+
+/* ==========================================================================
+   SECTION 4: CUSTOMER WAYBILL TRACKING & DETAIL INSPECTOR CARD
+   ========================================================================== */
+
+/* WAYBILL DETAIL INSPECTION MODAL / OVERLAY CARD */
+.waybill-inspector-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* TRACKING PROGRESS TIMELINE STEPPER */
+.tracking-stepper-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px 0;
+    position: relative;
+}
+
+.tracking-stepper-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 2;
+}
+
+.stepper-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #E2E8F0;
+    color: #64748B;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    border: 2px solid #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tracking-stepper-node.completed .stepper-circle {
+    background: #059669;
+    color: #FFFFFF;
+}
+
+.tracking-stepper-node.active .stepper-circle {
+    background: #EA580C;
+    color: #FFFFFF;
+    box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.2);
+}
+
+
+/* ==========================================================================
+   SECTION 5: DISPATCH ASSIGNMENT & STATUS UPDATE MODAL CONTROLS
+   ========================================================================== */
+
+/* MODAL OVERLAY BACKGROUND WITH BLUR */
+.courier-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+/* MODAL DIALOG CONTAINER */
+.courier-modal-box {
+    background: #FFFFFF;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    animation: modalSlideUp 0.2s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* MODAL HEADER */
+.courier-modal-header {
+    background: #0F172A;
+    color: #FFFFFF;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid var(--courier-orange);
+}
+
+.courier-modal-title {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+/* MODAL BODY */
+.courier-modal-body {
+    padding: 24px;
+}
+
+/* MODAL ACTION BUTTON FOOTER */
+.courier-modal-footer {
+    padding: 14px 24px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
