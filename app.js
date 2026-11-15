@@ -747,14 +747,14 @@ async function loadParcels() {
     parcelsList = getLocalParcels();
     renderManifestTable();
 
-    // ATTEMPT FIRESTORE FETCH IF STAFF SESSION IS ACTIVE
-    const staffSession = getStaffSession();
-    if (isFirebaseOnline && db && staffSession) {
+    // ATTEMPT FIRESTORE FETCH IF DB IS AVAILABLE
+    if (isFirebaseOnline && db) {
         try {
-            const snapshot = await db.collection("parcels").where("trackingNo", ">", "TRK-0000").get();
+            const snapshot = await db.collection("parcels").get();
             if (!snapshot.empty) {
                 const cloudParcels = [];
                 snapshot.forEach(doc => {
+                    if (doc.id === "TRK-0000") return; // Skip honeypot canary
                     const data = doc.data();
                     // BUSINESS RULE: NORMALIZE ANY UNASSIGNED FIRESTORE PARCEL TO "WAITING TO BE ASSIGNED TO DRIVER"
                     if ((!data.assignedDriver && !data.assignedDriverId) && (data.status || "").includes("Out for Delivery")) {
@@ -765,12 +765,66 @@ async function loadParcels() {
                     }
                     cloudParcels.push(data);
                 });
-                parcelsList = cloudParcels;
-                saveLocalParcels(parcelsList);
-                renderManifestTable();
+                if (cloudParcels.length > 0) {
+                    parcelsList = cloudParcels;
+                    saveLocalParcels(parcelsList);
+                    renderManifestTable();
+                }
+            } else {
+                // If cloud collection is completely empty, seed INITIAL_PARCELS so all devices share the same data
+                try {
+                    const batch = db.batch();
+                    INITIAL_PARCELS.forEach(p => {
+                        const ref = db.collection("parcels").doc(p.trackingNo);
+                        batch.set(ref, {
+                            ...p,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    await batch.commit();
+                } catch (seedErr) {
+                    console.warn("Firestore parcel seeding notice:", seedErr.message);
+                }
             }
         } catch (err) {
             console.warn("Firestore sync skipped:", err.message);
+        }
+
+        // Establish real-time bidirectional listener for cross-device synchronization
+        listenToParcelsCloudSync();
+    }
+}
+
+// REAL-TIME CLOUD FIRESTORE LISTENER FOR BIDIRECTIONAL CROSS-DEVICE PARCEL SYNC
+let parcelsSyncUnsubscribe = null;
+function listenToParcelsCloudSync() {
+    if (parcelsSyncUnsubscribe) return;
+    if (isFirebaseOnline && db) {
+        try {
+            parcelsSyncUnsubscribe = db.collection("parcels").onSnapshot((snapshot) => {
+                if (!snapshot || snapshot.empty) return;
+                const cloudParcels = [];
+                snapshot.forEach(doc => {
+                    if (doc.id === "TRK-0000") return; // Skip canary honeypot
+                    const data = doc.data();
+                    if ((!data.assignedDriver && !data.assignedDriverId) && (data.status || "").includes("Out for Delivery")) {
+                        data.status = "Waiting to be Assigned to Driver";
+                    }
+                    cloudParcels.push(data);
+                });
+                if (cloudParcels.length > 0) {
+                    parcelsList = cloudParcels;
+                    saveLocalParcels(parcelsList);
+                    if (typeof renderManifestTable === "function") renderManifestTable();
+                    if (typeof renderDriverRunSheet === "function") renderDriverRunSheet();
+                    window.dispatchEvent(new CustomEvent("swift_parcels_cloud_synced", { detail: parcelsList }));
+                }
+            }, (err) => {
+                console.warn("Firestore parcels snapshot notice:", err.message);
+            });
+        } catch (e) {
+            console.warn("Firestore parcels listener failed:", e);
         }
     }
 }
@@ -838,6 +892,7 @@ async function updateParcelStatusRecord(trackingNo, newStatus, assignedDriver = 
         if (isFirebaseOnline && db) {
             try {
                 const updatePayload = {
+                    ...item,
                     status: newStatus,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };

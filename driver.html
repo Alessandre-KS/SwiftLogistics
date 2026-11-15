@@ -337,6 +337,11 @@
             await loadParcels();
             renderDriverRunSheet();
             startDriverLocationBroadcasting();
+
+            // Real-time listener for cross-device parcel assignment and status updates
+            window.addEventListener("swift_parcels_cloud_synced", () => {
+                renderDriverRunSheet();
+            });
         });
 
         function initDriverRouteMap() {
