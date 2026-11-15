@@ -992,6 +992,36 @@ async function logParcelDeliveryAttempt(trackingNo, reason = "Customer Not Avail
     return true;
 }
 
+// START ACTIVE DELIVERY FOR A SPECIFIC CONSIGNMENT
+async function startParcelDelivery(trackingNo, driverSession = null) {
+    const item = parcelsList.find(p => p.trackingNo === trackingNo);
+    if (!item) return false;
+
+    item.status = "Out for Delivery";
+    item.deliveryStartedAt = new Date().toISOString();
+    if (driverSession) {
+        if (!item.assignedDriver) item.assignedDriver = driverSession.name;
+        if (!item.driverVehicle) item.driverVehicle = driverSession.vehicleType;
+        if (!item.assignedDriverId) item.assignedDriverId = driverSession.uid;
+    }
+
+    saveLocalParcels(parcelsList);
+
+    if (isFirebaseOnline && db) {
+        try {
+            await db.collection("parcels").doc(trackingNo).set({
+                ...item,
+                status: "Out for Delivery",
+                deliveryStartedAt: item.deliveryStartedAt,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        } catch (e) {
+            console.warn("Firestore start delivery error:", e.message);
+        }
+    }
+    return true;
+}
+
 // ============================================================================
 // SECTION 6: STAFF AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC)
 // ============================================================================

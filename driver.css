@@ -608,6 +608,192 @@
     color: #9A3412;
 }
 
+/* ==========================================================================
+   SECTION 4D: START DELIVERY & HOUSE DIRECTIONS GUIDANCE
+   ========================================================================== */
+
+/* START DELIVERY BUTTON */
+.btn-start-delivery {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 15px;
+    background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-start-delivery:hover {
+    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.45);
+}
+
+/* HOUSE DIRECTIONS BUTTON */
+.btn-house-directions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 13px;
+    background: #EFF6FF;
+    border: 1.5px solid #BFDBFE;
+    color: #1D4ED8;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-house-directions:hover {
+    background: #DBEAFE;
+    border-color: #93C5FD;
+    color: #1E40AF;
+}
+
+/* LANDMARK & HOUSE WAYFINDING CALLOUT BOX ON CARDS */
+.card-landmark-tag {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: #92400E;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.4;
+}
+
+/* ACTIVE IN-ROUTE HIGHLIGHT ON PARCEL CARDS */
+.in-route-active-card {
+    border: 2px solid #EA580C !important;
+    background: #FFFDFB !important;
+    box-shadow: 0 4px 16px rgba(234, 88, 12, 0.15) !important;
+}
+
+/* HOUSE DIRECTIONS MODAL STYLING */
+.dir-address-card {
+    background: #F8FAFC;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+}
+
+.dir-section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.dir-address-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0F172A;
+    line-height: 1.4;
+}
+
+.dir-landmark-alert {
+    background: #FFF7ED;
+    border: 1px solid #FED7AA;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 8px;
+}
+
+.dir-metric-box {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: center;
+}
+
+.dir-metric-val {
+    display: block;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-title);
+}
+
+.dir-metric-lbl {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.btn-gmaps-navigate {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #1E40AF;
+    color: #FFFFFF;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(30, 64, 175, 0.3);
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-gmaps-navigate:hover {
+    background: #1D4ED8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.4);
+}
+
+.dir-steps-wrap {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.dir-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dir-step-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #F1F5F9;
+}
+
+.dir-step-row:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.dir-step-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.dir-step-destination {
+    background: #FFF7ED;
+    border-radius: 6px;
+    padding: 8px;
+    border: 1px solid #FED7AA;
+}
 
 /* ==========================================================================
    SECTION 5: RESPONSIVE MOBILE VIEWPORT ADAPTATIONS (SMARTPHONES & TABLETS)
@@ -919,7 +1105,9 @@
     }
 
     .btn-deliver-action,
-    .btn-attempt-action {
+    .btn-attempt-action,
+    .btn-start-delivery,
+    .btn-house-directions {
         width: 100% !important;
         justify-content: center !important;
         padding: 10px 14px !important;
