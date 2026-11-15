@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SwiftLogistics Hub — Driver Transit Terminal & Run-Sheet</title>
-    <link rel="stylesheet" href="style.css?v=6.3.0">
+    <link rel="stylesheet" href="style.css?v=6.4.0">
     <!-- ====================================================================
          LEAFLET.JS V1.9.4 MAP STYLESHEET
          PURPOSE: Provides mobile-optimized CSS styling for the courier transit
@@ -12,7 +12,7 @@
          ==================================================================== -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <!-- DEDICATED DRIVER TRANSIT TERMINAL STYLESHEET -->
-    <link rel="stylesheet" href="driver.css?v=2.0.0">
+    <link rel="stylesheet" href="driver.css?v=2.2.0">
 </head>
 <body class="courier-body" style="background: var(--bg-canvas);">
 
@@ -578,22 +578,22 @@
             if (!container) return;
 
             // STEP 2: EXTRACT ALL SHIPMENTS ASSIGNED TO THIS COURIER
-            const assignedParcels = getAssignedDriverParcels();
+            const assignedParcels = getAssignedDriverParcels();                         // SHIPMENTS FILTERED FOR ACTIVE RIDER
 
-            // STEP 3: TALLY OPERATIONAL METRICS (TOTAL, IN-TRANSIT, DELIVERED)
-            const totalAssigned = assignedParcels.length;
-            const pendingOut = assignedParcels.filter(p => (p.status || "").includes("Out for Delivery")).length;
-            const delivered = assignedParcels.filter(p => (p.status || "").includes("Delivered")).length;
+            // VARIABLES FOR OPERATIONAL RUN-SHEET COUNTERS
+            const totalAssigned = assignedParcels.length;                               // TOTAL SHIPMENTS ASSIGNED TO COURIER
+            const pendingOut = assignedParcels.filter(p => (p.status || "").includes("Out for Delivery")).length; // IN-TRANSIT STOPS REMAINING
+            const delivered = assignedParcels.filter(p => (p.status || "").includes("Delivered")).length;          // COMPLETED & SIGNED STOPS
 
-            // STEP 4: CALCULATE CASH-ON-DELIVERY (COD) FINANCIAL TOTALS
-            let totalCodPending = 0;    // CASH STILL TO COLLECT FROM RECIPIENTS (₱)
-            let totalCodCollected = 0;  // CASH ALREADY COLLECTED UPON SUCCESSFUL DELIVERY (₱)
+            // VARIABLES FOR CASH-ON-DELIVERY (COD) FINANCIAL CALCULATIONS
+            let totalCodPending = 0;                                                    // CASH STILL TO COLLECT FROM RECIPIENTS IN PESOS (₱)
+            let totalCodCollected = 0;                                                  // CASH ALREADY REMITTED TODAY IN PESOS (₱)
             assignedParcels.forEach(p => {
-                const num = parseFloat((p.cod || "").replace(/[^0-9.]/g, "")) || 0;
+                const num = parseFloat((p.cod || "").replace(/[^0-9.]/g, "")) || 0;    // PARSE PESO NUMERIC VALUE (E.G. ₱1,250.00 -> 1250)
                 if ((p.status || "").includes("Delivered")) {
-                    totalCodCollected += num;
+                    totalCodCollected += num;                                           // ACCUMULATE CASH COLLECTED (₱)
                 } else {
-                    totalCodPending += num;
+                    totalCodPending += num;                                             // ACCUMULATE PENDING CASH (₱)
                 }
             });
 
@@ -609,12 +609,12 @@
             document.getElementById("tabCountOut").innerText = pendingOut;
             document.getElementById("tabCountDelivered").innerText = delivered;
 
-            // STEP 7: CALCULATE ESTIMATED DRIVING CORRIDOR ROUTE DISTANCE FROM UB LIPA HUB
-            const activeDeliveries = assignedParcels.filter(p => (p.status || "").includes("Out for Delivery"));
-            let totalRouteKm = 0;
+            // VARIABLES FOR ESTIMATED DRIVING DISTANCE FROM UB LIPA CENTRAL HUB
+            const activeDeliveries = assignedParcels.filter(p => (p.status || "").includes("Out for Delivery")); // PACKAGES CURRENTLY ON ROAD
+            let totalRouteKm = 0;                                                       // TOTAL DRIVING DISTANCE IN KILOMETERS
             activeDeliveries.forEach(p => {
-                const dist = p.distanceKm != null ? p.distanceKm : (typeof getDistanceFromHub === "function" ? getDistanceFromHub(p.lat, p.lng) : 0);
-                totalRouteKm += (dist || 0);
+                const dist = p.distanceKm != null ? p.distanceKm : (typeof getDistanceFromHub === "function" ? getDistanceFromHub(p.lat, p.lng) : 0); // DISTANCE IN KM
+                totalRouteKm += (dist || 0);                                            // ACCUMULATE ROUTE RUN (KM)
             });
 
             const stopsCountEl = document.getElementById("driverRouteStopsCount");

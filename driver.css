@@ -44,6 +44,8 @@
 .driver-avatar-circle {
     width: 58px;
     height: 58px;
+    min-width: 58px;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     background: #EA580C;
     color: #FFFFFF;
@@ -54,6 +56,7 @@
     font-weight: 800;
     border: 3px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);
+    flex-shrink: 0;
 }
 
 /* DRIVER FULL NAME TITLE */
@@ -479,6 +482,8 @@
     .driver-avatar-circle {
         width: 44px !important;
         height: 44px !important;
+        min-width: 44px !important;
+        aspect-ratio: 1 / 1 !important;
         font-size: 16px !important;
         border-width: 2px !important;
         flex-shrink: 0 !important;
@@ -707,6 +712,18 @@
     }
 }
 
+/* COMPACT SMARTPHONES (<= 420px) */
+@media (max-width: 420px) {
+    .topbar-crumb .crumb-lead,
+    .topbar-crumb .crumb-slash {
+        display: none !important;
+    }
+
+    .driver-topbar-tripwire .tripwire-text {
+        display: none !important;
+    }
+}
+
 /* ULTRA COMPACT DEVICES (<= 360px) */
 @media (max-width: 360px) {
     .driver-title-name {
@@ -715,13 +732,5 @@
 
     .driver-kpi-box .num {
         font-size: 16px !important;
-    }
-
-    .topbar-crumb .crumb-lead {
-        display: none !important;
-    }
-
-    .topbar-crumb .crumb-slash {
-        display: none !important;
     }
 }

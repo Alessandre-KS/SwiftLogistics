@@ -61,28 +61,26 @@ const TOTP = (function () {
     // RFC 4648:   Each Base32 character represents exactly 5 bits of data.
     // ============================================================================
     function base32ToBytes(base32) {
-        // STEP 1: CLEAN INPUT (CONVERT TO UPPERCASE AND REMOVE PADDING/SPACES)
-        const clean = base32.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');
-        let bits = 0;
-        let value = 0;
-        const bytes = [];
+        // VARIABLES FOR BASE32 BIT EXTRACTION
+        const clean = base32.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');  // CLEANED BASE32 STRING WITHOUT PADDING
+        let bits = 0;                                                               // BIT ACCUMULATOR COUNTER
+        let value = 0;                                                              // BIT ACCUMULATOR VALUE REGISTER
+        const bytes = [];                                                           // RAW BYTE OUTPUT ARRAY
 
-        // STEP 2: LOOP THROUGH EACH BASE32 CHARACTER AND EXTRACT 5 BITS
+        // PROCESS EACH 5-BIT CHARACTER IN THE BASE32 SECRET
         for (let i = 0; i < clean.length; i++) {
-            const index = BASE32_CHARS.indexOf(clean[i]);
-            if (index === -1) continue; // IGNORE INVALID CHARACTERS
+            const index = BASE32_CHARS.indexOf(clean[i]);                           // 5-BIT NUMERIC VALUE (0 TO 31)
+            if (index === -1) continue;                                             // SKIP INVALID CHARACTERS
 
-            // SHIFT ACCUMULATOR LEFT BY 5 BITS AND APPEND THE 5-BIT VALUE
-            value = (value << 5) | index;
-            bits += 5;
+            value = (value << 5) | index;                                           // SHIFT REGISTER LEFT BY 5 BITS
+            bits += 5;                                                              // INCREMENT BIT COUNTER BY 5
 
-            // ONCE WE ACCUMULATE AT LEAST 8 BITS (1 BYTE), PUSH TO BYTE ARRAY
             if (bits >= 8) {
-                bytes.push((value >>> (bits - 8)) & 255);
-                bits -= 8;
+                bytes.push((value >>> (bits - 8)) & 255);                            // EXTRACT FULL 8-BIT BYTE
+                bits -= 8;                                                          // DECREMENT BIT COUNTER BY 8
             }
         }
-        return new Uint8Array(bytes);
+        return new Uint8Array(bytes);                                               // RETURN NATIVE TYPED BYTE ARRAY
     }
 
     // ============================================================================
@@ -91,17 +89,15 @@ const TOTP = (function () {
     //             (64-bit) unsigned integer in Big-Endian network byte order.
     // ============================================================================
     function counterToBuffer(counter) {
-        // ALLOCATE AN 8-BYTE MEMORY BUFFER
-        const buffer = new ArrayBuffer(8);
-        const view = new DataView(buffer);
+        // VARIABLES FOR 64-BIT INTEGER MEMORY ALLOCATION
+        const buffer = new ArrayBuffer(8);                                          // 8 BYTES = 64 BITS OF MEMORY
+        const view = new DataView(buffer);                                          // BYTE-ORDER ACCESSIBLE VIEW
 
-        // WRITE HIGH 32 BITS (MOST SIGNIFICANT BYTES)
-        view.setUint32(0, Math.floor(counter / 0x100000000), false);
+        // WRITE BIG-ENDIAN BYTES
+        view.setUint32(0, Math.floor(counter / 0x100000000), false);                 // HIGH 32 BITS (MOST SIGNIFICANT)
+        view.setUint32(4, counter & 0xFFFFFFFF, false);                             // LOW 32 BITS (LEAST SIGNIFICANT)
 
-        // WRITE LOW 32 BITS (LEAST SIGNIFICANT BYTES)
-        view.setUint32(4, counter & 0xFFFFFFFF, false);
-
-        return buffer;
+        return buffer;                                                              // RETURN 8-BYTE ARRAY BUFFER
     }
 
     // ============================================================================
@@ -110,38 +106,31 @@ const TOTP = (function () {
     //             extracts a 6-digit numeric token using standard dynamic truncation.
     // ============================================================================
     async function generateHOTP(secretBytes, counter) {
-        // STEP 1: IMPORT RAW SECRET BYTES AS AN HMAC CRYPTOGRAPHIC KEY
+        // IMPORT RAW SECRET BYTES AS AN HMAC CRYPTOGRAPHIC KEY
         const key = await window.crypto.subtle.importKey(
-            'raw',
-            secretBytes,
-            { name: 'HMAC', hash: { name: 'SHA-1' } },
-            false,
-            ['sign']
+            'raw',                                                                  // RAW FORMAT IMPORT
+            secretBytes,                                                            // RAW SECRET BYTE ARRAY
+            { name: 'HMAC', hash: { name: 'SHA-1' } },                              // HMAC WITH SHA-1 HASH ALGORITHM
+            false,                                                                  // NOT EXTRACTABLE (FOR SECURITY)
+            ['sign']                                                                // KEY USAGE PURPOSE
         );
 
-        // STEP 2: CONVERT TIME COUNTER INTO 8-BYTE BIG-ENDIAN BUFFER
-        const counterBuffer = counterToBuffer(counter);
+        // ENCODE TIME COUNTER AND COMPUTE HMAC SIGNATURE
+        const counterBuffer = counterToBuffer(counter);                              // 8-BYTE BIG-ENDIAN TIME COUNTER BUFFER
+        const signature = await window.crypto.subtle.sign('HMAC', key, counterBuffer); // CRYPTOGRAPHIC HMAC SIGNATURE
+        const hmac = new Uint8Array(signature);                                     // 20-BYTE HMAC RESULT ARRAY
 
-        // STEP 3: EXECUTE HMAC-SHA1 HASHING VIA NATIVE BROWSER WEB CRYPTO API
-        const signature = await window.crypto.subtle.sign('HMAC', key, counterBuffer);
-        const hmac = new Uint8Array(signature);
-
-        // STEP 4: DYNAMIC TRUNCATION (RFC 4226 SECTION 5.4)
-        // READ THE LAST 4 BITS OF THE 20-BYTE HASH TO DETERMINE THE OFFSET (0 TO 15)
-        const offset = hmac[hmac.length - 1] & 0x0F;
-
-        // EXTRACT 4 BYTES STARTING AT OFFSET AND MASK HIGHEST BIT TO ENSURE POSITIVE INTEGER
+        // VARIABLES FOR DYNAMIC TRUNCATION (RFC 4226 SECTION 5.4)
+        const offset = hmac[hmac.length - 1] & 0x0F;                                // LOW 4 BITS OF LAST BYTE (OFFSET 0 TO 15)
         const binary =
-            ((hmac[offset] & 0x7F) << 24) |
-            ((hmac[offset + 1] & 0xFF) << 16) |
-            ((hmac[offset + 2] & 0xFF) << 8) |
-            (hmac[offset + 3] & 0xFF);
+            ((hmac[offset] & 0x7F) << 24) |                                         // 1ST BYTE (MASK HIGH BIT TO KEEP POSITIVE)
+            ((hmac[offset + 1] & 0xFF) << 16) |                                     // 2ND BYTE (SHIFT LEFT 16 BITS)
+            ((hmac[offset + 2] & 0xFF) << 8) |                                      // 3RD BYTE (SHIFT LEFT 8 BITS)
+            (hmac[offset + 3] & 0xFF);                                              // 4TH BYTE (LEAST SIGNIFICANT 8 BITS)
 
-        // MODULO 1,000,000 TO OBTAIN A 6-DIGIT DECIMAL CODE (000000 - 999999)
-        const otp = binary % 1000000;
-
-        // PAD WITH LEADING ZEROS TO GUARANTEE EXACTLY 6 DIGITS
-        return otp.toString().padStart(6, '0');
+        // CALCULATE 6-DIGIT CODE
+        const otp = binary % 1000000;                                               // MODULO 1,000,000 FOR 6-DIGIT INTEGER
+        return otp.toString().padStart(6, '0');                                     // ZERO-PAD TO EXACTLY 6 CHARACTERS
     }
 
     // ============================================================================
@@ -149,17 +138,12 @@ const TOTP = (function () {
     // FORMULA:    Timestep Counter = Floor(Unix Time in Seconds / 30)
     // ============================================================================
     async function getCode(base32Secret, timeOffsetSeconds = 0) {
-        // STEP 1: CONVERT BASE32 SECRET INTO RAW BYTES
-        const secretBytes = base32ToBytes(base32Secret);
+        // VARIABLES FOR TIME-BASED TOKEN GENERATION
+        const secretBytes = base32ToBytes(base32Secret);                            // RAW SECRET BYTES DECODED FROM BASE32
+        const nowSec = Math.floor(Date.now() / 1000) + timeOffsetSeconds;           // CURRENT UNIX TIME IN SECONDS
+        const counter = Math.floor(nowSec / 30);                                    // 30-SECOND WINDOW COUNTER (T = SECONDS / 30)
 
-        // STEP 2: GET CURRENT UNIX TIMESTAMP IN SECONDS (PLUS OPTIONAL DRIFT OFFSET)
-        const nowSec = Math.floor(Date.now() / 1000) + timeOffsetSeconds;
-
-        // STEP 3: CALCULATE 30-SECOND WINDOW COUNTER (T = (CurrentTime - T0) / X)
-        const counter = Math.floor(nowSec / 30);
-
-        // STEP 4: GENERATE 6-DIGIT HOTP TOKEN FOR THIS 30-SECOND WINDOW
-        return await generateHOTP(secretBytes, counter);
+        return await generateHOTP(secretBytes, counter);                            // GENERATE 6-DIGIT TIME CODE
     }
 
     // ============================================================================
@@ -168,20 +152,19 @@ const TOTP = (function () {
     //             tolerance (+/- 30 seconds) recommended by RFC 6238.
     // ============================================================================
     async function verifyCode(base32Secret, userCode) {
-        // STEP 1: SANITIZE USER INPUT (STRIP SPACES AND ENSURE EXACTLY 6 DIGITS)
-        const cleanInput = (userCode || '').toString().trim().replace(/\s+/g, '');
-        if (cleanInput.length !== 6) return false;
+        // SANITIZE USER INPUT
+        const cleanInput = (userCode || '').toString().trim().replace(/\s+/g, '');  // USER-ENTERED 6-DIGIT STRING
+        if (cleanInput.length !== 6) return false;                                  // CODE MUST BE EXACTLY 6 DIGITS
 
-        // STEP 2: CHECK 3 TIME WINDOWS (PREVIOUS 30S, CURRENT 30S, NEXT 30S)
-        // THIS PREVENTS REJECTIONS CAUSED BY SLIGHT DESYNCHRONIZATION IN COURIER SMARTPHONES
-        const drifts = [0, -30, 30];
+        // TEST ACROSS 3 TIMESTEP WINDOWS (-30S, 0S, +30S) FOR CLOCK DRIFT
+        const drifts = [0, -30, 30];                                                // CURRENT, PREVIOUS, AND NEXT TIMESTEPS
         for (const drift of drifts) {
-            const valid = await getCode(base32Secret, drift);
+            const valid = await getCode(base32Secret, drift);                       // CODE FOR THIS SPECIFIC TIMESTEP
             if (valid === cleanInput) {
-                return true; // MATCH FOUND, SECOND-FACTOR AUTHENTICATION PASSED
+                return true;                                                        // TOKEN VALIDATED SUCCESSFULLY
             }
         }
-        return false; // NO MATCH ACROSS ANY TIME WINDOW, REJECT
+        return false;                                                               // NO MATCH FOUND (EXPIRED OR WRONG)
     }
 
     // ============================================================================
@@ -189,8 +172,9 @@ const TOTP = (function () {
     // PURPOSE:    Powers the visual animated countdown progress bar in the login UI.
     // ============================================================================
     function getRemainingSeconds() {
-        const now = Math.floor(Date.now() / 1000);
-        return 30 - (now % 30); // RETURNS VALUE BETWEEN 1 AND 30 SECONDS
+        // VARIABLES FOR 30-SECOND COUNTDOWN
+        const now = Math.floor(Date.now() / 1000);                                  // CURRENT TIME IN SECONDS
+        return 30 - (now % 30);                                                     // REMAINING SECONDS (1 TO 30)
     }
 
     // ============================================================================

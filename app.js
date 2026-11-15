@@ -66,13 +66,13 @@ try {
 
 // CENTRAL DISPATCH HUB ANCHOR (UB LIPA CAMPUS, LEVISTE HIGHWAY)
 const UB_LIPA_HUB = {
-    name: "SwiftLogistics Hub #04 (UB Lipa)",
-    shortName: "UB Lipa Central Hub",
-    code: "HUB-04-LIP",
-    plusCode: "X595+MQ6",
-    address: "Leviste Hwy, Lipa City, Batangas",
-    lat: 13.9692,
-    lng: 121.1594
+    name: "SwiftLogistics Hub #04 (UB Lipa)",                                  // FULL OFFICIAL FACILITY TITLE
+    shortName: "UB Lipa Central Hub",                                          // CONCISE OPERATIONAL LABEL
+    code: "HUB-04-LIP",                                                        // INTERNAL STATION DISPATCH CODE
+    plusCode: "X595+MQ6",                                                      // OPEN LOCATION CODE (GOOGLE PLUS CODE)
+    address: "Leviste Hwy, Lipa City, Batangas",                                // PHYSICAL ROADWAY LOCATION
+    lat: 13.9692,                                                              // GEOGRAPHICAL LATITUDE (NORTH OF EQUATOR)
+    lng: 121.1594                                                              // GEOGRAPHICAL LONGITUDE (EAST OF MERIDIAN)
 };
 
 // BATANGAS TOWNS AND LIPA BARANGAYS GPS PRESETS (PRE-CALIBRATED COORDINATES)
@@ -100,8 +100,8 @@ const BATANGAS_GEO_PRESETS = {
 // REVERSE GEOCODE GPS COORDINATES TO NEAREST BATANGAS TOWN OR BARANGAY
 function findNearestPreset(lat, lng) {
     if (lat == null || lng == null) return { name: "Brgy. Marawoy, Lipa City", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
-    let closest = null;
-    let minDistance = Infinity;
+    let closest = null;                                                         // CLOSEST PRESET LOCATION OBJECT
+    let minDistance = Infinity;                                                 // MINIMUM HAVERSINE DISTANCE FOUND SO FAR
 
     // SCAN PRESETS AND IDENTIFY MINIMUM HAVERSINE DISTANCE
     for (const key of Object.keys(BATANGAS_GEO_PRESETS)) {
@@ -139,21 +139,23 @@ function getCityCoordinates(city = "", barangay = "") {
 
 // CALCULATE DISTANCE IN KILOMETERS USING THE MATHEMATICAL HAVERSINE FORMULA
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
-    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 0;
-    const R = 6371; // EARTH MEAN RADIUS IN KILOMETERS
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
+    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 0; // GUARD AGAINST NULL COORDINATES
+    const R = 6371;                                                             // MEAN RADIUS OF EARTH IN KILOMETERS (6,371 KM)
+    const dLat = (lat2 - lat1) * Math.PI / 180;                                 // LATITUDE DIFFERENCE CONVERTED TO RADIANS
+    const dLon = (lon2 - lon1) * Math.PI / 180;                                 // LONGITUDE DIFFERENCE CONVERTED TO RADIANS
     const a = 
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return Math.round(R * c * 10) / 10;
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +                               // SQUARE OF HALF LATITUDE DIFFERENCE
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *     // PRODUCT OF COSINE OF BOTH LATITUDES
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);                               // SQUARE OF HALF LONGITUDE DIFFERENCE
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));                   // ANGULAR DISTANCE IN RADIANS
+    return Math.round(R * c * 10) / 10;                                         // DISTANCE IN KM ROUNDED TO 1 DECIMAL PLACE
 }
 
 // CALCULATE DISTANCE FROM THE REGIONAL CENTRAL HUB TO ANY DESTINATION
 function getDistanceFromHub(lat, lng) {
-    return calculateDistanceKm(UB_LIPA_HUB.lat, UB_LIPA_HUB.lng, lat, lng);
+    const hubLat = UB_LIPA_HUB.lat;                                             // CENTRAL HUB LATITUDE (13.9692° N)
+    const hubLng = UB_LIPA_HUB.lng;                                             // CENTRAL HUB LONGITUDE (121.1594° E)
+    return calculateDistanceKm(hubLat, hubLng, lat, lng);                       // DISTANCE FROM UB LIPA HUB IN KILOMETERS
 }
 
 // FETCH REAL TURN-BY-TURN DRIVING ROAD ROUTE FROM OSRM (OPEN SOURCE ROUTING MACHINE)
@@ -849,31 +851,33 @@ function listenToParcelsCloudSync() {
 
 // REGISTER AND MANIFEST A NEW PARCEL SHIPMENT IN THE DATABASE
 async function addParcelRecord(parcelData) {
-    const newTracking = parcelData.trackingNo || ("TRK-" + Math.floor(1000 + Math.random() * 9000));
-    const coords = (parcelData.lat && parcelData.lng)
-        ? { lat: parcelData.lat, lng: parcelData.lng }
-        : getCityCoordinates(parcelData.city, parcelData.barangay);
-    const dist = getDistanceFromHub(coords.lat, coords.lng);
+    // VARIABLES FOR SHIPMENT TRACKING IDENTIFIERS AND DISTANCE
+    const newTracking = parcelData.trackingNo || generateTrackingNo();          // UNIQUE CONSIGNMENT IDENTIFIER (E.G. TRK-202611-XXXX)
+    const coords = (parcelData.lat && parcelData.lng)                           // RESOLVE DESTINATION LATITUDE AND LONGITUDE
+        ? { lat: parcelData.lat, lng: parcelData.lng }                          // USE EXPLICIT COURIER PINNED COORDINATES
+        : getCityCoordinates(parcelData.city, parcelData.barangay);             // FALLBACK TO BARANGAY / CITY PRESET COORDINATES
+    const dist = getDistanceFromHub(coords.lat, coords.lng);                    // TRANSIT DISTANCE FROM UB LIPA CENTRAL HUB IN KM
 
+    // VARIABLES FOR COMPLETE SHIPMENT RECORD ATTRIBUTES
     const newRecord = {
-        trackingNo: newTracking,
-        name: parcelData.name,
-        phone: parcelData.phone || "0917-***-" + Math.floor(1000 + Math.random() * 9000),
-        city: parcelData.city || "Lipa City, Batangas",
-        barangay: parcelData.barangay || "",
-        addressDetails: parcelData.addressDetails || "",
-        landmarks: parcelData.landmarks || "",
-        lat: coords.lat,
-        lng: coords.lng,
-        distanceKm: dist,
-        status: parcelData.status || (parcelData.assignedDriver ? "Out for Delivery" : "Waiting to be Assigned to Driver"),
-        assignedDriver: parcelData.assignedDriver || "",
-        driverVehicle: parcelData.driverVehicle || "",
-        assignedDriverId: parcelData.assignedDriverId || "",
-        package: parcelData.package || "General Merchandise Parcel",
-        paymentMethod: parcelData.paymentMethod || "COD",
-        paymentStatus: parcelData.paymentStatus || "pending_collection",
-        cod: parcelData.cod || "₱0.00"
+        trackingNo: newTracking,                                                // CONSIGNMENT TRACKING NUMBER
+        name: parcelData.name,                                                  // RECIPIENT FULL NAME
+        phone: parcelData.phone || "0917-***-" + Math.floor(1000 + Math.random() * 9000), // MASKED CONTACT NUMBER (DATA PRIVACY ACT)
+        city: parcelData.city || "Lipa City, Batangas",                         // DESTINATION MUNICIPALITY
+        barangay: parcelData.barangay || "",                                    // LOCAL DESTINATION BARANGAY
+        addressDetails: parcelData.addressDetails || "",                        // STREET / UNIT / BUILDING SPECIFICS
+        landmarks: parcelData.landmarks || "",                                  // LOCAL WAYFINDING LANDMARKS
+        lat: coords.lat,                                                        // DESTINATION LATITUDE COORDINATE
+        lng: coords.lng,                                                        // DESTINATION LONGITUDE COORDINATE
+        distanceKm: dist,                                                       // ROAD DISTANCE FROM CENTRAL HUB IN KM
+        status: parcelData.status || (parcelData.assignedDriver ? "Out for Delivery" : "Waiting to be Assigned to Driver"), // INITIAL HUB WORKFLOW STATUS
+        assignedDriver: parcelData.assignedDriver || "",                        // DISPATCHED COURIER NAME
+        driverVehicle: parcelData.driverVehicle || "",                          // COURIER VEHICLE PROFILE
+        assignedDriverId: parcelData.assignedDriverId || "",                    // DISPATCHED COURIER STAFF ID
+        package: parcelData.package || "General Merchandise Parcel",            // CARGO MANIFEST ITEM DESCRIPTION
+        paymentMethod: parcelData.paymentMethod || "COD",                       // PAYMENT SETTLEMENT METHOD
+        paymentStatus: parcelData.paymentStatus || "pending_collection",        // FINANCIAL CLEARANCE STATUS
+        cod: parcelData.cod || "₱0.00"                                          // CASH TO COLLECT FROM RECIPIENT IN PESOS
     };
 
     // PREPEND NEW RECORD TO TOP OF RUNTIME ARRAY
@@ -897,29 +901,30 @@ async function addParcelRecord(parcelData) {
 
 // UPDATE TRANSIT STATUS AND ASSIGNED COURIER FOR A SPECIFIC CONSIGNMENT
 async function updateParcelStatusRecord(trackingNo, newStatus, assignedDriver = "", driverVehicle = "", assignedDriverId = "") {
-    const item = parcelsList.find(p => p.trackingNo === trackingNo);
+    const item = parcelsList.find(p => p.trackingNo === trackingNo);            // FIND MATCHING CONSIGNMENT IN RUNTIME CACHE
     if (item) {
-        item.status = newStatus;
+        item.status = newStatus;                                                // ASSIGN NEW TRANSIT LIFECYCLE STATUS
         if (assignedDriver) {
-            item.assignedDriver = assignedDriver;
-            item.driverVehicle = driverVehicle;
-            item.assignedDriverId = assignedDriverId;
+            item.assignedDriver = assignedDriver;                               // ASSIGN DESIGNATED FIELD COURIER NAME
+            item.driverVehicle = driverVehicle;                                 // RECORD ASSIGNED TRANSPORT VEHICLE
+            item.assignedDriverId = assignedDriverId;                           // RECORD ASSIGNED DRIVER STAFF IDENTIFIER
         }
-        saveLocalParcels(parcelsList);
+        saveLocalParcels(parcelsList);                                          // CACHE UPDATED RECORD IN LOCAL STORAGE
 
         if (isFirebaseOnline && db) {
             try {
+                // VARIABLES FOR FIRESTORE SYNCHRONIZATION PAYLOAD
                 const updatePayload = {
                     ...item,
-                    status: newStatus,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    status: newStatus,                                          // NEW CONSIGNMENT STATUS
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp() // SERVER AUDIT TIMESTAMP
                 };
                 if (assignedDriver) {
-                    updatePayload.assignedDriver = assignedDriver;
-                    updatePayload.driverVehicle = driverVehicle;
-                    if (assignedDriverId) updatePayload.assignedDriverId = assignedDriverId;
+                    updatePayload.assignedDriver = assignedDriver;              // FIELD COURIER NAME
+                    updatePayload.driverVehicle = driverVehicle;                // TRANSPORT VEHICLE CLASSIFICATION
+                    if (assignedDriverId) updatePayload.assignedDriverId = assignedDriverId; // DRIVER USER ID
                 }
-                await db.collection("parcels").doc(trackingNo).set(updatePayload, { merge: true });
+                await db.collection("parcels").doc(trackingNo).set(updatePayload, { merge: true }); // MERGE TO FIRESTORE
             } catch (e) {
                 console.warn("Firestore update error:", e.message);
             }
@@ -1521,16 +1526,16 @@ async function confirmStatusUpdate() {
     if (!editingTrackingNo) return;
 
     // STEP 2: READ SELECTED STATUS AND DRIVER ASSIGNMENT
-    let newStatus = document.getElementById("updateStatusSelect").value;
-    const driverSelect = document.getElementById("updateDriverSelect");
-    let assignedDriver = "";
-    let driverVehicle = "";
-    let assignedDriverId = "";
+    let newStatus = document.getElementById("updateStatusSelect").value;        // SELECTED NEW STATUS (E.G. OUT FOR DELIVERY)
+    const driverSelect = document.getElementById("updateDriverSelect");         // DRIVER SELECTION DROPDOWN ELEMENT
+    let assignedDriver = "";                                                    // ASSIGNED COURIER FULL NAME
+    let driverVehicle = "";                                                     // ASSIGNED TRANSPORT VEHICLE TYPE
+    let assignedDriverId = "";                                                  // ASSIGNED COURIER UNIQUE STAFF ID
     if (driverSelect && driverSelect.value) {
-        const parts = driverSelect.value.split("|");
-        assignedDriver = parts[0] || "";
-        driverVehicle = parts[1] || "";
-        assignedDriverId = parts[2] || "";
+        const parts = driverSelect.value.split("|");                            // PARSE NAME|VEHICLE|STAFFID DELIMITER
+        assignedDriver = parts[0] || "";                                        // EXTRACT DRIVER FULL NAME
+        driverVehicle = parts[1] || "";                                         // EXTRACT VEHICLE CLASSIFICATION
+        assignedDriverId = parts[2] || "";                                      // EXTRACT STAFF IDENTIFIER
     }
 
     // STEP 3: ENFORCE CORE BUSINESS RULE

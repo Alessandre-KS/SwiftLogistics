@@ -991,48 +991,47 @@
             btn.innerText = "Writing Waybill to Cloud...";
 
             // STEP 2: HARVEST ALL INPUT FIELD VALUES
-            const name = document.getElementById("inputConsigneeName").value.trim();
-            const phone = document.getElementById("inputConsigneePhone").value.trim();
-            const city = document.getElementById("inputCity").value;
-            const barangay = document.getElementById("inputBarangay").value.trim();
-            const apt = document.getElementById("inputApartmentDetails").value.trim();
-            const landmarks = document.getElementById("inputLandmarks").value.trim();
-            const desc = document.getElementById("inputPackageDesc").value.trim();
-            const category = document.getElementById("inputPackageCategory").value;
-            const amount = document.getElementById("inputAmount").value.trim();
-            const payRef = document.getElementById("inputPayRef").value.trim();
+            const name = document.getElementById("inputConsigneeName").value.trim();           // RECIPIENT FULL NAME
+            const phone = document.getElementById("inputConsigneePhone").value.trim();         // RAW CONTACT TELEPHONE NUMBER
+            const city = document.getElementById("inputCity").value;                           // DESTINATION MUNICIPALITY
+            const barangay = document.getElementById("inputBarangay").value.trim();             // DESTINATION BARANGAY
+            const apt = document.getElementById("inputApartmentDetails").value.trim();         // STREET / UNIT / BUILDING SPECIFICS
+            const landmarks = document.getElementById("inputLandmarks").value.trim();           // LOCAL WAYFINDING LANDMARKS
+            const desc = document.getElementById("inputPackageDesc").value.trim();             // CARGO ITEM DESCRIPTION
+            const category = document.getElementById("inputPackageCategory").value;             // SHIPMENT CATEGORY (ELECTRONICS/APPAREL)
+            const amount = document.getElementById("inputAmount").value.trim();                 // DECLARED CARGO VALUE / COD AMOUNT IN PESOS
+            const payRef = document.getElementById("inputPayRef").value.trim();                 // DIGITAL PAYMENT TRANSACTION REFERENCE
+            const fullAddress = `${apt}, ${barangay}, ${city}`;                                // CONCATENATED PHYSICAL DELIVERY ADDRESS
+            const combinedPackage = `${desc} (${category})`;                                    // FULL CARGO CLASSIFICATION STRING
 
-            const fullAddress = `${apt}, ${barangay}, ${city}`;
-            const combinedPackage = `${desc} (${category})`;
-
-            // STEP 3: MASK RECIPIENT PHONE NUMBER FOR RA 10173 COMPLIANCE
-            let maskedPhone = phone;
+            // STEP 3: MASK RECIPIENT PHONE NUMBER FOR RA 10173 PRIVACY COMPLIANCE
+            let maskedPhone = phone;                                                            // INITIALIZE MASKED CONTACT STRING
             if (phone.length >= 10) {
-                maskedPhone = phone.slice(0, 4) + "-***-" + phone.slice(-4);
+                maskedPhone = phone.slice(0, 4) + "-***-" + phone.slice(-4);                    // MASK MIDDLE DIGITS (E.G. 0917-***-1234)
             }
 
             // STEP 4: RESOLVE PRECISE GPS COORDINATES AND DISTANCE FROM HUB
-            const coords = customPinnedCoords || ((typeof getCityCoordinates === "function") ? getCityCoordinates(city, barangay) : { lat: 13.9575, lng: 121.1633 });
-            const dist = (customPinnedCoords && customPinnedCoords.distanceKm != null) ? customPinnedCoords.distanceKm : ((typeof getDistanceFromHub === "function") ? getDistanceFromHub(coords.lat, coords.lng) : 1.5);
+            const coords = customPinnedCoords || ((typeof getCityCoordinates === "function") ? getCityCoordinates(city, barangay) : { lat: 13.9575, lng: 121.1633 }); // RESOLVE LAT/LNG OBJECT
+            const dist = (customPinnedCoords && customPinnedCoords.distanceKm != null) ? customPinnedCoords.distanceKm : ((typeof getDistanceFromHub === "function") ? getDistanceFromHub(coords.lat, coords.lng) : 1.5); // DISTANCE FROM HUB IN KM
 
             // STEP 5: ASSEMBLE COMPLETE CONSIGNMENT RECORD OBJECT
             const parcelData = {
-                trackingNo: autoTrackingNo,
-                name: name,
-                phone: maskedPhone,
-                city: city,
-                barangay: barangay,
-                addressDetails: apt,
-                landmarks: landmarks,
-                lat: coords.lat,
-                lng: coords.lng,
-                distanceKm: dist,
-                package: combinedPackage,
-                paymentMethod: currentSelectedPayment,
-                paymentStatus: currentSelectedPayment === "COD" ? "pending_collection" : "paid",
-                cod: currentSelectedPayment === "COD" ? amount : `${currentSelectedPayment.toUpperCase()}: ${amount} (PAID)`,
-                status: "Arrived at Hub #04",
-                paymentRef: payRef || null
+                trackingNo: autoTrackingNo,                                                     // UNIQUE SYSTEM-GENERATED TRACKING CODE
+                name: name,                                                                     // CONSIGNEE RECIPIENT FULL NAME
+                phone: maskedPhone,                                                             // PRIVACY-MASKED CONTACT NUMBER
+                city: city,                                                                     // DESTINATION MUNICIPALITY
+                barangay: barangay,                                                             // DESTINATION BARANGAY
+                addressDetails: apt,                                                            // STREET ADDRESS
+                landmarks: landmarks,                                                           // WAYFINDING NOTATIONS
+                lat: coords.lat,                                                                // DESTINATION LATITUDE
+                lng: coords.lng,                                                                // DESTINATION LONGITUDE
+                distanceKm: dist,                                                               // TRANSIT DISTANCE IN KILOMETERS
+                package: combinedPackage,                                                       // CARGO CONTENTS & CATEGORY
+                paymentMethod: currentSelectedPayment,                                          // PAYMENT MODE (COD / EWALLET / CARD)
+                paymentStatus: currentSelectedPayment === "COD" ? "pending_collection" : "paid", // CLEARANCE STATUS
+                cod: currentSelectedPayment === "COD" ? amount : `${currentSelectedPayment.toUpperCase()}: ${amount} (PAID)`, // REMITTANCE RECORD
+                status: "Arrived at Hub #04",                                                   // INITIAL LOGISTICS DOCK STATUS
+                paymentRef: payRef || null                                                      // PAYMENT REFERENCE CODE
             };
 
             // STEP 6: PERSIST TO DATABASE (CLOUD FIRESTORE WITH LOCAL CACHE FALLBACK)

@@ -288,32 +288,27 @@
         //           or authorized staff directory before prompting for MFA.
         // ============================================================================
         async function handleStep1Credentials(e) {
-            // STEP 1: PREVENT DEFAULT FORM RELOAD AND CLEAR PREVIOUS ERROR ALERTS
-            if (e) e.preventDefault();
-            hideAlert();
+            if (e) e.preventDefault();                                                  // PREVENT DEFAULT PAGE RELOAD
+            hideAlert();                                                                // CLEAR PREVIOUS ERROR ALERTS
 
-            // STEP 2: READ EMPLOYEE IDENTIFIER AND PASSWORD INPUTS
-            const staffId = document.getElementById("staffIdInput").value.trim();
-            const pass = document.getElementById("staffPasswordInput").value.trim();
-            const btn = document.getElementById("btnStep1Submit");
+            // VARIABLES FOR EMPLOYEE PRIMARY CREDENTIAL VERIFICATION
+            const staffId = document.getElementById("staffIdInput").value.trim();       // EMPLOYEE CORPORATE EMAIL OR ID
+            const pass = document.getElementById("staffPasswordInput").value.trim();   // EMPLOYEE PASSWORD INPUT
+            const btn = document.getElementById("btnStep1Submit");                     // LOGIN SUBMISSION BUTTON
 
-            // STEP 3: UPDATE BUTTON STATE TO INDICATE NETWORK VERIFICATION IN PROGRESS
-            btn.disabled = true;
-            btn.innerText = "Verifying Password...";
+            btn.disabled = true;                                                        // DISABLE BUTTON TO PREVENT DOUBLE SUBMISSIONS
+            btn.innerText = "Verifying Password...";                                    // INDICATE NETWORK VERIFICATION IN PROGRESS
 
-            // STEP 4: AUTHENTICATE WITH APP.JS AUTHENTICATION ENGINE
-            const res = await signInStaff(staffId, pass);
+            // VERIFY CREDENTIALS WITH AUTHENTICATION ENGINE
+            const res = await signInStaff(staffId, pass);                               // CALL CENTRAL SIGN-IN VERIFIER
 
-            // STEP 5: EVALUATE AUTHENTICATION RESULT
             if (res.success) {
-                // PRIMARY CREDENTIALS ACCEPTED -> ADVANCE TO SECOND FACTOR (TOTP MFA)
-                pendingUser = res.user;
-                initiateStep2Totp(pendingUser);
+                pendingUser = res.user;                                                 // CACHE AUTHENTICATED EMPLOYEE RECORD
+                initiateStep2Totp(pendingUser);                                         // ADVANCE TO SECOND FACTOR (TOTP MFA)
             } else {
-                // AUTHENTICATION FAILED -> RESTORE BUTTON AND DISPLAY ERROR MESSAGE
-                btn.disabled = false;
-                btn.innerText = "Verify Credentials & Continue";
-                showAlert(res.message || "Invalid Employee ID or password.");
+                btn.disabled = false;                                                   // RE-ENABLE BUTTON ON FAILURE
+                btn.innerText = "Verify Credentials & Continue";                        // RESTORE BUTTON TEXT
+                showAlert(res.message || "Invalid Employee ID or password.");           // DISPLAY FAILURE REASON TO OPERATOR
             }
         }
 
@@ -323,32 +318,27 @@
         //           derives user's secret, and activates the 30-second hardware ticker.
         // ============================================================================
         function initiateStep2Totp(user) {
-            // STEP 1: SWITCH VISIBLE FORM BLOCKS (HIDE PASSWORD, SHOW MFA DIGITS)
-            document.getElementById("step1CredentialsBlock").style.display = "none";
-            document.getElementById("step2TotpBlock").style.display = "block";
+            document.getElementById("step1CredentialsBlock").style.display = "none";    // HIDE PRIMARY PASSWORD INPUT BLOCK
+            document.getElementById("step2TotpBlock").style.display = "block";          // SHOW 6-DIGIT TOTP CHALLENGE BLOCK
 
-            // STEP 2: DISPLAY EMPLOYEE PROFILE BANNER (NAME, EMAIL, INITIALS)
-            document.getElementById("totpUserName").innerText = user.name || "Staff Member";
-            document.getElementById("totpUserEmail").innerText = user.email;
+            // VARIABLES FOR USER PROFILE DISPLAY
+            document.getElementById("totpUserName").innerText = user.name || "Staff Member"; // DISPLAY FULL EMPLOYEE NAME
+            document.getElementById("totpUserEmail").innerText = user.email;            // DISPLAY CORPORATE EMAIL ADDRESS
 
-            // STEP 3: EXTRACT INITIALS FOR THE ROUND AVATAR BADGE (E.G. "TC" FOR TOM CRUISE)
-            const p = (user.name || "Staff Member").trim().split(/\s+/);
-            const initials = p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : p[0].slice(0, 2).toUpperCase();
-            document.getElementById("totpUserInitials").innerText = initials;
+            // DERIVE INITIALS FOR AVATAR BADGE
+            const p = (user.name || "Staff Member").trim().split(/\s+/);                // SPLIT NAME BY WHITESPACE
+            const initials = p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : p[0].slice(0, 2).toUpperCase(); // 2-LETTER BADGE INITIALS
+            document.getElementById("totpUserInitials").innerText = initials;           // POPULATE AVATAR CIRCLE
 
-            // STEP 4: RESOLVE BASE32 ENCRYPTION SECRET FOR THIS EMPLOYEE
-            // PREFERS CLOUD FIRESTORE PROFILE SECRET, ELSE DETERMINISTICALLY DERIVES FROM EMAIL
+            // RESOLVE 16-CHARACTER BASE32 ENCRYPTION SECRET FOR TOTP
             activeSecret = (user && user.totpSecret) 
                 ? user.totpSecret 
                 : ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) 
                     ? TOTP.getSecretForEmail(user.email) 
-                    : "JBSWY3DPEHPK3PXP");
+                    : "JBSWY3DPEHPK3PXP");                                              // FALLBACK TO DEFAULT SEED SECRET
 
-            // STEP 5: ATTACH AUTO-FOCUS EVENT LISTENERS TO THE 6 DIGIT INPUT BOXES
-            setupOtpInputs();
-
-            // STEP 6: START 30-SECOND ANIMATED COUNTDOWN PROGRESS BAR
-            startTotpTicker();
+            setupOtpInputs();                                                           // ATTACH INPUT AND AUTO-FOCUS LISTENERS
+            startTotpTicker();                                                          // START 30-SECOND HARDWARE TICKER
         }
 
         // ============================================================================
@@ -356,18 +346,15 @@
         // PURPOSE:  Clears OTP timer and resets form inputs back to Step 1.
         // ============================================================================
         function cancelStep2() {
-            // STEP 1: STOP HARDWARE TICKER INTERVAL
-            if (totpInterval) clearInterval(totpInterval);
+            if (totpInterval) clearInterval(totpInterval);                              // STOP 1-SECOND REPEATING TICKER
+            document.getElementById("step2TotpBlock").style.display = "none";          // HIDE TOTP CHALLENGE BLOCK
+            document.getElementById("step1CredentialsBlock").style.display = "block";   // RESTORE PRIMARY LOGIN BLOCK
 
-            // STEP 2: SWITCH VISIBLE FORM BLOCKS BACK TO STEP 1
-            document.getElementById("step2TotpBlock").style.display = "none";
-            document.getElementById("step1CredentialsBlock").style.display = "block";
-
-            // STEP 3: RESET SUBMIT BUTTON AND CLEAR SENSITIVE TEMPORARY STATE
-            document.getElementById("btnStep1Submit").disabled = false;
-            document.getElementById("btnStep1Submit").innerText = "Verify Credentials & Continue";
-            clearOtpBoxes();
-            pendingUser = null;
+            const btn = document.getElementById("btnStep1Submit");                      // PRIMARY SUBMISSION BUTTON
+            btn.disabled = false;                                                       // RE-ENABLE BUTTON
+            btn.innerText = "Verify Credentials & Continue";                            // RESTORE BUTTON TEXT
+            clearOtpBoxes();                                                            // CLEAR ALL 6 NUMERIC DIGIT BOXES
+            pendingUser = null;                                                         // PURGE TEMPORARY USER RECORD
         }
 
         // ============================================================================
