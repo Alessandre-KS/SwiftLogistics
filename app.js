@@ -20,12 +20,13 @@
 
 // FIREBASE CONNECTION CREDENTIALS FOR SWIFTLOGISTICS HUB
 const firebaseConfig = (typeof window !== "undefined" && window.FIREBASE_CONFIG) ? window.FIREBASE_CONFIG : {
-    apiKey: "YOUR_FIREBASE_API_KEY",
+    apiKey: "AIzaSyAtoLR9SVRQIgnFgwqQ6kPuTVA23cp0Ibw",
     authDomain: "swiftlogistics-hub-9821.firebaseapp.com",
     projectId: "swiftlogistics-hub-9821",
-    storageBucket: "swiftlogistics-hub-9821.firebasestorage.app",
-    messagingSenderId: "602215546126",
-    appId: "1:602215546126:web:28439f8304a2613c072b5f"
+    storageBucket: "swiftlogistics-hub-9821.appspot.com",
+    messagingSenderId: "530084042857",
+    appId: "1:530084042857:web:8cf0d16df33418579d4a0f",
+    measurementId: "G-65492H4Z5D"
 };
 
 // FIREBASE COMPAT SDK INSTANCES & CONNECTION STATUS
@@ -953,7 +954,46 @@ function getLocalStaffDirectory() {
             name: "Bossing Jeff",
             email: "jeff@swiftlogistics.ph",
             role: "Business Owner (Administrator)",
-            active: true
+            active: true,
+            verified: true,
+            status: "active"
+        },
+        {
+            id: "usr_2420572",
+            name: "Roy Matthew L. Perilla",
+            email: "2420572@ub.edu.ph",
+            role: "Management (Branch Dispatcher)",
+            active: true,
+            verified: true,
+            status: "active"
+        },
+        {
+            id: "usr_2420417",
+            name: "Christan Angelo Parcon",
+            email: "2420417@ub.edu.ph",
+            role: "Management (Branch Dispatcher)",
+            active: true,
+            verified: true,
+            status: "active"
+        },
+        {
+            id: "usr_alessandrekyle",
+            name: "Alessandre Kyle E. Sanidad",
+            email: "alessandrekyle@gmail.com",
+            role: "Management (Branch Dispatcher)",
+            active: true,
+            verified: true,
+            status: "active"
+        },
+        {
+            id: "usr_maewsenpai",
+            name: "Tom Cruise",
+            email: "maewsenpai@gmail.com",
+            role: "Driver (Delivery Courier Rider)",
+            vehicleType: "Motorcycle (Express 2-Wheeler)",
+            active: true,
+            verified: true,
+            status: "active"
         }
     ];
 }
@@ -975,7 +1015,8 @@ async function signInStaff(email, password) {
             uid: "usr_jeff",
             email: "jeff@swiftlogistics.ph",
             name: "Bossing Jeff",
-            role: "Business Owner (Administrator)"
+            role: "Business Owner (Administrator)",
+            totpSecret: (typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail("jeff@swiftlogistics.ph") : "JBSWY3DPEHPK3PXP"
         };
         localStorage.setItem("swift_session_user", JSON.stringify(user));
         return { success: true, user: user };

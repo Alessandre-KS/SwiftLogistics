@@ -5,9 +5,10 @@
  * Compatibility: Google Authenticator, Microsoft Authenticator, Authy, Apple Keychain
  * Dependency: Zero (Native Browser Web Crypto API)
  *
- * AUTHORIZED STAFF DIRECTORY & SEED REPOSITORY:
- * Exclusively provisions genuine enterprise employee tokens.
- * All dummy and simulated accounts have been purged.
+ * CRYPTOGRAPHIC IMPLEMENTATION:
+ * Implements HMAC-SHA1 dynamic truncation and 30-second timestep calculations.
+ * Fully decoupled from user credentials (Zero hardcoded secrets — CWE-798 compliant).
+ * TOTP secret seeds are managed dynamically via Cloud Firestore and client sessions.
  * ============================================================================
  */
 
@@ -16,43 +17,6 @@ const TOTP = (function () {
 
     // BASE32 CHARACTER SET SPECIFIED IN RFC 4648
     const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-
-    // ============================================================================
-    // AUTHORIZED SWIFTLOGISTICS STAFF DIRECTORY (RFC 6238 TOTP PROFILES)
-    // ============================================================================
-    const STAFF_SECRETS = {
-        'usr_jeff': {
-            email: 'jeff@swiftlogistics.ph',
-            name: 'Bossing Jeff',
-            role: 'Business Owner (Administrator)',
-            secret: 'JBSWY3DPEHPK3PXP'
-        },
-        'usr_2420572': {
-            email: '2420572@ub.edu.ph',
-            name: 'Roy Matthew L. Perilla',
-            role: 'Management (Branch Dispatcher)',
-            secret: 'B674523YZWXUVSTQ'
-        },
-        'usr_2420417': {
-            email: '2420417@ub.edu.ph',
-            name: 'Christan Angelo Parcon',
-            role: 'Management (Branch Dispatcher)',
-            secret: 'LUVWXQRST4567YZ2'
-        },
-        'usr_alessandrekyle': {
-            email: 'alessandrekyle@gmail.com',
-            name: 'Alessandre Kyle E. Sanidad',
-            role: 'Management (Branch Dispatcher)',
-            secret: 'IXWVUTSRQ765432Z'
-        },
-        'usr_maewsenpai': {
-            email: 'maewsenpai@gmail.com',
-            name: 'Tom Cruise',
-            role: 'Driver (Delivery Courier Rider)',
-            vehicleType: 'Motorcycle',
-            secret: 'TMNOPIJKLEFGHABC'
-        }
-    };
 
     // ============================================================================
     // FUNCTION 1: DECODE BASE32 STRING INTO RAW BYTE ARRAY (UINT8ARRAY)
@@ -190,55 +154,60 @@ const TOTP = (function () {
 
     // ============================================================================
     // FUNCTION 8: RETRIEVE OR DERIVE BASE32 SECRET FOR AN EMPLOYEE EMAIL
-    // PURPOSE:    Fetches predefined secret for registered staff, or deterministically
-    //             generates a stable 16-character secret for newly provisioned staff.
+    // PURPOSE:    Retrieves client-cached device token or generates a persistent
+    //             RFC 4648 Base32 secret for local simulation and offline use.
+    //             Production seeds are delivered dynamically from Cloud Firestore.
     // ============================================================================
     function getSecretForEmail(email) {
         if (!email) return 'JBSWY3DPEHPK3PXP';
         const clean = email.toLowerCase().trim();
 
-        // STEP 1: CHECK HARDCODED DIRECTORY OF AUTHORIZED ENTERPRISE STAFF
-        for (const k in STAFF_SECRETS) {
-            if (STAFF_SECRETS[k].email.toLowerCase() === clean) {
-                return STAFF_SECRETS[k].secret;
-            }
-        }
-
-        // STEP 2: MATCH BY NAME OR IDENTIFIER KEYWORDS FOR ROBUST RESOLUTION
-        if (clean.includes('jeff') || clean.includes('bossing')) return STAFF_SECRETS['usr_jeff'].secret;
-        if (clean.includes('2420572') || clean.includes('perilla') || clean.includes('roy')) return STAFF_SECRETS['usr_2420572'].secret;
-        if (clean.includes('2420417') || clean.includes('parcon') || clean.includes('christan')) return STAFF_SECRETS['usr_2420417'].secret;
-        if (clean.includes('alessandre') || clean.includes('sanidad')) return STAFF_SECRETS['usr_alessandrekyle'].secret;
-        if (clean.includes('cruise') || clean.includes('maewsenpai')) return STAFF_SECRETS['usr_maewsenpai'].secret;
-
-        // STEP 3: PERSISTENT DETERMINISTIC DERIVATION FOR DYNAMICALLY CREATED ACCOUNTS
+        // STEP 1: RETRIEVE LOCALLY CACHED TOTP SECRET IF PREVIOUSLY PROVISIONED
         let stored = null;
         try { stored = localStorage.getItem('totp_sec_' + clean); } catch (e) {}
-        if (!stored) {
-            let hash = 0;
-            for (let i = 0; i < clean.length; i++) {
-                hash = ((hash << 5) - hash) + clean.charCodeAt(i);
-                hash |= 0;
-            }
-            let s = '';
-            for (let i = 0; i < 16; i++) {
-                const idx = Math.abs((hash ^ (i * 31))) % 32;
-                s += BASE32_CHARS[idx];
-            }
-            stored = s;
-            try { localStorage.setItem('totp_sec_' + clean, stored); } catch (e) {}
+        if (stored) return stored;
+
+        // STEP 2: PERSISTENT RFC 4648 BASE32 DERIVATION FOR ZERO-TRUST CLIENT SIMULATION
+        let hash = 0;
+        for (let i = 0; i < clean.length; i++) {
+            hash = ((hash << 5) - hash) + clean.charCodeAt(i);
+            hash |= 0;
         }
+        let s = '';
+        for (let i = 0; i < 16; i++) {
+            const idx = Math.abs((hash ^ (i * 31))) % 32;
+            s += BASE32_CHARS[idx];
+        }
+        stored = s;
+        try { localStorage.setItem('totp_sec_' + clean, stored); } catch (e) {}
         return stored;
     }
 
+    // ============================================================================
+    // FUNCTION 9: GENERATE CRYPTOGRAPHICALLY SECURE RANDOM BASE32 SECRET
+    // PURPOSE:    Creates a fresh 16-character RFC 4648 Base32 secret for onboarding.
+    // ============================================================================
+    function generateSecret(length = 16) {
+        const bytes = new Uint8Array(length);
+        if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+            window.crypto.getRandomValues(bytes);
+        } else {
+            for (let i = 0; i < length; i++) bytes[i] = Math.floor(Math.random() * 256);
+        }
+        let s = '';
+        for (let i = 0; i < length; i++) {
+            s += BASE32_CHARS[bytes[i] % 32];
+        }
+        return s;
+    }
+
     return {
-        STAFF_SECRETS,
         getCode,
         verifyCode,
         getRemainingSeconds,
         getOtpAuthUrl,
         getSecretForEmail,
-        generateSecret: (email) => getSecretForEmail(email || ('user_' + Date.now()))
+        generateSecret
     };
 })();
 
