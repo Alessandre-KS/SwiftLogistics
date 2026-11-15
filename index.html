@@ -354,6 +354,16 @@
                             </button>
                         </div>
                     </div>
+                    <!-- ACTIVE COURIER ROUTE HUD BANNER -->
+                    <div id="fleetRadarRouteBar" class="fleet-radar-route-bar" style="display: none;">
+                        <div class="route-bar-content">
+                            <span class="route-bar-icon">🛣️</span>
+                            <div class="route-bar-text" id="fleetRadarRouteText"></div>
+                        </div>
+                        <button type="button" class="btn-clear-radar-route" onclick="window.clearRadarDriverRoute(true)" title="Clear delivery route line">
+                            ✕ Clear Route
+                        </button>
+                    </div>
                     <div id="fleetRadarMapCanvas" class="fleet-map-canvas"></div>
                 </section>
 
@@ -602,6 +612,243 @@
         let fleetHubMarker = null;            // CENTRAL DISPATCH HUB ANCHOR MARKER (UB LIPA)
         let fleetDriverMarkers = {};          // DICTIONARY OF LIVE DRIVER MARKERS KEYED BY DRIVER ID
         let currentDriverLocations = {};      // LOCAL RUNTIME CACHE OF RECENT DRIVER TELEMETRY POSITIONS
+        let activeRadarRoutePolyline = null;  // ACTIVE ROAD ROUTE POLYLINE DRAWN ON MAP
+        let activeRadarRouteGlow = null;      // ACTIVE ROUTE GLOW UNDERLAY POLYLINE
+        let activeRadarStopMarkers = [];      // NUMBERED DELIVERY STOP MARKERS PLOTTED ON MAP
+        let activeSelectedDriverId = null;    // CURRENTLY FOCUSED DRIVER ID FOR ACTIVE ROUTE
+
+        // LISTEN FOR CONSIGNMENT CLOUD/LOCAL SYNC EVENTS TO REFRESH RADAR REALTIME
+        window.addEventListener("swift_parcels_cloud_synced", () => {
+            if (fleetRadarMap && currentDriverLocations) {
+                renderFleetRadarDrivers(currentDriverLocations);
+                if (activeSelectedDriverId) window.drawDriverRouteOnRadar(activeSelectedDriverId);
+            }
+        });
+        window.addEventListener("swift_parcels_updated", () => {
+            if (fleetRadarMap && currentDriverLocations) {
+                renderFleetRadarDrivers(currentDriverLocations);
+                if (activeSelectedDriverId) window.drawDriverRouteOnRadar(activeSelectedDriverId);
+            }
+        });
+
+        // ============================================================================
+        // RETRIEVE ASSIGNED CONSIGNMENTS FOR A SPECIFIC COURIER
+        // PURPOSE:  Queries runtime parcelsList and returns all shipments assigned
+        //           to the courier, matching by staff ID, full name, or user alias.
+        // ============================================================================
+        function getParcelsForDriver(driverId, driverName) {
+            if (!parcelsList || parcelsList.length === 0) {
+                parcelsList = (typeof getLocalParcels === "function") ? getLocalParcels() : [];
+            }
+            const cleanId = (driverId || "").toLowerCase().trim();
+            const cleanName = (driverName || "").toLowerCase().trim();
+
+            return parcelsList.filter(p => {
+                if (!p.assignedDriver && !p.assignedDriverId && !p.assignedDriverUid) return false;
+                const assigned = (p.assignedDriver || "").toLowerCase().trim();
+                const assignedId = (p.assignedDriverId || p.assignedDriverUid || "").toLowerCase().trim();
+
+                const idMatch = cleanId && (assignedId === cleanId);
+                const nameMatch = cleanName && (assigned.includes(cleanName) || cleanName.includes(assigned));
+                const aliasMatch = (cleanName.includes("tom") || cleanId.includes("maewsenpai")) && 
+                                   (assigned.includes("tom") || assigned.includes("cruise") || assignedId.includes("maewsenpai"));
+
+                return idMatch || nameMatch || aliasMatch;
+            });
+        }
+
+        // ============================================================================
+        // CLEAR PLOTTED DELIVERY ROUTE AND STOP MARKERS
+        // PURPOSE:  Removes route polylines, glow lines, and numbered stop pins from
+        //           the map, resetting the view back to clean fleet radar state.
+        // ============================================================================
+        window.clearRadarDriverRoute = function(resetSelected = true) {
+            if (!fleetRadarMap) return;
+            if (activeRadarRoutePolyline) {
+                fleetRadarMap.removeLayer(activeRadarRoutePolyline);
+                activeRadarRoutePolyline = null;
+            }
+            if (activeRadarRouteGlow) {
+                fleetRadarMap.removeLayer(activeRadarRouteGlow);
+                activeRadarRouteGlow = null;
+            }
+            if (activeRadarStopMarkers && activeRadarStopMarkers.length > 0) {
+                activeRadarStopMarkers.forEach(m => {
+                    try { fleetRadarMap.removeLayer(m); } catch(e) {}
+                });
+                activeRadarStopMarkers = [];
+            }
+            if (resetSelected) {
+                activeSelectedDriverId = null;
+                const routeBar = document.getElementById("fleetRadarRouteBar");
+                if (routeBar) routeBar.style.display = "none";
+            }
+        };
+
+        // ============================================================================
+        // VISUALLY PLOT COURIER'S DELIVERY ROUTE AND STOPS ON RADAR MAP
+        // PURPOSE:  Constructs a multi-point road polyline from the driver's live GPS
+        //           location through every assigned delivery stop, drops numbered badges,
+        //           and frames the map bounds so the dispatcher sees the full route.
+        // ============================================================================
+        window.drawDriverRouteOnRadar = async function(driverId) {
+            if (!fleetRadarMap || typeof L === "undefined") return;
+            activeSelectedDriverId = driverId;
+
+            // 1. CLEAR ANY PREVIOUS ROUTE (KEEP activeSelectedDriverId)
+            window.clearRadarDriverRoute(false);
+
+            const d = currentDriverLocations[driverId];
+            if (!d || d.lat == null || d.lng == null) return;
+
+            // 2. QUERY ASSIGNED SHIPMENTS AND FILTER PENDING/ACTIVE STOPS
+            const parcels = getParcelsForDriver(driverId, d.driverName);
+            const activeStops = parcels.filter(p => 
+                !p.status.includes("Delivered") && 
+                !p.status.includes("Cancelled") && 
+                !p.status.includes("Returned")
+            );
+
+            // SORT: IN-ROUTE NEXT STOP FIRST, THEN SUBSEQUENT STOPS
+            if (d.nextStopTracking) {
+                activeStops.sort((a, b) => {
+                    if (a.trackingNo === d.nextStopTracking) return -1;
+                    if (b.trackingNo === d.nextStopTracking) return 1;
+                    return 0;
+                });
+            } else {
+                activeStops.sort((a, b) => {
+                    const aOut = (a.status || "").includes("Out for Delivery") ? 1 : 0;
+                    const bOut = (b.status || "").includes("Out for Delivery") ? 1 : 0;
+                    return bOut - aOut;
+                });
+            }
+
+            const routeBar = document.getElementById("fleetRadarRouteBar");
+            const routeText = document.getElementById("fleetRadarRouteText");
+
+            if (activeStops.length === 0) {
+                if (routeBar && routeText) {
+                    routeBar.style.display = "flex";
+                    routeText.innerHTML = `<strong>${d.driverName}</strong> has no active delivery stops assigned (Standby at Hub).`;
+                }
+                return;
+            }
+
+            // 3. BUILD WAYPOINTS: [DRIVER LIVE GPS] -> [STOP 1] -> [STOP 2] -> ...
+            const driverPoint = [Number(d.lat), Number(d.lng)];
+            const waypoints = [driverPoint];
+            const stopCoordsList = [];
+
+            activeStops.forEach((p, idx) => {
+                let lat = p.lat;
+                let lng = p.lng;
+                if (!lat || !lng) {
+                    const resolved = (typeof getCityCoordinates === "function") 
+                        ? getCityCoordinates(p.city, p.barangay || "")
+                        : { lat: 13.9575, lng: 121.1633 };
+                    lat = resolved.lat;
+                    lng = resolved.lng;
+                }
+                const pt = [Number(lat), Number(lng)];
+                waypoints.push(pt);
+                stopCoordsList.push({ parcel: p, coords: pt, index: idx + 1 });
+            });
+
+            // 4. PLACE NUMBERED STOP MARKERS ON MAP
+            stopCoordsList.forEach(({ parcel, coords, index }) => {
+                const isNext = index === 1;
+                const stopIcon = L.divIcon({
+                    className: "leaflet-radar-stop-pin",
+                    html: `
+                        <div class="radar-stop-pin ${isNext ? 'current-stop' : ''}" title="Stop #${index}: ${parcel.trackingNo}">
+                            <span class="stop-badge-num">${index}</span>
+                        </div>
+                    `,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14],
+                    popupAnchor: [0, -14]
+                });
+
+                const stopMarker = L.marker(coords, { icon: stopIcon }).addTo(fleetRadarMap);
+                const dest = parcel.barangay ? `${parcel.barangay}, ${parcel.city}` : parcel.city;
+                const codDisplay = parcel.paymentMethod === "PREPAID" ? "Prepaid (Paid)" : (parcel.cod || "₱0.00");
+
+                stopMarker.bindPopup(`
+                    <div style="font-size: 11px; font-weight: 800; color: #1E40AF; text-transform: uppercase;">
+                        📍 Route Stop #${index} ${isNext ? '(Next Delivery 🚀)' : ''}
+                    </div>
+                    <div style="font-size: 12.5px; font-weight: 800; color: #0F172A; margin: 3px 0 2px 0;">
+                        ${parcel.trackingNo} &bull; ${parcel.name}
+                    </div>
+                    <div style="font-size: 11px; color: #334155;">
+                        📍 ${dest}
+                    </div>
+                    ${parcel.addressDetails ? `<div style="font-size: 10.5px; color: #64748B;">${parcel.addressDetails}</div>` : ''}
+                    ${parcel.landmarks ? `<div style="font-size: 10.5px; color: #D97706; margin-top: 2px;">🚩 Landmark: ${parcel.landmarks}</div>` : ''}
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding-top: 4px; border-top: 1px dashed #E2E8F0;">
+                        <span style="font-size: 10.5px; font-weight: 700; color: #059669; background: #ECFDF5; padding: 2px 6px; border-radius: 4px;">${parcel.status}</span>
+                        <span style="font-size: 11.5px; font-weight: 800; color: #EA580C;">${parcel.paymentMethod || 'COD'}: ${codDisplay}</span>
+                    </div>
+                `);
+                activeRadarStopMarkers.push(stopMarker);
+            });
+
+            // 5. FETCH REAL OSRM ROAD ROUTE OR FALLBACK TO DIRECT PATH
+            let routeSummary = "";
+            try {
+                if (typeof fetchRoadRoute === "function") {
+                    const roadData = await fetchRoadRoute(waypoints);
+                    if (roadData && roadData.latLngs && roadData.latLngs.length > 0) {
+                        // GLOW UNDERLAY
+                        activeRadarRouteGlow = L.polyline(roadData.latLngs, {
+                            color: '#3B82F6',
+                            weight: 7,
+                            opacity: 0.35,
+                            lineCap: 'round',
+                            lineJoin: 'round'
+                        }).addTo(fleetRadarMap);
+
+                        // DASHED MAIN ROAD LINE
+                        activeRadarRoutePolyline = L.polyline(roadData.latLngs, {
+                            color: '#1D4ED8',
+                            weight: 3.5,
+                            opacity: 0.95,
+                            dashArray: '8, 8',
+                            lineCap: 'round'
+                        }).addTo(fleetRadarMap);
+
+                        routeSummary = `&bull; Est. <strong>${roadData.distanceKm} km</strong> (~${roadData.durationMins} mins)`;
+                    }
+                }
+            } catch(err) {
+                console.warn("Road routing fetch error:", err);
+            }
+
+            if (!activeRadarRoutePolyline) {
+                activeRadarRoutePolyline = L.polyline(waypoints, {
+                    color: '#2563EB',
+                    weight: 3.5,
+                    opacity: 0.9,
+                    dashArray: '6, 6'
+                }).addTo(fleetRadarMap);
+            }
+
+            // 6. UPDATE RADAR ROUTE HUD BAR
+            if (routeBar && routeText) {
+                routeBar.style.display = "flex";
+                const nextTrk = activeStops[0]?.trackingNo || "";
+                const nextDest = activeStops[0]?.barangay ? `${activeStops[0].barangay}, ${activeStops[0].city}` : (activeStops[0]?.city || "");
+                routeText.innerHTML = `
+                    <strong>${d.driverName}</strong> (${d.vehicleType || 'Motorcycle'}) &bull; 
+                    <strong>${activeStops.length} Delivery Stop${activeStops.length > 1 ? 's' : ''}</strong> ${routeSummary} &bull; 
+                    Next: <span style="color: #60A5FA; font-weight: 700;">${nextTrk}</span> (${nextDest})
+                `;
+            }
+
+            // 7. AUTO-FIT CAMERA BOUNDS TO INCLUDE COURIER AND ALL STOPS
+            fleetRadarMap.fitBounds(waypoints, { padding: [55, 55], maxZoom: 15 });
+        };
 
         // ============================================================================
         // INITIALIZE FLEET RADAR LEAFLET MAP
@@ -689,7 +936,8 @@
         // ============================================================================
         // RENDER COURIER FLEET MARKERS ON LEAFLET RADAR
         // PURPOSE:  Iterates active courier GPS coordinates, instantiates/updates
-        //           Leaflet marker pins with pulsing radar rings, and builds popups.
+        //           Leaflet marker pins with pulsing radar rings, and builds popups
+        //           showing currently delivering parcel and full route stops list.
         // ============================================================================
         function renderFleetRadarDrivers(locations) {
             if (!fleetRadarMap || typeof L === "undefined") return;
@@ -739,6 +987,133 @@
                 const isTruck = (d.vehicleType || "").toLowerCase().includes("truck");
                 const emoji = isTruck ? "🚛" : "🛵";
 
+                // RETRIEVE ASSIGNED CONSIGNMENTS AND ACTIVE STOPS FOR THIS COURIER
+                const driverParcels = getParcelsForDriver(id, d.driverName);
+                const activeStops = driverParcels.filter(p => 
+                    !p.status.includes("Delivered") && 
+                    !p.status.includes("Cancelled") && 
+                    !p.status.includes("Returned")
+                );
+
+                // IDENTIFY IN-FLIGHT CONSIGNMENT CURRENTLY BEING DELIVERED
+                let currentParcel = null;
+                if (d.nextStopTracking) {
+                    currentParcel = activeStops.find(p => p.trackingNo === d.nextStopTracking) || 
+                                    driverParcels.find(p => p.trackingNo === d.nextStopTracking);
+                }
+                if (!currentParcel) {
+                    currentParcel = activeStops.find(p => (p.status || "").includes("Out for Delivery"));
+                }
+                if (!currentParcel && activeStops.length > 0) {
+                    currentParcel = activeStops[0];
+                }
+
+                // SORT STOPS SO CURRENT TARGET IS STOP #1
+                if (currentParcel) {
+                    activeStops.sort((a, b) => {
+                        if (a.trackingNo === currentParcel.trackingNo) return -1;
+                        if (b.trackingNo === currentParcel.trackingNo) return 1;
+                        return 0;
+                    });
+                }
+
+                // BUILD CURRENTLY DELIVERING BLOCK HTML
+                let currentParcelHtml = "";
+                if (currentParcel) {
+                    const dest = currentParcel.barangay ? `${currentParcel.barangay}, ${currentParcel.city}` : currentParcel.city;
+                    const attempts = (currentParcel.deliveryAttempts && currentParcel.deliveryAttempts.length > 0)
+                        ? `⚠️ Attempt ${currentParcel.deliveryAttempts.length} of 3`
+                        : `⏱️ 1st Delivery Attempt`;
+                    const codVal = currentParcel.paymentMethod === "PREPAID" ? "Prepaid (Paid)" : (currentParcel.cod || "₱0.00");
+
+                    currentParcelHtml = `
+                        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 7px 10px; margin-top: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                                <span style="font-size: 10px; font-weight: 800; color: #166534; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background: #16A34A; display: inline-block;"></span>
+                                    CURRENTLY DELIVERING
+                                </span>
+                                <span style="font-size: 9.5px; font-weight: 700; color: #15803D; background: #DCFCE7; padding: 1px 5px; border-radius: 3px;">
+                                    In Transit
+                                </span>
+                            </div>
+                            <div style="font-size: 12px; font-weight: 800; color: #0F172A; font-family: monospace;">
+                                ${currentParcel.trackingNo}
+                            </div>
+                            <div style="font-size: 11.5px; font-weight: 700; color: #1E293B; margin-top: 1px;">
+                                👤 ${currentParcel.name}
+                            </div>
+                            <div style="font-size: 10.5px; color: #475569; margin-top: 1px;">
+                                📍 ${dest}
+                            </div>
+                            ${currentParcel.addressDetails ? `<div style="font-size: 10px; color: #64748B;">${currentParcel.addressDetails}</div>` : ''}
+                            ${currentParcel.landmarks ? `<div style="font-size: 10px; color: #D97706; margin-top: 2px;">🚩 Landmark: ${currentParcel.landmarks}</div>` : ''}
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding-top: 4px; border-top: 1px dashed #CBD5E1; font-size: 10px;">
+                                <span style="color: #EA580C; font-weight: 800;">💵 ${currentParcel.paymentMethod || 'COD'}: ${codVal}</span>
+                                <span style="color: #64748B; font-weight: 600;">${attempts}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    currentParcelHtml = `
+                        <div style="background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 6px; padding: 6px 10px; margin-top: 6px; font-size: 10.5px; color: #64748B;">
+                            📦 No parcel currently in transit &bull; Courier available at Hub
+                        </div>
+                    `;
+                }
+
+                // BUILD ASSIGNED ROUTE STOPS LIST HTML
+                let routeStopsHtml = "";
+                if (activeStops.length > 0) {
+                    const stopsList = activeStops.map((p, idx) => {
+                        const isCurrent = currentParcel && p.trackingNo === currentParcel.trackingNo;
+                        const stopDest = p.barangay ? `${p.barangay}, ${p.city}` : p.city;
+                        return `
+                            <div style="display: flex; align-items: flex-start; gap: 6px; padding: 4px 0; border-bottom: ${idx < activeStops.length - 1 ? '1px solid #F1F5F9' : 'none'};">
+                                <span style="width: 17px; height: 17px; border-radius: 50%; background: ${isCurrent ? '#EA580C' : '#3B82F6'}; color: #FFF; font-size: 9px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;">
+                                    ${idx + 1}
+                                </span>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-size: 10.5px; font-weight: 700; color: #0F172A; font-family: monospace;">${p.trackingNo}</span>
+                                        <span style="font-size: 9px; font-weight: 700; color: ${isCurrent ? '#EA580C' : '#64748B'};">
+                                            ${isCurrent ? '🚀 Next Stop' : `Stop #${idx + 1}`}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 10px; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        ${p.name}
+                                    </div>
+                                    <div style="font-size: 9.5px; color: #64748B;">
+                                        ${stopDest}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join("");
+
+                    routeStopsHtml = `
+                        <div style="margin-top: 7px; border-top: 1px solid #E2E8F0; padding-top: 5px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                                <span style="font-size: 9.5px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    🗺️ DELIVERY ROUTE STOPS (${activeStops.length})
+                                </span>
+                                <button type="button" onclick="event.stopPropagation(); window.drawDriverRouteOnRadar('${id}');" style="font-size: 9.5px; font-weight: 700; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; padding: 1px 6px; border-radius: 4px; cursor: pointer;">
+                                    Plot Route 🛣️
+                                </button>
+                            </div>
+                            <div style="max-height: 105px; overflow-y: auto; padding-right: 2px;">
+                                ${stopsList}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    routeStopsHtml = `
+                        <div style="margin-top: 5px; font-size: 10px; color: #94A3B8; font-style: italic;">
+                            No route stops currently assigned.
+                        </div>
+                    `;
+                }
+
                 // BUILD DYNAMIC HTML PIN WITH PULSING RADAR RING
                 const customIcon = L.divIcon({
                     className: "leaflet-driver-pin",
@@ -754,34 +1129,52 @@
                     popupAnchor: [0, -18]
                 });
 
-                // BUILD INTERACTIVE TOOLTIP POPUP CARD
+                // BUILD COMPLETE TOOLTIP POPUP CARD CONTENT
                 const popupContent = `
-                    <div style="font-weight: 800; font-size: 13px; color: #0F172A; display: flex; align-items: center; gap: 5px; margin-bottom: 3px;">
-                        <span>${emoji}</span> <span>${d.driverName}</span>
-                    </div>
-                    <div style="font-size: 11px; color: #475569; margin-bottom: 2px;">
-                        <strong>Vehicle:</strong> ${d.vehicleType || 'Motorcycle'}
-                    </div>
-                    <div style="font-size: 11px; color: #0369A1; font-weight: 700; margin-bottom: 3px;">
-                        📍 ${d.currentStreet || 'En-Route Batangas Corridor'}
-                    </div>
-                    <div style="font-size: 10.5px; color: #059669; font-weight: 700; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 2px 6px; border-radius: 4px; display: inline-block;">
-                        ${d.status || 'Out for Delivery'} &bull; ${d.activeParcelsCount || 0} active parcel(s)
-                    </div>
-                    <div style="font-size: 9.5px; color: #94A3B8; font-family: monospace; margin-top: 5px;">
-                        GPS: ${Number(d.lat).toFixed(4)}° N, ${Number(d.lng).toFixed(4)}° E
+                    <div style="font-family: inherit; min-width: 250px; max-width: 285px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                            <div style="font-weight: 800; font-size: 13px; color: #0F172A; display: flex; align-items: center; gap: 5px;">
+                                <span>${emoji}</span> <span>${d.driverName}</span>
+                            </div>
+                            <span style="font-size: 9.5px; font-weight: 700; color: ${activeStops.length > 0 ? '#059669' : '#64748B'}; background: ${activeStops.length > 0 ? '#ECFDF5' : '#F1F5F9'}; padding: 1px 6px; border-radius: 4px;">
+                                ${activeStops.length > 0 ? `${activeStops.length} active stop(s)` : 'Available at Hub'}
+                            </span>
+                        </div>
+                        <div style="font-size: 11px; color: #475569; margin-bottom: 2px;">
+                            <strong>Vehicle:</strong> ${d.vehicleType || 'Motorcycle (Express 2-Wheeler)'}
+                        </div>
+                        <div style="font-size: 11px; color: #0369A1; font-weight: 700; margin-bottom: 2px;">
+                            📍 ${d.currentStreet || 'En-Route Batangas Corridor'}
+                        </div>
+                        <div style="font-size: 9.5px; color: #94A3B8; font-family: monospace;">
+                            GPS: ${Number(d.lat).toFixed(4)}° N, ${Number(d.lng).toFixed(4)}° E
+                        </div>
+
+                        ${currentParcelHtml}
+                        ${routeStopsHtml}
+
+                        ${activeStops.length > 0 ? `
+                            <div style="margin-top: 7px; padding-top: 5px; border-top: 1px solid #E2E8F0;">
+                                <button type="button" onclick="event.stopPropagation(); window.drawDriverRouteOnRadar('${id}');" style="width: 100%; font-size: 10.5px; font-weight: 800; color: #FFFFFF; background: #1E40AF; border: none; padding: 5px 8px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                    🛣️ Trace Delivery Route on Map
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
 
-                // IF MARKER ALREADY EXISTS ON MAP, UPDATE ITS POSITION SMOOTHLY
+                // IF MARKER ALREADY EXISTS ON MAP, UPDATE POSITION AND POPUP
                 if (fleetDriverMarkers[id]) {
                     fleetDriverMarkers[id].setLatLng([d.lat, d.lng]);
                     fleetDriverMarkers[id].setIcon(customIcon);
                     fleetDriverMarkers[id].setPopupContent(popupContent);
                 } else {
-                    // OTHERWISE CREATE NEW LEAFLET MARKER AND ADD TO MAP CANVAS
+                    // OTHERWISE CREATE NEW LEAFLET MARKER AND ATTACH CLICK ROUTE HANDLER
                     const marker = L.marker([d.lat, d.lng], { icon: customIcon }).addTo(fleetRadarMap);
                     marker.bindPopup(popupContent);
+                    marker.on("click", () => {
+                        window.drawDriverRouteOnRadar(id);
+                    });
                     fleetDriverMarkers[id] = marker;
                 }
             });
@@ -798,7 +1191,7 @@
         // ============================================================================
         // CAMERA VIEWPORT ZOOM TO SPECIFIC COURIER
         // PURPOSE:  Uses Leaflet's smooth animated flyTo transition to center the map
-        //           directly onto the selected driver's live GPS coordinates.
+        //           directly onto the selected driver's live GPS coordinates, and plots route.
         // ============================================================================
         window.focusFleetRadarDriver = function(driverId) {
             if (!fleetRadarMap) return;
@@ -814,6 +1207,8 @@
             document.querySelectorAll(".btn-radar-driver").forEach(b => {
                 b.classList.toggle("active", b.dataset.driverId === driverId);
             });
+            // AUTOMATICALLY PLOT COURIER'S DELIVERY ROUTE ON MAP
+            window.drawDriverRouteOnRadar(driverId);
         };
 
         // ============================================================================
@@ -822,6 +1217,7 @@
         // ============================================================================
         window.focusFleetRadarHub = function() {
             if (!fleetRadarMap) return;
+            window.clearRadarDriverRoute(true);
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
             fleetRadarMap.flyTo([hubLat, hubLng], 14, { duration: 1.2 });
@@ -836,6 +1232,7 @@
         // ============================================================================
         window.focusFleetRadarAll = function() {
             if (!fleetRadarMap) return;
+            window.clearRadarDriverRoute(true);
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
             const points = [[hubLat, hubLng]];

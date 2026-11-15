@@ -261,7 +261,19 @@ async function getRegisteredDrivers() {
 }
 
 // LOCAL CACHE STORE FOR DRIVER GPS COORDINATES
-const DEFAULT_DRIVER_LOCATIONS = {};
+const DEFAULT_DRIVER_LOCATIONS = {
+    "usr_maewsenpai": {
+        driverId: "usr_maewsenpai",
+        driverName: "Tom Cruise",
+        vehicleType: "Motorcycle (Express 2-Wheeler)",
+        lat: 13.9392,
+        lng: 121.1586,
+        status: "Out for Delivery",
+        currentStreet: "Brgy. Inosloban, Lipa City, Batangas",
+        activeParcelsCount: 3,
+        nextStopTracking: "TRK-1001"
+    }
+};
 
 // RETRIEVE CACHED DRIVER LOCATIONS WITH STRICT COURIER-ONLY ROLE FILTERING
 function getLocalDriverLocations() {
@@ -279,11 +291,13 @@ function getLocalDriverLocations() {
                     clean[id] = d;
                 }
             }
-            localStorage.setItem("SWIFT_DRIVER_LOCATIONS", JSON.stringify(clean));
-            return clean;
+            if (Object.keys(clean).length > 0) {
+                localStorage.setItem("SWIFT_DRIVER_LOCATIONS", JSON.stringify(clean));
+                return clean;
+            }
         }
     } catch (e) {}
-    return {};
+    return { ...DEFAULT_DRIVER_LOCATIONS };
 }
 
 // SAVE COURIER GPS POSITIONS TO LOCAL STORAGE AND BROADCAST UPDATE EVENT
@@ -433,31 +447,48 @@ const INITIAL_PARCELS = [
         name: "Alessandre Kyle E. Sanidad",
         phone: "0917-***-1146",
         city: "Lipa City, Batangas",
+        barangay: "Inosloban",
+        addressDetails: "Block 4 Lot 12, Villa San Jose",
+        landmarks: "Near Inosloban Elementary School / Blue Gate",
         package: "Mechanical Keyboard & Keycaps",
+        paymentMethod: "COD",
         cod: "₱1,250.00",
-        status: "Waiting to be Assigned to Driver",
-        assignedDriver: "",
-        driverVehicle: ""
+        status: "Out for Delivery",
+        assignedDriver: "Tom Cruise",
+        driverVehicle: "Motorcycle (Express 2-Wheeler)",
+        assignedDriverId: "usr_maewsenpai"
     },
     {
         trackingNo: "TRK-1002",
         name: "Samantha Jean Q. Adaya",
         phone: "0918-***-0766",
-        city: "Tanauan City, Batangas",
+        city: "Lipa City, Batangas",
+        barangay: "Marawoy",
+        addressDetails: "Unit 301, Marawoy Commercial Complex",
+        landmarks: "Behind SM City Lipa / Puregold",
         package: "UB-Lipa CITEC Department Uniform",
+        paymentMethod: "COD",
         cod: "₱850.00",
-        status: "Waiting to be Assigned to Driver",
-        assignedDriver: "",
-        driverVehicle: ""
+        status: "Out for Delivery",
+        assignedDriver: "Tom Cruise",
+        driverVehicle: "Motorcycle (Express 2-Wheeler)",
+        assignedDriverId: "usr_maewsenpai"
     },
     {
         trackingNo: "TRK-1003",
         name: "Joanna Rei E. Aguila",
         phone: "0919-***-0614",
-        city: "Sto. Tomas, Batangas",
+        city: "Lipa City, Batangas",
+        barangay: "Tambo",
+        addressDetails: "154 J.P. Laurel Highway",
+        landmarks: "Across Lipa Medix Medical Hospital",
         package: "Computer RAM & NVMe SSD Drive",
+        paymentMethod: "COD",
         cod: "₱3,400.00",
-        status: "Arrived at Hub #04"
+        status: "Out for Delivery",
+        assignedDriver: "Tom Cruise",
+        driverVehicle: "Motorcycle (Express 2-Wheeler)",
+        assignedDriverId: "usr_maewsenpai"
     },
     {
         trackingNo: "TRK-1004",
@@ -746,6 +777,42 @@ function getLocalParcels() {
                         modified = true;
                     }
                 });
+
+                // ENSURE SEED COURIER TOM CRUISE HAS ACTIVE SHIPMENTS ASSIGNED IF NO PARCELS CURRENTLY ASSIGNED
+                const hasAssigned = parsed.some(p => (p.assignedDriver || "").toLowerCase().includes("tom") || (p.assignedDriverId || "") === "usr_maewsenpai");
+                if (!hasAssigned) {
+                    const sampleTrks = ["TRK-1001", "TRK-1002", "TRK-1003"];
+                    parsed.forEach(p => {
+                        if (sampleTrks.includes(p.trackingNo)) {
+                            p.assignedDriver = "Tom Cruise";
+                            p.driverVehicle = "Motorcycle (Express 2-Wheeler)";
+                            p.assignedDriverId = "usr_maewsenpai";
+                            p.status = "Out for Delivery";
+                            if (p.trackingNo === "TRK-1001") {
+                                p.city = "Lipa City, Batangas";
+                                p.barangay = "Inosloban";
+                                p.addressDetails = "Block 4 Lot 12, Villa San Jose";
+                                p.landmarks = "Near Inosloban Elementary School / Blue Gate";
+                            } else if (p.trackingNo === "TRK-1002") {
+                                p.city = "Lipa City, Batangas";
+                                p.barangay = "Marawoy";
+                                p.addressDetails = "Unit 301, Marawoy Commercial Complex";
+                                p.landmarks = "Behind SM City Lipa / Puregold";
+                            } else if (p.trackingNo === "TRK-1003") {
+                                p.city = "Lipa City, Batangas";
+                                p.barangay = "Tambo";
+                                p.addressDetails = "154 J.P. Laurel Highway";
+                                p.landmarks = "Across Lipa Medix Medical Hospital";
+                            }
+                            const coords = getCityCoordinates(p.city, p.barangay || "");
+                            p.lat = coords.lat;
+                            p.lng = coords.lng;
+                            p.distanceKm = getDistanceFromHub(p.lat, p.lng);
+                            modified = true;
+                        }
+                    });
+                }
+
                 if (modified) {
                     saveLocalParcels(parsed);
                 }
@@ -911,6 +978,7 @@ async function updateParcelStatusRecord(trackingNo, newStatus, assignedDriver = 
             item.assignedDriverId = assignedDriverId;                           // RECORD ASSIGNED DRIVER STAFF IDENTIFIER
         }
         saveLocalParcels(parcelsList);                                          // CACHE UPDATED RECORD IN LOCAL STORAGE
+        window.dispatchEvent(new CustomEvent("swift_parcels_updated", { detail: parcelsList }));
 
         if (isFirebaseOnline && db) {
             try {
