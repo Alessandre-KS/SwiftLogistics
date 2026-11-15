@@ -196,6 +196,144 @@ async function fetchRoadRoute(waypoints) {
 }
 
 // ============================================================================
+// AI ROUTE OPTIMIZATION ENGINE (TRAVELING SALESPERSON / NEAREST-NEIGHBOR + 2-OPT)
+// PURPOSE: Computes the most fuel-efficient delivery sequence between an origin
+//          and multiple customer stops, ensuring couriers visit closer stops first
+//          (e.g., Customer 2 before Customer 1) and eliminating wasteful zigzagging.
+// ============================================================================
+function optimizeDeliveryRoute(startPoint, stops) {
+    if (!stops || stops.length <= 1) {
+        return {
+            optimizedStops: stops ? [...stops] : [],
+            originalDistanceKm: 0,
+            optimizedDistanceKm: 0,
+            savedDistanceKm: 0,
+            savingsPercent: 0,
+            isReordered: false
+        };
+    }
+
+    const startLat = Number(startPoint?.lat || (typeof UB_LIPA_HUB !== "undefined" ? UB_LIPA_HUB.lat : 13.9692));
+    const startLng = Number(startPoint?.lng || (typeof UB_LIPA_HUB !== "undefined" ? UB_LIPA_HUB.lng : 121.1594));
+    const origin = { lat: startLat, lng: startLng };
+
+    // HELPER: RESOLVE LAT/LNG COORDINATES FOR ANY CONSIGNMENT
+    const getCoords = (p) => {
+        let lat = p.lat;
+        let lng = p.lng;
+        if (!lat || !lng) {
+            const c = (typeof getCityCoordinates === "function") 
+                ? getCityCoordinates(p.city, p.barangay || "")
+                : { lat: startLat, lng: startLng };
+            lat = c.lat;
+            lng = c.lng;
+        }
+        return { lat: Number(lat), lng: Number(lng) };
+    };
+
+    // HELPER: COMPUTE TOTAL HAVERSINE PATH DISTANCE (ORIGIN -> STOP 1 -> STOP 2 -> ...)
+    const computePathDist = (orderedStops) => {
+        let total = 0;
+        let prev = origin;
+        for (let i = 0; i < orderedStops.length; i++) {
+            const curr = getCoords(orderedStops[i]);
+            total += calculateDistanceKm(prev.lat, prev.lng, curr.lat, curr.lng);
+            prev = curr;
+        }
+        return total;
+    };
+
+    const originalDist = computePathDist(stops);
+    let bestOrder = [...stops];
+    let bestDist = originalDist;
+
+    // FOR 2 TO 8 STOPS: FULL PERMUTATION EVALUATION (EXACT GLOBAL OPTIMUM IN < 2ms)
+    if (stops.length <= 8) {
+        const permute = (arr) => {
+            if (arr.length <= 1) return [arr];
+            const result = [];
+            for (let i = 0; i < arr.length; i++) {
+                const current = arr[i];
+                const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
+                const perms = permute(remaining);
+                for (let j = 0; j < perms.length; j++) {
+                    result.push([current].concat(perms[j]));
+                }
+            }
+            return result;
+        };
+
+        const allPermutations = permute(stops);
+        for (let i = 0; i < allPermutations.length; i++) {
+            const currentPerm = allPermutations[i];
+            const dist = computePathDist(currentPerm);
+            if (dist < bestDist - 0.001) {
+                bestDist = dist;
+                bestOrder = currentPerm;
+            }
+        }
+    } else {
+        // FOR > 8 STOPS: NEAREST NEIGHBOR GREEDY HEURISTIC + 2-OPT LOCAL SEARCH
+        const unvisited = [...stops];
+        const greedyOrder = [];
+        let currentPos = origin;
+
+        while (unvisited.length > 0) {
+            let nearestIdx = 0;
+            let nearestDist = Infinity;
+            for (let i = 0; i < unvisited.length; i++) {
+                const c = getCoords(unvisited[i]);
+                const d = calculateDistanceKm(currentPos.lat, currentPos.lng, c.lat, c.lng);
+                if (d < nearestDist) {
+                    nearestDist = d;
+                    nearestIdx = i;
+                }
+            }
+            const nextStop = unvisited.splice(nearestIdx, 1)[0];
+            greedyOrder.push(nextStop);
+            currentPos = getCoords(nextStop);
+        }
+
+        bestOrder = greedyOrder;
+        bestDist = computePathDist(bestOrder);
+
+        // 2-OPT EDGE-SWAPPING REFINEMENT
+        let improved = true;
+        let iterations = 0;
+        while (improved && iterations < 50) {
+            improved = false;
+            iterations++;
+            for (let i = 0; i < bestOrder.length - 1; i++) {
+                for (let j = i + 1; j < bestOrder.length; j++) {
+                    const candidate = [...bestOrder.slice(0, i), ...bestOrder.slice(i, j + 1).reverse(), ...bestOrder.slice(j + 1)];
+                    const candDist = computePathDist(candidate);
+                    if (candDist < bestDist - 0.05) {
+                        bestDist = candDist;
+                        bestOrder = candidate;
+                        improved = true;
+                        break;
+                    }
+                }
+                if (improved) break;
+            }
+        }
+    }
+
+    const savedKm = Math.max(0, Math.round((originalDist - bestDist) * 10) / 10);
+    const savingsPercent = originalDist > 0 ? Math.round((savedKm / originalDist) * 100) : 0;
+    const isReordered = stops.some((s, idx) => s.trackingNo !== bestOrder[idx].trackingNo);
+
+    return {
+        optimizedStops: bestOrder,
+        originalDistanceKm: Math.round(originalDist * 10) / 10,
+        optimizedDistanceKm: Math.round(bestDist * 10) / 10,
+        savedDistanceKm: savedKm,
+        savingsPercent: savingsPercent,
+        isReordered: isReordered
+    };
+}
+
+// ============================================================================
 // SECTION 3: COURIER FLEET RADAR & LIVE DRIVER GPS TELEMETRY
 // ============================================================================
 
@@ -1481,7 +1619,7 @@ function renderManifestTable() {
 
     tbody.innerHTML = "";
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:32px; color:var(--text-muted);"><strong style="color:var(--text-title); font-size:13px;">No shipments found in database.</strong><br><span style="font-size:12px;">Click <strong>Book New Parcel</strong> to manifest a shipment.</span></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:32px; color:var(--text-muted);"><strong style="color:var(--text-title); font-size:13px;">No shipments found in database.</strong><br><span style="font-size:12px;">Click <strong>Book New Parcel</strong> to manifest a shipment.</span></td></tr>`;
         return;
     }
 
@@ -1517,6 +1655,9 @@ function renderManifestTable() {
         }
 
         tr.innerHTML = `
+            <td style="width: 34px; text-align: center;">
+                <input type="checkbox" class="parcel-checkbox" value="${p.trackingNo}" onchange="updateBatchDispatchBar()" style="cursor: pointer;">
+            </td>
             <td class="font-mono" style="font-weight:700; color:var(--courier-orange);">${p.trackingNo}</td>
             <td style="font-weight:600; color:var(--text-title);">${p.name}</td>
             <td class="font-mono" style="color:var(--text-muted); font-size:11.5px;">${p.phone}</td>
@@ -1545,6 +1686,88 @@ function renderManifestTable() {
         `;
         tbody.appendChild(tr);
     });
+}
+
+// TOGGLE SELECT ALL CHECKBOXES IN MANIFEST TABLE
+function toggleSelectAllParcels(masterCheck) {
+    const isChecked = masterCheck?.checked || false;
+    document.querySelectorAll(".parcel-checkbox").forEach(cb => {
+        cb.checked = isChecked;
+    });
+    updateBatchDispatchBar();
+}
+
+// UPDATE FLOATING BATCH DISPATCH BAR VISIBILITY AND COUNTER
+async function updateBatchDispatchBar() {
+    const checked = Array.from(document.querySelectorAll(".parcel-checkbox:checked"));
+    const bar = document.getElementById("batchDispatchBar");
+    const countEl = document.getElementById("batchSelectedCount");
+    const select = document.getElementById("batchDriverSelect");
+    const masterCheck = document.getElementById("selectAllParcels");
+
+    if (countEl) countEl.innerText = checked.length;
+
+    const totalCheckboxes = document.querySelectorAll(".parcel-checkbox").length;
+    if (masterCheck && totalCheckboxes > 0) {
+        masterCheck.checked = checked.length === totalCheckboxes;
+    }
+
+    if (checked.length > 0) {
+        if (bar) bar.style.display = "flex";
+        if (select && select.options.length <= 1) {
+            select.innerHTML = `<option value="">-- Choose Courier Driver --</option>`;
+            const drivers = await getRegisteredDrivers();
+            drivers.forEach(d => {
+                const opt = document.createElement("option");
+                opt.value = `${d.name}|${d.vehicleType || 'Motorcycle'}|${d.id || ''}`;
+                opt.innerText = `${getVehicleEmoji(d.vehicleType)} ${d.name} (${d.vehicleType || 'Motorcycle'})`;
+                if ((d.name || "").toLowerCase().includes("tom") || (d.id || "") === "usr_maewsenpai") {
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
+        }
+    } else {
+        if (bar) bar.style.display = "none";
+    }
+}
+
+// CLEAR BATCH DISPATCH SELECTION AND HIDE TOOLBAR
+function clearBatchSelection() {
+    document.querySelectorAll(".parcel-checkbox").forEach(cb => { cb.checked = false; });
+    const masterCheck = document.getElementById("selectAllParcels");
+    if (masterCheck) masterCheck.checked = false;
+    const bar = document.getElementById("batchDispatchBar");
+    if (bar) bar.style.display = "none";
+}
+
+// CONFIRM BATCH ASSIGNMENT OF MULTIPLE SHIPMENTS TO COURIER
+async function confirmBatchDispatch() {
+    const checked = Array.from(document.querySelectorAll(".parcel-checkbox:checked")).map(cb => cb.value);
+    if (checked.length === 0) {
+        showToast("Please select at least one consignment.", "warning");
+        return;
+    }
+    const select = document.getElementById("batchDriverSelect");
+    if (!select || !select.value) {
+        showToast("Please select a courier driver to dispatch to.", "warning");
+        return;
+    }
+    const parts = select.value.split("|");
+    const driverName = parts[0] || "";
+    const driverVehicle = parts[1] || "Motorcycle (Express 2-Wheeler)";
+    const driverId = parts[2] || "";
+
+    for (const trk of checked) {
+        await updateParcelStatusRecord(trk, "Out for Delivery", driverName, driverVehicle, driverId);
+    }
+
+    clearBatchSelection();
+    showToast(`Dispatched ${checked.length} consignments to ${driverName}! Route optimized.`);
+
+    if (typeof window.focusFleetRadarDriver === "function" && driverId) {
+        window.focusFleetRadarDriver(driverId);
+    }
 }
 
 // RECALCULATE LOGISTICS KEY PERFORMANCE INDICATORS (TOTAL, SORTING, OUT, DELIVERED, COD)

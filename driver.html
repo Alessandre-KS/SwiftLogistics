@@ -212,7 +212,12 @@
                         <span style="font-size: 15px;">📍</span>
                         <strong>Delivery Waypoints & Stop Itinerary</strong>
                     </div>
-                    <span id="waypointStopsBadge" class="waypoint-badge">0 Stops from UB Lipa</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button type="button" id="btnToggleDriverOptimize" class="btn-toggle-optimize" onclick="toggleCourierRouteOptimization()" title="Toggle between AI-optimized sequence and default manifest order">
+                            ⚡ AI Optimized
+                        </button>
+                        <span id="waypointStopsBadge" class="waypoint-badge">0 Stops from UB Lipa</span>
+                    </div>
                 </div>
                 <div id="driverWaypointTimeline" class="driver-waypoint-timeline">
                     <!-- Dynamically rendered stops list from UB Lipa Hub to Destination Stops -->
@@ -761,6 +766,21 @@
         // PURPOSE:  Calculates transit statistics, tallies pending vs delivered parcels,
         //           computes COD cash to collect, and builds consignment card elements.
         // ============================================================================
+        let courierRouteOptimized = true;
+
+        window.toggleCourierRouteOptimization = function() {
+            courierRouteOptimized = !courierRouteOptimized;
+            const btn = document.getElementById("btnToggleDriverOptimize");
+            if (btn) {
+                btn.classList.toggle("inactive", !courierRouteOptimized);
+                btn.innerHTML = courierRouteOptimized ? "⚡ AI Optimized" : "📋 Manifest Order";
+            }
+            renderDriverRunSheet();
+            if (typeof showToast === "function") {
+                showToast(courierRouteOptimized ? "Route optimized to visit closest customers first!" : "Restored original manifest sequence.");
+            }
+        };
+
         function renderDriverRunSheet() {
             // STEP 1: VERIFY RUNSHEET CONTAINER ELEMENT EXISTS IN DOM
             const container = document.getElementById("driverCardsContainer");
@@ -798,40 +818,61 @@
             document.getElementById("tabCountOut").innerText = pendingOut;
             document.getElementById("tabCountDelivered").innerText = delivered;
 
-            // VARIABLES FOR ESTIMATED DRIVING DISTANCE FROM UB LIPA CENTRAL HUB
+            // VARIABLES FOR ESTIMATED DRIVING DISTANCE AND ROUTE SEQUENCE
             const activeDeliveries = assignedParcels.filter(p => (p.status || "").includes("Out for Delivery")); // PACKAGES CURRENTLY ON ROAD
-            let totalRouteKm = 0;                                                       // TOTAL DRIVING DISTANCE IN KILOMETERS
-            activeDeliveries.forEach(p => {
-                const dist = p.distanceKm != null ? p.distanceKm : (typeof getDistanceFromHub === "function" ? getDistanceFromHub(p.lat, p.lng) : 0); // DISTANCE IN KM
-                totalRouteKm += (dist || 0);                                            // ACCUMULATE ROUTE RUN (KM)
+            let sequencedDeliveries = activeDeliveries;
+            let optRes = null;
+
+            // RUN ROUTE OPTIMIZATION ENGINE (TRAVELING SALESPERSON CORRIDOR)
+            if (typeof optimizeDeliveryRoute === "function" && activeDeliveries.length > 1) {
+                const driverPos = (lastKnownCoords && lastKnownCoords.lat)
+                    ? lastKnownCoords
+                    : (typeof UB_LIPA_HUB !== "undefined" ? UB_LIPA_HUB : { lat: 13.9692, lng: 121.1594 });
+                optRes = optimizeDeliveryRoute(driverPos, activeDeliveries);
+                if (courierRouteOptimized) {
+                    sequencedDeliveries = optRes.optimizedStops;
+                }
+            }
+
+            let totalRouteKm = 0;
+            sequencedDeliveries.forEach(p => {
+                const dist = p.distanceKm != null ? p.distanceKm : (typeof getDistanceFromHub === "function" ? getDistanceFromHub(p.lat, p.lng) : 0);
+                totalRouteKm += (dist || 0);
             });
 
             const stopsCountEl = document.getElementById("driverRouteStopsCount");
             const totalKmEl = document.getElementById("driverRouteTotalKm");
             const chipsEl = document.getElementById("driverWaypointChips");
 
-            if (stopsCountEl) stopsCountEl.innerText = activeDeliveries.length;
-            if (totalKmEl) totalKmEl.innerText = `${totalRouteKm.toFixed(1)} km`;
+            if (stopsCountEl) stopsCountEl.innerText = sequencedDeliveries.length;
+            if (totalKmEl) {
+                if (courierRouteOptimized && optRes && optRes.isReordered) {
+                    totalKmEl.innerText = `${optRes.optimizedDistanceKm} km (Saves ${optRes.savedDistanceKm} km)`;
+                } else {
+                    totalKmEl.innerText = `${totalRouteKm.toFixed(1)} km`;
+                }
+            }
 
             if (chipsEl) {
-                if (activeDeliveries.length === 0) {
+                if (sequencedDeliveries.length === 0) {
                     chipsEl.innerHTML = `<span style="font-size: 11px; color: var(--text-muted);">No active out-for-delivery waypoints in current run.</span>`;
                 } else {
-                    chipsEl.innerHTML = activeDeliveries.slice(0, 6).map((p, idx) => {
+                    chipsEl.innerHTML = sequencedDeliveries.slice(0, 6).map((p, idx) => {
                         const dist = p.distanceKm != null ? p.distanceKm : (typeof getDistanceFromHub === "function" ? getDistanceFromHub(p.lat, p.lng) : 0);
-                        return `<span class="waypoint-chip"><strong>Stop ${idx + 1}:</strong> ${p.barangay || p.city} (${dist} km)</span>`;
+                        const isBestFirst = idx === 0 && courierRouteOptimized && optRes && optRes.isReordered;
+                        return `<span class="waypoint-chip" style="${isBestFirst ? 'border-color:#10B981; background:#ECFDF5; color:#065F46;' : ''}"><strong>Stop ${idx + 1}:</strong> ${p.barangay || p.city} (${dist} km) ${isBestFirst ? '⭐ Best' : ''}</span>`;
                     }).join("");
                 }
             }
 
             // Sync Leaflet Route Map pins & corridor
-            updateDriverMapMarkers(activeDeliveries);
-            renderWaypointTimeline(activeDeliveries);
+            updateDriverMapMarkers(sequencedDeliveries);
+            renderWaypointTimeline(sequencedDeliveries, optRes);
 
             // Filter logic
             let displayList = assignedParcels;
             if (currentFilter === "OUT") {
-                displayList = displayList.filter(p => (p.status || "").includes("Out for Delivery"));
+                displayList = courierRouteOptimized ? sequencedDeliveries : activeDeliveries;
             } else if (currentFilter === "DELIVERED") {
                 displayList = displayList.filter(p => (p.status || "").includes("Delivered"));
             }
@@ -879,13 +920,14 @@
             }
 
             // Render Card Items
-            container.innerHTML = displayList.map(p => {
+            container.innerHTML = displayList.map((p, idx) => {
                 const isDelivered = (p.status || "").includes("Delivered");
                 const currentAttempt = p.attempts || 1;
                 const isAttemptWarning = currentAttempt > 1;
                 const isFailedMax = (p.attempts > 3) || (p.status || "").includes("Failed Delivery") || (p.status || "").includes("Max Attempts Exceeded");
                 const cleanPhone = (p.phone || "").replace(/[^0-9+]/g, "");
                 const isInRoute = activeInRouteTracking === p.trackingNo;
+                const isBestStop = idx === 0 && courierRouteOptimized && optRes && optRes.isReordered && currentFilter === "OUT";
 
                 return `
                     <div class="driver-parcel-card ${isDelivered ? 'delivered-card' : ''} ${isInRoute ? 'in-route-active-card' : ''}">
@@ -895,6 +937,11 @@
                                 <span style="font-size: 11px; background: #F1F5F9; color: #475569; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
                                     Branch #04 Lipa
                                 </span>
+                                ${isBestStop ? `
+                                    <span class="opt-badge-pill" title="AI Route Engine recommends delivering this package first">
+                                        ⚡ Recommended Stop #1
+                                    </span>
+                                ` : ''}
                                 ${isInRoute ? `
                                     <span style="font-size: 10.5px; background: #EA580C; color: #FFFFFF; padding: 2px 8px; border-radius: 12px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
                                         🛵 In Route Now
@@ -1318,7 +1365,7 @@
         // PURPOSE: Visualizes the sequential delivery tour from UB Lipa Central Hub
         //          to all active consignee dropoff points.
         // ============================================================================
-        function renderWaypointTimeline(activeDeliveries) {
+        function renderWaypointTimeline(activeDeliveries, optRes = null) {
             const timelineEl = document.getElementById("driverWaypointTimeline");
             const badgeEl = document.getElementById("waypointStopsBadge");
             if (!timelineEl) return;
@@ -1339,7 +1386,17 @@
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
 
-            let html = `
+            let optBanner = "";
+            if (courierRouteOptimized && optRes && optRes.isReordered) {
+                optBanner = `
+                    <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 7px 10px; margin-bottom: 8px; font-size: 11px; color: #15803D; font-weight: 700; display: flex; align-items: center; justify-content: space-between;">
+                        <span>✨ AI Route Optimized: Visiting Stop #1 (${activeDeliveries[0].name.split(' ')[0]}) first saves ~${optRes.savedDistanceKm} km!</span>
+                        <span style="font-size: 9.5px; background: #DCFCE7; padding: 2px 6px; border-radius: 4px;">Shortest Path</span>
+                    </div>
+                `;
+            }
+
+            let html = optBanner + `
                 <div class="waypoint-step-item waypoint-hub-step" onclick="focusDeliveryStop(${hubLat}, ${hubLng}, -1)">
                     <div class="waypoint-step-num hub-step-num">🏢</div>
                     <div class="waypoint-step-body">
@@ -1363,14 +1420,16 @@
                 const dist = p.distanceKm != null ? p.distanceKm : (typeof getDistanceFromHub === "function" ? getDistanceFromHub(lat, lng) : 0);
                 const singleGmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${hubLat},${hubLng}&destination=${lat},${lng}&travelmode=driving`;
                 const currAttempt = p.attempts || 1;
+                const isBestFirst = idx === 0 && courierRouteOptimized && optRes && optRes.isReordered;
 
                 html += `
                     <div class="waypoint-step-item" onclick="focusDeliveryStop(${lat}, ${lng}, ${idx})">
-                        <div class="waypoint-step-num">${idx + 1}</div>
+                        <div class="waypoint-step-num ${isBestFirst ? 'current-stop' : ''}" style="${isBestFirst ? 'background: #EA580C; color: #FFF;' : ''}">${idx + 1}</div>
                         <div class="waypoint-step-body">
                             <div class="waypoint-step-title">
                                 <span>${p.name}</span>
                                 <span class="font-mono" style="font-size: 11px; color: #64748B;">${p.trackingNo}</span>
+                                ${isBestFirst ? `<span class="opt-badge-pill" style="font-size: 9.5px; padding: 1px 5px;">⚡ Best Next Stop</span>` : ''}
                                 ${currAttempt > 1 ? `<span class="attempt-pill attempt-pill-warn" style="font-size: 10px; padding: 1px 6px;">Att ${currAttempt}/3</span>` : ''}
                             </div>
                             <div class="waypoint-step-subtitle">
@@ -1411,10 +1470,20 @@
         // PURPOSE: Builds full multi-point itinerary URL for turn-by-turn phone guidance.
         // ============================================================================
         function openMultiStopGoogleMaps() {
-            const activeDeliveries = getAssignedDriverParcels().filter(p => (p.status || "").includes("Out for Delivery"));
+            let activeDeliveries = getAssignedDriverParcels().filter(p => (p.status || "").includes("Out for Delivery"));
             if (activeDeliveries.length === 0) {
                 showToast("No active out-for-delivery stops in your run-sheet right now.");
                 return;
+            }
+
+            if (courierRouteOptimized && typeof optimizeDeliveryRoute === "function" && activeDeliveries.length > 1) {
+                const driverPos = (lastKnownCoords && lastKnownCoords.lat)
+                    ? lastKnownCoords
+                    : (typeof UB_LIPA_HUB !== "undefined" ? UB_LIPA_HUB : { lat: 13.9692, lng: 121.1594 });
+                const optRes = optimizeDeliveryRoute(driverPos, activeDeliveries);
+                if (optRes && optRes.optimizedStops) {
+                    activeDeliveries = optRes.optimizedStops;
+                }
             }
 
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;

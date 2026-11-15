@@ -394,10 +394,34 @@
                         </div>
                     </div>
 
+                    <!-- BATCH DISPATCH ACTION BAR -->
+                    <div id="batchDispatchBar" class="batch-dispatch-bar" style="display: none;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 15px;">📦</span>
+                            <span style="font-size: 12px; font-weight: 700; color: #1E293B;">
+                                <span id="batchSelectedCount">0</span> consignments selected for batch delivery
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <select id="batchDriverSelect" class="form-input-sm" style="font-size: 11.5px; padding: 4px 8px; border-radius: 5px; border: 1px solid #CBD5E1; background: #FFF;">
+                                <option value="">-- Choose Courier Driver --</option>
+                            </select>
+                            <button type="button" class="btn-courier-primary" style="padding: 4px 12px; font-size: 11.5px;" onclick="confirmBatchDispatch()">
+                                🚀 Dispatch Selected to Driver
+                            </button>
+                            <button type="button" class="btn-courier-outline" style="padding: 4px 10px; font-size: 11.5px;" onclick="clearBatchSelection()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="manifest-table-wrap">
                         <table class="manifest-tbl">
                             <thead>
                                 <tr>
+                                    <th style="width: 34px; text-align: center;">
+                                        <input type="checkbox" id="selectAllParcels" onchange="toggleSelectAllParcels(this)" title="Select all consignments for batch dispatch" style="cursor: pointer;">
+                                    </th>
                                     <th>Waybill / Barcode</th>
                                     <th>Consignee</th>
                                     <th>Masked Contact</th>
@@ -616,6 +640,15 @@
         let activeRadarRouteGlow = null;      // ACTIVE ROUTE GLOW UNDERLAY POLYLINE
         let activeRadarStopMarkers = [];      // NUMBERED DELIVERY STOP MARKERS PLOTTED ON MAP
         let activeSelectedDriverId = null;    // CURRENTLY FOCUSED DRIVER ID FOR ACTIVE ROUTE
+        let radarRouteUseOptimization = true; // TOGGLE FOR AI ROUTE OPTIMIZATION (SHORTEST PATH)
+
+        // TOGGLE BETWEEN AI-OPTIMIZED STOP SEQUENCE AND ORIGINAL MANIFEST ORDER
+        window.toggleRadarRouteOptimization = function(driverId) {
+            radarRouteUseOptimization = !radarRouteUseOptimization;
+            if (driverId) {
+                window.drawDriverRouteOnRadar(driverId, false);
+            }
+        };
 
         // LISTEN FOR CONSIGNMENT CLOUD/LOCAL SYNC EVENTS TO REFRESH RADAR REALTIME
         window.addEventListener("swift_parcels_cloud_synced", () => {
@@ -703,14 +736,20 @@
 
             // 2. QUERY ASSIGNED SHIPMENTS AND FILTER PENDING/ACTIVE STOPS
             const parcels = getParcelsForDriver(driverId, d.driverName);
-            const activeStops = parcels.filter(p => 
+            let activeStops = parcels.filter(p => 
                 !p.status.includes("Delivered") && 
                 !p.status.includes("Cancelled") && 
                 !p.status.includes("Returned")
             );
 
-            // SORT: IN-ROUTE NEXT STOP FIRST, THEN SUBSEQUENT STOPS
-            if (d.nextStopTracking) {
+            // RUN AI ROUTE OPTIMIZATION ENGINE (SHORTEST PATH BETWEEN MULTIPLE CUSTOMERS)
+            let optRes = null;
+            if (typeof optimizeDeliveryRoute === "function" && activeStops.length > 1) {
+                optRes = optimizeDeliveryRoute({ lat: d.lat, lng: d.lng }, activeStops);
+                if (radarRouteUseOptimization) {
+                    activeStops = optRes.optimizedStops;
+                }
+            } else if (d.nextStopTracking) {
                 activeStops.sort((a, b) => {
                     if (a.trackingNo === d.nextStopTracking) return -1;
                     if (b.trackingNo === d.nextStopTracking) return 1;
@@ -758,6 +797,7 @@
             // 4. PLACE NUMBERED STOP MARKERS ON MAP
             stopCoordsList.forEach(({ parcel, coords, index }) => {
                 const isNext = index === 1;
+                const isOptimizedFirst = radarRouteUseOptimization && optRes && optRes.isReordered && index === 1;
                 const stopIcon = L.divIcon({
                     className: "leaflet-radar-stop-pin",
                     html: `
@@ -776,7 +816,7 @@
 
                 stopMarker.bindPopup(`
                     <div style="font-size: 11px; font-weight: 800; color: #1E40AF; text-transform: uppercase;">
-                        📍 Route Stop #${index} ${isNext ? '(Next Delivery 🚀)' : ''}
+                        📍 Route Stop #${index} ${isOptimizedFirst ? '(⚡ AI Best First Stop)' : (isNext ? '(Next Delivery 🚀)' : '')}
                     </div>
                     <div style="font-size: 12.5px; font-weight: 800; color: #0F172A; margin: 3px 0 2px 0;">
                         ${parcel.trackingNo} &bull; ${parcel.name}
@@ -786,6 +826,7 @@
                     </div>
                     ${parcel.addressDetails ? `<div style="font-size: 10.5px; color: #64748B;">${parcel.addressDetails}</div>` : ''}
                     ${parcel.landmarks ? `<div style="font-size: 10.5px; color: #D97706; margin-top: 2px;">🚩 Landmark: ${parcel.landmarks}</div>` : ''}
+                    ${isOptimizedFirst ? `<div style="font-size: 10px; font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 2px 6px; border-radius: 4px; margin-top: 3px;">✨ Recommended Stop #1: Closer to courier, saves backtracking!</div>` : ''}
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding-top: 4px; border-top: 1px dashed #E2E8F0;">
                         <span style="font-size: 10.5px; font-weight: 700; color: #059669; background: #ECFDF5; padding: 2px 6px; border-radius: 4px;">${parcel.status}</span>
                         <span style="font-size: 11.5px; font-weight: 800; color: #EA580C;">${parcel.paymentMethod || 'COD'}: ${codDisplay}</span>
@@ -839,11 +880,36 @@
                 routeBar.style.display = "flex";
                 const nextTrk = activeStops[0]?.trackingNo || "";
                 const nextDest = activeStops[0]?.barangay ? `${activeStops[0].barangay}, ${activeStops[0].city}` : (activeStops[0]?.city || "");
+                const optNotice = (radarRouteUseOptimization && optRes)
+                    ? (optRes.isReordered 
+                        ? `<span style="background: #064E3B; color: #A7F3D0; border: 1px solid #059669; padding: 2px 7px; border-radius: 10px; font-weight: 800; font-size: 10.5px;">✨ AI-Optimized (Saves ~${optRes.savedDistanceKm} km / ${optRes.savingsPercent}%)</span>` 
+                        : `<span style="background: #064E3B; color: #A7F3D0; border: 1px solid #059669; padding: 2px 7px; border-radius: 10px; font-weight: 800; font-size: 10.5px;">✨ Optimal Sequence (~${optRes.optimizedDistanceKm} km)</span>`)
+                    : `<span style="background: #334155; color: #E2E8F0; padding: 2px 7px; border-radius: 10px; font-weight: 700; font-size: 10.5px;">📋 Manifest Order</span>`;
+
                 routeText.innerHTML = `
-                    <strong>${d.driverName}</strong> (${d.vehicleType || 'Motorcycle'}) &bull; 
-                    <strong>${activeStops.length} Delivery Stop${activeStops.length > 1 ? 's' : ''}</strong> ${routeSummary} &bull; 
-                    Next: <span style="color: #60A5FA; font-weight: 700;">${nextTrk}</span> (${nextDest})
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span><strong>${d.driverName}</strong> (${d.vehicleType || 'Motorcycle'})</span>
+                        <span>&bull; <strong>${activeStops.length} Stops</strong> ${routeSummary}</span>
+                        <span>&bull; ${optNotice}</span>
+                        <span>&bull; Next: <span style="color: #60A5FA; font-weight: 700;">${nextTrk}</span> (${activeStops[0]?.name.split(' ')[0]} - ${nextDest})</span>
+                    </div>
                 `;
+
+                // Update action buttons on Route Bar
+                const clearBtn = routeBar.querySelector(".btn-clear-radar-route");
+                if (clearBtn && !document.getElementById("btnToggleRadarOpt")) {
+                    const toggleBtn = document.createElement("button");
+                    toggleBtn.id = "btnToggleRadarOpt";
+                    toggleBtn.type = "button";
+                    toggleBtn.className = "btn-clear-radar-route";
+                    toggleBtn.style.marginRight = "6px";
+                    clearBtn.parentNode.insertBefore(toggleBtn, clearBtn);
+                }
+                const optBtn = document.getElementById("btnToggleRadarOpt");
+                if (optBtn) {
+                    optBtn.innerHTML = radarRouteUseOptimization ? "📋 Show Original Order" : "⚡ Show AI-Optimized";
+                    optBtn.onclick = () => window.toggleRadarRouteOptimization(driverId);
+                }
             }
 
             // 7. AUTO-FIT CAMERA BOUNDS TO INCLUDE COURIER AND ALL STOPS
@@ -989,15 +1055,26 @@
 
                 // RETRIEVE ASSIGNED CONSIGNMENTS AND ACTIVE STOPS FOR THIS COURIER
                 const driverParcels = getParcelsForDriver(id, d.driverName);
-                const activeStops = driverParcels.filter(p => 
+                let activeStops = driverParcels.filter(p => 
                     !p.status.includes("Delivered") && 
                     !p.status.includes("Cancelled") && 
                     !p.status.includes("Returned")
                 );
 
+                // RUN AI ROUTE OPTIMIZATION ENGINE
+                let optRes = null;
+                if (typeof optimizeDeliveryRoute === "function" && activeStops.length > 1) {
+                    optRes = optimizeDeliveryRoute({ lat: d.lat, lng: d.lng }, activeStops);
+                    if (radarRouteUseOptimization) {
+                        activeStops = optRes.optimizedStops;
+                    }
+                }
+
                 // IDENTIFY IN-FLIGHT CONSIGNMENT CURRENTLY BEING DELIVERED
                 let currentParcel = null;
-                if (d.nextStopTracking) {
+                if (radarRouteUseOptimization && activeStops.length > 0) {
+                    currentParcel = activeStops[0];
+                } else if (d.nextStopTracking) {
                     currentParcel = activeStops.find(p => p.trackingNo === d.nextStopTracking) || 
                                     driverParcels.find(p => p.trackingNo === d.nextStopTracking);
                 }
@@ -1009,7 +1086,7 @@
                 }
 
                 // SORT STOPS SO CURRENT TARGET IS STOP #1
-                if (currentParcel) {
+                if (currentParcel && !radarRouteUseOptimization) {
                     activeStops.sort((a, b) => {
                         if (a.trackingNo === currentParcel.trackingNo) return -1;
                         if (b.trackingNo === currentParcel.trackingNo) return 1;
@@ -1025,6 +1102,7 @@
                         ? `⚠️ Attempt ${currentParcel.deliveryAttempts.length} of 3`
                         : `⏱️ 1st Delivery Attempt`;
                     const codVal = currentParcel.paymentMethod === "PREPAID" ? "Prepaid (Paid)" : (currentParcel.cod || "₱0.00");
+                    const isReorderedFirst = optRes && optRes.isReordered && radarRouteUseOptimization;
 
                     currentParcelHtml = `
                         <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 7px 10px; margin-top: 6px;">
@@ -1048,6 +1126,7 @@
                             </div>
                             ${currentParcel.addressDetails ? `<div style="font-size: 10px; color: #64748B;">${currentParcel.addressDetails}</div>` : ''}
                             ${currentParcel.landmarks ? `<div style="font-size: 10px; color: #D97706; margin-top: 2px;">🚩 Landmark: ${currentParcel.landmarks}</div>` : ''}
+                            ${isReorderedFirst ? `<div style="font-size: 9.5px; font-weight: 700; color: #047857; background: #DCFCE7; border: 1px solid #A7F3D0; padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px;">⚡ Best Stop #1: Closer to courier (Saves ~${optRes.savedDistanceKm} km vs original sequence)</div>` : ''}
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding-top: 4px; border-top: 1px dashed #CBD5E1; font-size: 10px;">
                                 <span style="color: #EA580C; font-weight: 800;">💵 ${currentParcel.paymentMethod || 'COD'}: ${codVal}</span>
                                 <span style="color: #64748B; font-weight: 600;">${attempts}</span>
@@ -1068,6 +1147,7 @@
                     const stopsList = activeStops.map((p, idx) => {
                         const isCurrent = currentParcel && p.trackingNo === currentParcel.trackingNo;
                         const stopDest = p.barangay ? `${p.barangay}, ${p.city}` : p.city;
+                        const isBestFirst = idx === 0 && optRes && optRes.isReordered && radarRouteUseOptimization;
                         return `
                             <div style="display: flex; align-items: flex-start; gap: 6px; padding: 4px 0; border-bottom: ${idx < activeStops.length - 1 ? '1px solid #F1F5F9' : 'none'};">
                                 <span style="width: 17px; height: 17px; border-radius: 50%; background: ${isCurrent ? '#EA580C' : '#3B82F6'}; color: #FFF; font-size: 9px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;">
@@ -1077,7 +1157,7 @@
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <span style="font-size: 10.5px; font-weight: 700; color: #0F172A; font-family: monospace;">${p.trackingNo}</span>
                                         <span style="font-size: 9px; font-weight: 700; color: ${isCurrent ? '#EA580C' : '#64748B'};">
-                                            ${isCurrent ? '🚀 Next Stop' : `Stop #${idx + 1}`}
+                                            ${isBestFirst ? '⚡ Best Stop #1' : (isCurrent ? '🚀 Next Stop' : `Stop #${idx + 1}`)}
                                         </span>
                                     </div>
                                     <div style="font-size: 10px; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -1095,7 +1175,7 @@
                         <div style="margin-top: 7px; border-top: 1px solid #E2E8F0; padding-top: 5px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
                                 <span style="font-size: 9.5px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
-                                    🗺️ DELIVERY ROUTE STOPS (${activeStops.length})
+                                    🗺️ DELIVERY ROUTE STOPS (${activeStops.length}) ${optRes?.isReordered && radarRouteUseOptimization ? `<span style="font-size: 9px; color: #059669; font-weight: 800;">(⚡ AI-Optimized)</span>` : ''}
                                 </span>
                                 <button type="button" onclick="event.stopPropagation(); window.drawDriverRouteOnRadar('${id}');" style="font-size: 9.5px; font-weight: 700; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; padding: 1px 6px; border-radius: 4px; cursor: pointer;">
                                     Plot Route 🛣️
