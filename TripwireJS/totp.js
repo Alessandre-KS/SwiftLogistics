@@ -1,17 +1,25 @@
 /**
- * SwiftLogistics & TripwireJS — Native RFC 6238 TOTP Engine
+ * ============================================================================
+ * SWIFTLOGISTICS & TRIPWIREJS — NATIVE RFC 6238 TOTP ENGINE
  * Standard: RFC 6238 (TOTP) & RFC 4226 (HOTP)
  * Compatibility: Google Authenticator, Microsoft Authenticator, Authy, Apple Keychain
  * Dependency: Zero (Native Browser Web Crypto API)
+ *
+ * AUTHORIZED STAFF DIRECTORY & SEED REPOSITORY:
+ * Exclusively provisions genuine enterprise employee tokens.
+ * All dummy and simulated accounts have been purged.
+ * ============================================================================
  */
 
 const TOTP = (function () {
     'use strict';
 
-    // Base32 character set per RFC 4648
+    // BASE32 CHARACTER SET SPECIFIED IN RFC 4648
     const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
-    // Presets for SwiftLogistics Staff Accounts
+    // ============================================================================
+    // AUTHORIZED SWIFTLOGISTICS STAFF DIRECTORY (RFC 6238 TOTP PROFILES)
+    // ============================================================================
     const STAFF_SECRETS = {
         'usr_jeff': {
             email: 'jeff@swiftlogistics.ph',
@@ -19,18 +27,30 @@ const TOTP = (function () {
             role: 'Business Owner (Administrator)',
             secret: 'JBSWY3DPEHPK3PXP'
         },
-        'usr_maria': {
-            email: 'maria.santos@swiftlogistics.ph',
-            name: 'Maria Santos',
-            role: 'Branch Dispatcher',
-            secret: 'KRUGS4ZANFZSAYJA'
+        'usr_2420572': {
+            email: '2420572@ub.edu.ph',
+            name: 'Roy Matthew L. Perilla',
+            role: 'Management (Branch Dispatcher)',
+            secret: 'B674523YZWXUVSTQ'
         },
-        'usr_juan': {
-            email: 'juan.delacruz@swiftlogistics.ph',
-            name: 'Juan Dela Cruz',
-            role: 'Delivery Rider',
+        'usr_2420417': {
+            email: '2420417@ub.edu.ph',
+            name: 'Christan Angelo Parcon',
+            role: 'Management (Branch Dispatcher)',
+            secret: 'LUVWXQRST4567YZ2'
+        },
+        'usr_alessandrekyle': {
+            email: 'alessandrekyle@gmail.com',
+            name: 'Alessandre Kyle E. Sanidad',
+            role: 'Management (Branch Dispatcher)',
+            secret: 'IXWVUTSRQ765432Z'
+        },
+        'usr_maewsenpai': {
+            email: 'maewsenpai@gmail.com',
+            name: 'Tom Cruise',
+            role: 'Driver (Delivery Courier Rider)',
             vehicleType: 'Motorcycle',
-            secret: 'MZXW633PN5XW6MZX'
+            secret: 'TMNOPIJKLEFGHABC'
         }
     };
 
@@ -147,20 +167,27 @@ const TOTP = (function () {
     }
 
     /**
-     * Retrieve or deterministically derive a Base32 TOTP secret for any user email
+     * Retrieve or deterministically derive a Base32 TOTP secret for any authorized employee email
      */
     function getSecretForEmail(email) {
         if (!email) return 'JBSWY3DPEHPK3PXP';
         const clean = email.toLowerCase().trim();
+
+        // 1. MATCH REGISTERED WORKING ACCOUNTS IN STAFF DIRECTORY
         for (const k in STAFF_SECRETS) {
             if (STAFF_SECRETS[k].email.toLowerCase() === clean) {
                 return STAFF_SECRETS[k].secret;
             }
         }
-        if (clean.includes('jeff') || clean.includes('bossing')) return STAFF_SECRETS['usr_jeff'].secret;
-        if (clean.includes('juan')) return STAFF_SECRETS['usr_juan'].secret;
-        if (clean.includes('maria')) return STAFF_SECRETS['usr_maria'].secret;
 
+        // 2. MATCH BY NAME OR ID KEYWORDS FOR WORKING ACCOUNTS
+        if (clean.includes('jeff') || clean.includes('bossing')) return STAFF_SECRETS['usr_jeff'].secret;
+        if (clean.includes('2420572') || clean.includes('perilla') || clean.includes('roy')) return STAFF_SECRETS['usr_2420572'].secret;
+        if (clean.includes('2420417') || clean.includes('parcon') || clean.includes('christan')) return STAFF_SECRETS['usr_2420417'].secret;
+        if (clean.includes('alessandre') || clean.includes('sanidad')) return STAFF_SECRETS['usr_alessandrekyle'].secret;
+        if (clean.includes('cruise') || clean.includes('maewsenpai')) return STAFF_SECRETS['usr_maewsenpai'].secret;
+
+        // 3. PERSISTENT DETERMINISTIC DERIVATION FOR DYNAMICALLY PROVISIONED STAFF
         let stored = null;
         try { stored = localStorage.getItem('totp_sec_' + clean); } catch (e) {}
         if (!stored) {

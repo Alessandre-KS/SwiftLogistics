@@ -381,7 +381,7 @@ function focusDriverLocationByParcel(trackingNo) {
     let driverId = p.assignedDriverId || p.assignedDriverUid;
     if (!driverId && p.assignedDriver) {
         const name = p.assignedDriver.toLowerCase();
-        if (name.includes("juan")) driverId = "usr_juan";
+        if (name.includes("cruise") || name.includes("tom")) driverId = "usr_maewsenpai";
     }
 
     if (!driverId) {

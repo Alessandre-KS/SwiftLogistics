@@ -571,9 +571,10 @@
                     const parsed = JSON.parse(raw);
                     delete parsed["usr_carlo"];
                     delete parsed["usr_juan"];
+                    delete parsed["usr_maria"];
                     for (const k in parsed) {
                         const n = (parsed[k]?.driverName || "").toLowerCase();
-                        if (n.includes("carlo") || n.includes("juan") || n.includes("alessandre")) {
+                        if (n.includes("carlo") || n.includes("juan") || n.includes("maria") || n.includes("alessandre")) {
                             delete parsed[k];
                         }
                     }

@@ -112,8 +112,8 @@
                                 velocity: "11.1 req/s (AUTOMATED)",
                                 containmentTimeMs: data.containmentTimeMs || 18,
                                 staff: {
-                                    uid: data.targetStaff || "usr_maria",
-                                    name: data.staffName || "Maria Santos"
+                                    uid: data.targetStaff || "usr_staff",
+                                    name: data.staffName || "Staff Member"
                                 }
                             });
                         }
@@ -160,7 +160,7 @@
         const now = Date.now();
 
         // FALLBACK STAFF METADATA FOR AUDIT LOGGING
-        const staff = staffInfo || { uid: "usr_maria", name: "Maria Santos" };
+        const staff = staffInfo || { uid: "usr_staff", name: "Staff Member" };
 
         // STEP 1: VERIFY IF SESSION TOKEN IS ALREADY QUARANTINED
         if (isQuarantined) {
@@ -244,8 +244,8 @@
             id: m.id || ("INC-" + new Date().toISOString().slice(0, 10).replace(/-/g, "") + "-001"),
             timestamp: m.timestamp || new Date().toLocaleTimeString(),
             triggerType: triggerType || "VELOCITY_RATE_LIMIT_EXCEEDED",
-            staffId: (m.staff && m.staff.uid) ? m.staff.uid : (m.staffId || "usr_maria"),
-            staffName: (m.staff && m.staff.name) ? m.staff.name : (m.staffName || "Maria Santos"),
+            staffId: (m.staff && m.staff.uid) ? m.staff.uid : (m.staffId || "usr_staff"),
+            staffName: (m.staff && m.staff.name) ? m.staff.name : (m.staffName || "Staff Member"),
             queryCountAtContainment: m.queryCount || m.queryCountAtContainment || 31,
             velocity: m.velocity || "11.1 req/s (BOT SPEED)",
             containmentTimeMs: m.containmentTimeMs || 18,
@@ -306,7 +306,7 @@
         // LOAD CURRENT INCIDENT METADATA OR FALLBACK DEFAULTS
         const inc = incident || currentIncident || {
             triggerType: "VELOCITY_RATE_LIMIT_EXCEEDED",
-            staffName: "Maria Santos (usr_maria)",
+            staffName: "Staff Member (usr_staff)",
             queryCountAtContainment: 31,
             containmentTimeMs: 18,
             recordsProtected: 4969,

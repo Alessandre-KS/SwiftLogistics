@@ -223,8 +223,8 @@ function switchState(mode, incidentData = null) {
             id: "INC-20261021-001",
             timestamp: new Date().toLocaleTimeString(),
             triggerType: "VELOCITY_RATE_LIMIT_EXCEEDED",
-            staffName: "Maria Santos",
-            staffId: "usr_maria",
+            staffName: "Roy Matthew L. Perilla",
+            staffId: "usr_2420572",
             containmentTimeMs: 18,
             recordsExposed: 31,
             recordsProtected: 4969,
@@ -547,19 +547,24 @@ async function toggleStaffAccount(staffId) {
         try {
             await db.collection("staff").doc(staffId).update({
                 status: "active",
-                quarantineReason: "",
-                velocity: staff.velocity
+                velocity: staff.velocity,
+                isFlagged: false
             });
+            console.log(`[TripwireJS] Staff /staff/${staffId} successfully restored in Firestore.`);
+        } catch (staffErr) {
+            console.warn("Firestore staff update notice:", staffErr.message);
+        }
+
+        try {
             await db.collection("system_status").doc("tripwire").set({
                 isQuarantined: false,
                 status: "active",
                 targetStaff: staffId,
                 staffName: staff.name,
-                quarantineReason: "",
                 timestamp: new Date().toISOString()
             }, { merge: true });
-        } catch (e) {
-            console.warn("Firestore staff update notice:", e.message);
+        } catch (statusErr) {
+            console.warn("System status broadcast notice:", statusErr.message);
         }
     }
 
@@ -584,9 +589,16 @@ async function toggleStaffAccount(staffId) {
     renderStaffTable();
 }
 
-// DEMO SHORTCUT: QUICK-RESTORE DEFAULT DISPATCHER
+// RESTORE CURRENTLY QUARANTINED TERMINAL
 function handleRestore() {
-    toggleStaffAccount("usr_maria");
+    const quarantined = staffList.find(s => !s.active);
+    if (quarantined) {
+        toggleStaffAccount(quarantined.id);
+    } else if (activeIncident && activeIncident.staffId) {
+        toggleStaffAccount(activeIncident.staffId);
+    } else {
+        showToast("No active quarantined accounts found.");
+    }
 }
 
 // SMOOTH SCROLL DIRECTLY TO STAFF DIRECTORY TABLE
@@ -995,8 +1007,8 @@ function initRealtimeSync() {
                             id: d.incidentId || ("INC-" + new Date().toISOString().slice(0, 10).replace(/-/g, "") + "-001"),
                             timestamp: d.timestamp ? new Date(d.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
                             triggerType: d.triggerType || "VELOCITY_RATE_LIMIT_EXCEEDED",
-                            staffName: d.staffName || "Maria Santos",
-                            staffId: d.targetStaff || "usr_maria",
+                            staffName: d.staffName || "Roy Matthew L. Perilla",
+                            staffId: d.targetStaff || "usr_2420572",
                             containmentTimeMs: d.containmentTimeMs || 18,
                             recordsExposed: d.recordsExposed || 31,
                             recordsProtected: d.recordsProtected || 4969,
