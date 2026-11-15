@@ -311,7 +311,64 @@
 
 
 /* ==========================================================================
-   SECTION 5: RESPONSIVE MEDIA QUERIES
+   SECTION 5: GOOGLE AUTHENTICATION & SINGLE SIGN-ON (SSO)
+   ========================================================================== */
+
+/* GOOGLE OAUTH BUTTON */
+.btn-google-auth {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    color: #1E293B;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-google-auth:hover {
+    background: #F8FAFC;
+    border-color: #94A3B8;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.btn-google-auth:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* HORIZONTAL DIVIDER */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 14px 0;
+    color: #94A3B8;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.auth-divider span {
+    padding: 0 10px;
+}
+
+/* ==========================================================================
+   SECTION 6: RESPONSIVE MEDIA QUERIES
    ========================================================================== */
 
 @media (max-width: 480px) {

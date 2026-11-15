@@ -935,6 +935,63 @@ async function updateParcelStatusRecord(trackingNo, newStatus, assignedDriver = 
     return false;
 }
 
+// RECORD FAILED DELIVERY ATTEMPT WITH AUDIT TRAIL AND LOCAL/CLOUD SYNC
+async function logParcelDeliveryAttempt(trackingNo, reason = "Customer Not Available / Gate Closed", notes = "", driverSession = null) {
+    const item = parcelsList.find(p => p.trackingNo === trackingNo);
+    if (!item) return false;
+
+    // INCREMENT CURRENT ATTEMPTS COUNT (STARTS AT 1)
+    const prevAttempts = item.attempts || 1;
+    const newAttemptNo = prevAttempts + 1;
+    item.attempts = newAttemptNo;
+
+    if (!Array.isArray(item.attemptHistory)) {
+        item.attemptHistory = [];
+    }
+
+    const attemptEntry = {
+        attemptNumber: prevAttempts,
+        timestamp: new Date().toISOString(),
+        reason: reason || "Customer Not Available / Gate Closed",
+        notes: notes || "",
+        driverName: driverSession?.name || item.assignedDriver || "Field Courier",
+        driverId: driverSession?.uid || item.assignedDriverId || ""
+    };
+    item.attemptHistory.push(attemptEntry);
+
+    item.lastAttemptReason = reason;
+    item.lastAttemptNotes = notes;
+    item.lastAttemptAt = new Date().toISOString();
+
+    // UPDATE TRANSIT LIFECYCLE STATUS ACCORDING TO ATTEMPTS LIMIT (MAX 3 ATTEMPTS)
+    if (newAttemptNo > 3) {
+        item.status = "Failed Delivery - Max Attempts Exceeded (Return to Hub)";
+    } else {
+        item.status = `Attempted Delivery (${prevAttempts}/3 - ${reason})`;
+    }
+
+    // CACHE UPDATED RECORD IN LOCAL BROWSER STORAGE
+    saveLocalParcels(parcelsList);
+
+    // MERGE TO CLOUD FIRESTORE PARCELS COLLECTION
+    if (isFirebaseOnline && db) {
+        try {
+            await db.collection("parcels").doc(trackingNo).set({
+                ...item,
+                attempts: item.attempts,
+                attemptHistory: item.attemptHistory,
+                status: item.status,
+                lastAttemptReason: item.lastAttemptReason,
+                lastAttemptNotes: item.lastAttemptNotes,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        } catch (e) {
+            console.warn("Firestore delivery attempt error:", e.message);
+        }
+    }
+    return true;
+}
+
 // ============================================================================
 // SECTION 6: STAFF AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC)
 // ============================================================================

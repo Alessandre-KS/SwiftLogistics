@@ -196,6 +196,28 @@
                     </div>
                 </div>
             </div>
+
+            <!-- MULTI-STOP GOOGLE MAPS NAVIGATION LAUNCHER -->
+            <div class="driver-gmaps-bar">
+                <button type="button" id="btnOpenGoogleMapsRoute" class="btn-gmaps-route" onclick="openMultiStopGoogleMaps()">
+                    <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    <span>Open Turn-by-Turn Route in Google Maps Navigation</span>
+                </button>
+            </div>
+
+            <!-- INTERACTIVE DELIVERY WAYPOINT ITINERARY & SEQUENCE LIST -->
+            <div class="driver-waypoint-container" id="driverWaypointContainer">
+                <div class="driver-waypoint-header">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 15px;">📍</span>
+                        <strong>Delivery Waypoints & Stop Itinerary</strong>
+                    </div>
+                    <span id="waypointStopsBadge" class="waypoint-badge">0 Stops from UB Lipa</span>
+                </div>
+                <div id="driverWaypointTimeline" class="driver-waypoint-timeline">
+                    <!-- Dynamically rendered stops list from UB Lipa Hub to Destination Stops -->
+                </div>
+            </div>
         </div>
 
         <!-- CONSIGNMENTS CARD CONTAINER -->
@@ -224,7 +246,7 @@
             <div class="modal-body-pad">
                 <div style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Waybill Reference</span>
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Consignment Tracking No.</span>
                         <strong id="proofModalTrackingNo" class="font-mono" style="color: var(--courier-orange); font-size: 14px;">TRK-0000</strong>
                     </div>
                     <div style="font-size: 13.5px; font-weight: 700; color: var(--text-title);" id="proofModalCustomerName">Customer Name</div>
@@ -261,6 +283,64 @@
         </div>
     </div>
 
+    <!-- ====================================================================
+         DELIVERY ATTEMPT MODAL (FOR REPORTING FAILED DELIVERY / RE-DISPATCH)
+         ==================================================================== -->
+    <div id="driverAttemptModal" class="modal-overlay hidden" style="display: none;">
+        <div class="modal-content-card" style="max-width: 480px;">
+            <div class="modal-header-bar">
+                <div class="modal-title-wrap">
+                    <div class="modal-icon-badge" style="background: #FFF7ED; color: #EA580C;">🔄</div>
+                    <div>
+                        <h3 class="modal-title-text">Log Delivery Attempt</h3>
+                        <p class="modal-subtitle-text">Record delivery failure and customer contact status</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="closeDriverAttemptModal()">&times;</button>
+            </div>
+
+            <div class="modal-body-pad">
+                <div style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Consignment Tracking No.</span>
+                        <strong id="attemptModalTrackingNo" class="font-mono" style="color: var(--courier-orange); font-size: 14px;">TRK-0000</strong>
+                    </div>
+                    <div style="font-size: 13.5px; font-weight: 700; color: var(--text-title);" id="attemptModalCustomerName">Customer Name</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="attemptModalAddress">Address details</div>
+                    <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="attemptModalCurrentBadge" class="attempt-pill attempt-pill-warn">Attempt 1 of 3</span>
+                        <span style="font-size: 11px; color: #64748B;">Max 3 Delivery Attempts Allowed</span>
+                    </div>
+                </div>
+
+                <div class="form-group-row">
+                    <label class="form-label-custom">Failure Reason *</label>
+                    <select id="attemptModalReason" class="form-input-custom" style="font-weight: 600;">
+                        <option value="Customer Not Available / Gate Closed">Customer Not Available / Gate Closed</option>
+                        <option value="Customer Contact Number Unreachable">Customer Contact Number Unreachable</option>
+                        <option value="Incorrect / Incomplete Destination Address">Incorrect / Incomplete Destination Address</option>
+                        <option value="Customer Requested Delivery Reschedule">Customer Requested Delivery Reschedule</option>
+                        <option value="Consignee Refused Acceptance / Refused COD">Consignee Refused Acceptance / Refused COD</option>
+                        <option value="Severe Weather / Road Impassable">Severe Weather / Road Impassable</option>
+                        <option value="Other">Other Delivery Exception</option>
+                    </select>
+                </div>
+
+                <div class="form-group-row">
+                    <label class="form-label-custom">Field Remarks / Explanation</label>
+                    <textarea id="attemptModalNotes" class="form-input-custom" rows="3" placeholder="Enter remarks (e.g. called recipient twice, no response at gate...)"></textarea>
+                </div>
+
+                <div class="modal-footer-bar" style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn-courier-sm btn-courier-outline" onclick="closeDriverAttemptModal()">Cancel</button>
+                    <button type="button" class="btn-courier-primary" id="btnSubmitAttempt" onclick="submitDeliveryAttempt()" style="background: #EA580C;">
+                        Log Failed Attempt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- FRIENDLY TOAST -->
     <div id="friendlyToast" class="toast hidden" style="display: none;"></div>
 
@@ -284,6 +364,7 @@
         let currentFilter = "ALL";
         let searchQuery = "";
         let pendingDeliverTracking = null;
+        let pendingAttemptTracking = null;
         let driverSession = null;
         let driverMap = null;
         let driverHubMarker = null;
@@ -637,6 +718,7 @@
 
             // Sync Leaflet Route Map pins & corridor
             updateDriverMapMarkers(activeDeliveries);
+            renderWaypointTimeline(activeDeliveries);
 
             // Filter logic
             let displayList = assignedParcels;
@@ -691,6 +773,9 @@
             // Render Card Items
             container.innerHTML = displayList.map(p => {
                 const isDelivered = (p.status || "").includes("Delivered");
+                const currentAttempt = p.attempts || 1;
+                const isAttemptWarning = currentAttempt > 1;
+                const isFailedMax = (p.attempts > 3) || (p.status || "").includes("Failed Delivery") || (p.status || "").includes("Max Attempts Exceeded");
                 const cleanPhone = (p.phone || "").replace(/[^0-9+]/g, "");
 
                 return `
@@ -707,9 +792,16 @@
                                 <span class="cod-pill">
                                     💵 COD: ${p.cod || '₱0.00'}
                                 </span>
+                                <span class="attempt-pill ${isAttemptWarning ? 'attempt-pill-warn' : 'attempt-pill-normal'}" title="Delivery Attempt Count">
+                                    🔄 Attempt ${currentAttempt}/3
+                                </span>
                                 ${isDelivered ? `
                                     <span style="font-size: 11px; font-weight: 800; background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; padding: 3px 9px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
                                         ✓ Delivered (Completed)
+                                    </span>
+                                ` : isFailedMax ? `
+                                    <span style="font-size: 11px; font-weight: 800; background: #FEF2F2; color: #DC2626; border: 1px solid #FCA5A5; padding: 3px 9px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                        ⚠️ Return to Hub (Max Attempts Exceeded)
                                     </span>
                                 ` : `
                                     <span style="font-size: 11px; font-weight: 800; background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; padding: 3px 9px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
@@ -747,6 +839,11 @@
                                 <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
                                     📦 ${p.package || 'Standard Courier Package'}
                                 </div>
+                                ${p.lastAttemptReason ? `
+                                    <div style="font-size: 11px; color: #B45309; background: #FEF3C7; border: 1px solid #FDE68A; padding: 3px 8px; border-radius: 4px; margin-top: 5px;">
+                                        ⚠️ Previous Attempt (${currentAttempt - 1}/3) Exception: <strong>${p.lastAttemptReason}</strong>${p.lastAttemptNotes ? ` &bull; ${p.lastAttemptNotes}` : ''}
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
 
@@ -760,11 +857,20 @@
                                     <span style="font-size: 12px; font-weight: 700; color: #059669; display: inline-flex; align-items: center; gap: 6px;">
                                         ✓ Remitted to Lipa Branch Counter
                                     </span>
+                                ` : isFailedMax ? `
+                                    <span style="font-size: 12px; font-weight: 700; color: #DC2626; display: inline-flex; align-items: center; gap: 6px;">
+                                        📦 Consignment Flagged: Return to Lipa Hub
+                                    </span>
                                 ` : `
-                                    <button type="button" class="btn-deliver-action" onclick="openDeliveryProofModal('${p.trackingNo}')">
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                        Mark Consignment as Delivered
-                                    </button>
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                                        <button type="button" class="btn-attempt-action" onclick="openDriverAttemptModal('${p.trackingNo}')" title="Log delivery attempt if recipient is not available">
+                                            🔄 Log Failed Attempt
+                                        </button>
+                                        <button type="button" class="btn-deliver-action" onclick="openDeliveryProofModal('${p.trackingNo}')">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            Mark Consignment as Delivered
+                                        </button>
+                                    </div>
                                 `}
                             </div>
                         </div>
@@ -859,6 +965,201 @@
 
             // STEP 5: BROADCAST UPDATED REMAINING STOPS TO FLEET RADAR
             if (typeof window.broadcastDriverLocationNow === "function") window.broadcastDriverLocationNow();
+        }
+
+        // ============================================================================
+        // OPEN FAILED DELIVERY ATTEMPT MODAL
+        // PURPOSE: Allows field courier to record customer unavailability, gate locked,
+        //          or other delivery exceptions with attempt count increment.
+        // ============================================================================
+        function openDriverAttemptModal(trackingNo) {
+            const parcel = parcelsList.find(p => p.trackingNo === trackingNo);
+            if (!parcel) return;
+
+            pendingAttemptTracking = trackingNo;
+            const currentAttempt = parcel.attempts || 1;
+
+            document.getElementById("attemptModalTrackingNo").innerText = parcel.trackingNo;
+            document.getElementById("attemptModalCustomerName").innerText = parcel.name;
+            const fullAddr = (parcel.barangay ? parcel.barangay + ', ' : '') + (parcel.city || 'Lipa City, Batangas') + (parcel.addressDetails ? ' • ' + parcel.addressDetails : '');
+            document.getElementById("attemptModalAddress").innerText = `📍 ${fullAddr}`;
+            document.getElementById("attemptModalCurrentBadge").innerText = `Current: Attempt ${currentAttempt} of 3`;
+            document.getElementById("attemptModalReason").selectedIndex = 0;
+            document.getElementById("attemptModalNotes").value = "";
+
+            const m = document.getElementById("driverAttemptModal");
+            if (m) {
+                m.style.display = "flex";
+                m.classList.remove("hidden");
+            }
+        }
+
+        // CLOSE DELIVERY ATTEMPT MODAL
+        function closeDriverAttemptModal() {
+            const m = document.getElementById("driverAttemptModal");
+            if (m) {
+                m.style.display = "none";
+                m.classList.add("hidden");
+            }
+            pendingAttemptTracking = null;
+        }
+
+        // SUBMIT FAILED DELIVERY ATTEMPT RECORD
+        async function submitDeliveryAttempt() {
+            if (!pendingAttemptTracking) return;
+            const btn = document.getElementById("btnSubmitAttempt");
+            btn.disabled = true;
+            btn.innerText = "Logging Attempt...";
+
+            const tracking = pendingAttemptTracking;
+            const reason = document.getElementById("attemptModalReason").value;
+            const notes = document.getElementById("attemptModalNotes").value.trim();
+
+            if (typeof logParcelDeliveryAttempt === "function") {
+                await logParcelDeliveryAttempt(tracking, reason, notes, driverSession);
+            }
+
+            btn.disabled = false;
+            btn.innerText = "Log Failed Attempt";
+            closeDriverAttemptModal();
+
+            showToast(`Delivery attempt logged for ${tracking}. Reason: ${reason}`);
+            renderDriverRunSheet();
+            if (typeof window.broadcastDriverLocationNow === "function") window.broadcastDriverLocationNow();
+        }
+
+        // ============================================================================
+        // RENDER INTERACTIVE WAYPOINT TIMELINE & STOP ITINERARY
+        // PURPOSE: Visualizes the sequential delivery tour from UB Lipa Central Hub
+        //          to all active consignee dropoff points.
+        // ============================================================================
+        function renderWaypointTimeline(activeDeliveries) {
+            const timelineEl = document.getElementById("driverWaypointTimeline");
+            const badgeEl = document.getElementById("waypointStopsBadge");
+            if (!timelineEl) return;
+
+            if (badgeEl) {
+                badgeEl.innerText = `${activeDeliveries.length} Stop${activeDeliveries.length === 1 ? '' : 's'} from UB Lipa`;
+            }
+
+            if (activeDeliveries.length === 0) {
+                timelineEl.innerHTML = `
+                    <div style="padding: 14px 16px; font-size: 12px; color: var(--text-muted); text-align: center;">
+                        No active delivery stops. All assigned consignments have been completed or are awaiting sorting.
+                    </div>
+                `;
+                return;
+            }
+
+            const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
+            const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
+
+            let html = `
+                <div class="waypoint-step-item waypoint-hub-step" onclick="focusDeliveryStop(${hubLat}, ${hubLng}, -1)">
+                    <div class="waypoint-step-num hub-step-num">🏢</div>
+                    <div class="waypoint-step-body">
+                        <div class="waypoint-step-title">Origin: UB Lipa Central Hub #04</div>
+                        <div class="waypoint-step-subtitle">Leviste Hwy, Lipa City &bull; Sorting Center & Dispatch Origin</div>
+                    </div>
+                    <div class="waypoint-step-tag">START</div>
+                </div>
+            `;
+
+            activeDeliveries.forEach((p, idx) => {
+                let lat = p.lat;
+                let lng = p.lng;
+                if (!lat || !lng) {
+                    const coords = (typeof getCityCoordinates === "function") 
+                        ? getCityCoordinates(p.city, p.barangay) 
+                        : { lat: hubLat, lng: hubLng };
+                    lat = coords.lat;
+                    lng = coords.lng;
+                }
+                const dist = p.distanceKm != null ? p.distanceKm : (typeof getDistanceFromHub === "function" ? getDistanceFromHub(lat, lng) : 0);
+                const singleGmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${hubLat},${hubLng}&destination=${lat},${lng}&travelmode=driving`;
+                const currAttempt = p.attempts || 1;
+
+                html += `
+                    <div class="waypoint-step-item" onclick="focusDeliveryStop(${lat}, ${lng}, ${idx})">
+                        <div class="waypoint-step-num">${idx + 1}</div>
+                        <div class="waypoint-step-body">
+                            <div class="waypoint-step-title">
+                                <span>${p.name}</span>
+                                <span class="font-mono" style="font-size: 11px; color: #64748B;">${p.trackingNo}</span>
+                                ${currAttempt > 1 ? `<span class="attempt-pill attempt-pill-warn" style="font-size: 10px; padding: 1px 6px;">Att ${currAttempt}/3</span>` : ''}
+                            </div>
+                            <div class="waypoint-step-subtitle">
+                                📍 ${p.barangay ? `${p.barangay}, ` : ''}${p.city || 'Lipa City'}${p.addressDetails ? ` &bull; ${p.addressDetails}` : ''}
+                            </div>
+                            <div style="font-size: 11px; color: #C2410C; font-weight: 700; margin-top: 2px;">
+                                💵 COD: ${p.cod || '₱0.00'} &bull; <span style="color: #64748B;">⚡ ${dist} km from Hub</span>
+                            </div>
+                        </div>
+                        <div class="waypoint-step-actions" onclick="event.stopPropagation()">
+                            <a href="${singleGmapsUrl}" target="_blank" class="waypoint-nav-btn" title="Open Google Maps directions for Stop #${idx + 1}">
+                                🧭 Nav
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+
+            timelineEl.innerHTML = html;
+        }
+
+        // FOCUS MAP CAMERA AND POPUP ON A SPECIFIC DELIVERY STOP
+        function focusDeliveryStop(lat, lng, idx) {
+            if (!driverMap) return;
+            driverMap.setView([lat, lng], 16, { animate: true });
+            if (idx >= 0 && driverStopMarkers[idx]) {
+                driverStopMarkers[idx].openPopup();
+            } else if (idx === -1 && driverHubMarker) {
+                driverHubMarker.openPopup();
+            }
+        }
+
+        // ============================================================================
+        // LAUNCH MULTI-STOP ROUTE IN GOOGLE MAPS NAVIGATION
+        // PURPOSE: Builds full multi-point itinerary URL for turn-by-turn phone guidance.
+        // ============================================================================
+        function openMultiStopGoogleMaps() {
+            const activeDeliveries = getAssignedDriverParcels().filter(p => (p.status || "").includes("Out for Delivery"));
+            if (activeDeliveries.length === 0) {
+                showToast("No active out-for-delivery stops in your run-sheet right now.");
+                return;
+            }
+
+            const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
+            const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
+            const origin = `${hubLat},${hubLng}`;
+
+            const getStopCoord = (p) => {
+                let lat = p.lat;
+                let lng = p.lng;
+                if (!lat || !lng) {
+                    const coords = (typeof getCityCoordinates === "function") 
+                        ? getCityCoordinates(p.city, p.barangay) 
+                        : { lat: hubLat, lng: hubLng };
+                    lat = coords.lat;
+                    lng = coords.lng;
+                }
+                return `${lat},${lng}`;
+            };
+
+            if (activeDeliveries.length === 1) {
+                const dest = getStopCoord(activeDeliveries[0]);
+                const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`;
+                window.open(url, "_blank");
+                return;
+            }
+
+            const lastStop = activeDeliveries[activeDeliveries.length - 1];
+            const destination = getStopCoord(lastStop);
+            const intermediateStops = activeDeliveries.slice(0, activeDeliveries.length - 1);
+            const waypoints = intermediateStops.map(p => getStopCoord(p)).join("|");
+
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
+            window.open(url, "_blank");
         }
 
         // ============================================================================
