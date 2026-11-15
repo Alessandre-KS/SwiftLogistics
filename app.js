@@ -1,70 +1,24 @@
-
-function getVehicleEmoji(type) {
-    if (!type) return "🏍️";
-    const t = String(type).toLowerCase();
-    if (t.includes("truck")) return "🚚";
-    return "🏍️";
-}
-
-async function getRegisteredDrivers() {
-    let drivers = [];
-
-    try {
-        const stored = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
-        stored.forEach(s => {
-            const roleStr = (s.role || "").toLowerCase();
-            if (roleStr.includes("driver") || roleStr.includes("rider")) {
-                if (!drivers.some(d => (d.email && d.email.toLowerCase() === (s.email || "").toLowerCase()) || d.name.toLowerCase() === (s.name || "").toLowerCase())) {
-                    drivers.push({
-                        id: s.id || s.uid,
-                        name: s.name,
-                        email: s.email,
-                        role: s.role,
-                        vehicleType: s.vehicleType || "Motorcycle"
-                    });
-                }
-            }
-        });
-    } catch (e) {}
-
-    if (isFirebaseOnline && db) {
-        try {
-            const snap = await db.collection("staff").get();
-            snap.forEach(doc => {
-                const data = doc.data();
-                const roleStr = (data.role || "").toLowerCase();
-                if ((roleStr.includes("driver") || roleStr.includes("rider")) && data.status !== "quarantined") {
-                    const existingIdx = drivers.findIndex(d => (d.email && d.email.toLowerCase() === (data.email || "").toLowerCase()) || d.name.toLowerCase() === (data.name || "").toLowerCase());
-                    const driverObj = {
-                        id: doc.id,
-                        name: data.name,
-                        email: data.email,
-                        role: data.role,
-                        vehicleType: data.vehicleType || "Motorcycle"
-                    };
-                    if (existingIdx >= 0) {
-                        drivers[existingIdx] = driverObj;
-                    } else {
-                        drivers.push(driverObj);
-                    }
-                }
-            });
-        } catch (e) {}
-    }
-
-    return drivers;
-}
 /**
- * SwiftLogistics Hub — Core Client Business Application (v1.0)
- * Branch #04 — Regional Dispatch & Sorting Facility
- * 
- * Standalone MSME Courier Portal connected directly to its own Firebase project:
- * Project ID: swiftlogistics-hub-9821
+ * ============================================================================
+ * SWIFTLOGISTICS HUB — CORE LOGISTICS & DISPATCH CONTROLLER (v2.0)
+ * Branch #04 Regional Dispatch & Sorting Facility (Lipa City, Batangas)
+ *
+ * PROJECT ARCHITECTURE OVERVIEW:
+ * 1. Client Dispatch Desk: Front-end terminal for manifesting, dispatching, and tracking shipments.
+ * 2. Google Cloud Firestore: Serverless NoSQL cloud persistence layer for parcels, couriers, and staff.
+ * 3. Leaflet & OSRM Engine: Real road-geometry turn-by-turn routing and GPS fleet tracking.
+ * 4. TripwireJS Layer-7 Sentry: Automated cyber-defense monitoring query velocity and canary honeypots.
+ *
+ * Designed for clean maintainability, clear readability, and ease of onboarding
+ * for future software developers, students, and system administrators.
+ * ============================================================================
  */
 
-// -----------------------------------------------------------------------------
-// 1. FIREBASE INITIALIZATION CONFIGURATION
-// -----------------------------------------------------------------------------
+// ============================================================================
+// SECTION 1: SYSTEM INITIALIZATION & CLOUD FIREBASE CONFIGURATION
+// ============================================================================
+
+// FIREBASE CONNECTION CREDENTIALS FOR SWIFTLOGISTICS HUB
 const firebaseConfig = (typeof window !== "undefined" && window.FIREBASE_CONFIG) ? window.FIREBASE_CONFIG : {
     apiKey: "YOUR_FIREBASE_API_KEY",
     authDomain: "swiftlogistics-hub-9821.firebaseapp.com",
@@ -74,10 +28,11 @@ const firebaseConfig = (typeof window !== "undefined" && window.FIREBASE_CONFIG)
     appId: "1:602215546126:web:28439f8304a2613c072b5f"
 };
 
-// Initialize Firebase (Compat SDK)
+// FIREBASE COMPAT SDK INSTANCES & CONNECTION STATUS
 let app, auth, db;
 let isFirebaseOnline = false;
 
+// INITIALIZE FIREBASE WITH ERROR HANDLING AND OFFLINE FALLBACK
 try {
     if (typeof firebase !== "undefined") {
         app = firebase.initializeApp(firebaseConfig);
@@ -89,11 +44,11 @@ try {
     console.warn("Firebase initialized in offline/fallback mode:", e);
 }
 
-// -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-// 2. UB LIPA CENTRAL LOGISTICS HUB & GEOLOCATION SERVICE (LEAFLET / OSM READY)
-// Anchor: UB Lipa (X595+MQ6, Leviste Hwy, Lipa City, Batangas)
-// -----------------------------------------------------------------------------
+// ============================================================================
+// SECTION 2: CENTRAL LOGISTICS HUB & GEOLOCATION SERVICES (OSM / LEAFLET)
+// ============================================================================
+
+// CENTRAL DISPATCH HUB ANCHOR (UB LIPA CAMPUS, LEVISTE HIGHWAY)
 const UB_LIPA_HUB = {
     name: "SwiftLogistics Hub #04 (UB Lipa)",
     shortName: "UB Lipa Central Hub",
@@ -104,7 +59,7 @@ const UB_LIPA_HUB = {
     lng: 121.1594
 };
 
-// Batangas Towns & Lipa Barangays GPS Lookup Table (Pure Stdlib, Offline, 0ms)
+// BATANGAS TOWNS AND LIPA BARANGAYS GPS PRESETS (PRE-CALIBRATED COORDINATES)
 const BATANGAS_GEO_PRESETS = {
     "LIPA_HUB": { lat: 13.9692, lng: 121.1594, name: "UB Lipa Central Hub (Leviste Hwy)", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" },
     "MARAWOY": { lat: 13.9575, lng: 121.1633, name: "Brgy. Marawoy, Lipa City", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" },
@@ -126,14 +81,13 @@ const BATANGAS_GEO_PRESETS = {
     "BATANGAS_CITY": { lat: 13.7565, lng: 121.0583, name: "Batangas City, Batangas", barangay: "Poblacion, Batangas City", city: "Batangas City, Batangas" }
 };
 
-/**
- * Reverse geocode / find nearest known Batangas barangay/town from GPS coordinates
- */
+// REVERSE GEOCODE GPS COORDINATES TO NEAREST BATANGAS TOWN OR BARANGAY
 function findNearestPreset(lat, lng) {
     if (lat == null || lng == null) return { name: "Brgy. Marawoy, Lipa City", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
     let closest = null;
     let minDistance = Infinity;
 
+    // SCAN PRESETS AND IDENTIFY MINIMUM HAVERSINE DISTANCE
     for (const key of Object.keys(BATANGAS_GEO_PRESETS)) {
         if (key === "LIPA_HUB") continue;
         const preset = BATANGAS_GEO_PRESETS[key];
@@ -146,9 +100,7 @@ function findNearestPreset(lat, lng) {
     return closest || { name: "Lipa City Area", barangay: "Brgy. Marawoy", city: "Lipa City, Batangas" };
 }
 
-/**
- * Resolve coordinates for any Batangas city/barangay
- */
+// RESOLVE DEFAULT GPS COORDINATES FROM CITY AND BARANGAY TEXT
 function getCityCoordinates(city = "", barangay = "") {
     const raw = `${city} ${barangay}`.toLowerCase();
     if (raw.includes("marawoy")) return { ...BATANGAS_GEO_PRESETS.MARAWOY };
@@ -165,16 +117,14 @@ function getCityCoordinates(city = "", barangay = "") {
     if (raw.includes("garcia")) return { ...BATANGAS_GEO_PRESETS.PADRE_GARCIA };
     if (raw.includes("rosario")) return { ...BATANGAS_GEO_PRESETS.ROSARIO };
     if (raw.includes("batangas city")) return { ...BATANGAS_GEO_PRESETS.BATANGAS_CITY };
-    // Default Lipa City area
+    // DEFAULT TO LIPA CITY CENTRAL HUB VICINITY
     return { lat: 13.9575, lng: 121.1633, name: city || "Lipa City, Batangas" };
 }
 
-/**
- * Standard Haversine distance formula (in km, 1 decimal)
- */
+// CALCULATE DISTANCE IN KILOMETERS USING THE MATHEMATICAL HAVERSINE FORMULA
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
     if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 0;
-    const R = 6371; // Earth radius in km
+    const R = 6371; // EARTH MEAN RADIUS IN KILOMETERS
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -185,22 +135,16 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
     return Math.round(R * c * 10) / 10;
 }
 
-/**
- * Calculate distance from UB Lipa Central Hub to coordinate
- */
+// CALCULATE DISTANCE FROM THE REGIONAL CENTRAL HUB TO ANY DESTINATION
 function getDistanceFromHub(lat, lng) {
     return calculateDistanceKm(UB_LIPA_HUB.lat, UB_LIPA_HUB.lng, lat, lng);
 }
 
-/**
- * Fetch real turn-by-turn driving road route from OSRM (Open Source Routing Machine)
- * Supports 2 or more waypoints: [[lat1, lng1], [lat2, lng2], ...]
- * Returns { latLngs: [[lat, lng], ...], distanceKm: number, durationMins: number }
- */
+// FETCH REAL TURN-BY-TURN DRIVING ROAD ROUTE FROM OSRM (OPEN SOURCE ROUTING MACHINE)
 async function fetchRoadRoute(waypoints) {
     if (!waypoints || waypoints.length < 2) return null;
     try {
-        // OSRM expects coordinates in "longitude,latitude" order separated by semicolons
+        // OSRM REQUIRES COORDINATES AS "LONGITUDE,LATITUDE" DELIMITED BY SEMICOLONS
         const coordString = waypoints.map(pt => {
             const lat = Number(pt[0]);
             const lng = Number(pt[1]);
@@ -214,7 +158,7 @@ async function fetchRoadRoute(waypoints) {
 
         if (data.code === "Ok" && data.routes && data.routes.length > 0) {
             const route = data.routes[0];
-            // Convert GeoJSON [lng, lat] back to Leaflet [lat, lng]
+            // CONVERT GEOJSON [LNG, LAT] BACK TO LEAFLET [LAT, LNG]
             const latLngs = route.geometry.coordinates.map(pt => [pt[1], pt[0]]);
             const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
             const durationMins = Math.max(1, Math.round(route.duration / 60));
@@ -230,11 +174,75 @@ async function fetchRoadRoute(waypoints) {
     return null;
 }
 
-// -----------------------------------------------------------------------------
-// 2B. COURIER FLEET RADAR & LIVE DRIVER GPS TELEMETRY
-// -----------------------------------------------------------------------------
+// ============================================================================
+// SECTION 3: COURIER FLEET RADAR & LIVE DRIVER GPS TELEMETRY
+// ============================================================================
+
+// RESOLVE VEHICLE EMOJI ICON BASED ON VEHICLE CATEGORY (MOTORCYCLE VS CARGO TRUCK)
+function getVehicleEmoji(type) {
+    if (!type) return "🏍️";
+    const t = String(type).toLowerCase();
+    if (t.includes("truck")) return "🚚";
+    return "🏍️";
+}
+
+// FETCH ACTIVE REGISTERED FIELD COURIERS FROM LOCAL DIRECTORY AND FIRESTORE
+async function getRegisteredDrivers() {
+    let drivers = [];
+
+    // 1. READ FROM LOCAL CACHED DIRECTORY
+    try {
+        const stored = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
+        stored.forEach(s => {
+            const roleStr = (s.role || "").toLowerCase();
+            if (roleStr.includes("driver") || roleStr.includes("rider")) {
+                if (!drivers.some(d => (d.email && d.email.toLowerCase() === (s.email || "").toLowerCase()) || d.name.toLowerCase() === (s.name || "").toLowerCase())) {
+                    drivers.push({
+                        id: s.id || s.uid,
+                        name: s.name,
+                        email: s.email,
+                        role: s.role,
+                        vehicleType: s.vehicleType || "Motorcycle"
+                    });
+                }
+            }
+        });
+    } catch (e) {}
+
+    // 2. QUERY CLOUD FIRESTORE FOR APPROVED ACTIVE COURIERS
+    if (isFirebaseOnline && db) {
+        try {
+            const snap = await db.collection("staff").get();
+            snap.forEach(doc => {
+                const data = doc.data();
+                const roleStr = (data.role || "").toLowerCase();
+                // EXCLUDE QUARANTINED COURIERS FROM DISPATCH ROTATION
+                if ((roleStr.includes("driver") || roleStr.includes("rider")) && data.status !== "quarantined") {
+                    const existingIdx = drivers.findIndex(d => (d.email && d.email.toLowerCase() === (data.email || "").toLowerCase()) || d.name.toLowerCase() === (data.name || "").toLowerCase());
+                    const driverObj = {
+                        id: doc.id,
+                        name: data.name,
+                        email: data.email,
+                        role: data.role,
+                        vehicleType: data.vehicleType || "Motorcycle"
+                    };
+                    if (existingIdx >= 0) {
+                        drivers[existingIdx] = driverObj;
+                    } else {
+                        drivers.push(driverObj);
+                    }
+                }
+            });
+        } catch (e) {}
+    }
+
+    return drivers;
+}
+
+// LOCAL CACHE STORE FOR DRIVER GPS COORDINATES
 const DEFAULT_DRIVER_LOCATIONS = {};
 
+// RETRIEVE CACHED DRIVER LOCATIONS WITH STRICT COURIER-ONLY ROLE FILTERING
 function getLocalDriverLocations() {
     try {
         const raw = localStorage.getItem("SWIFT_DRIVER_LOCATIONS");
@@ -245,7 +253,7 @@ function getLocalDriverLocations() {
                 const d = parsed[id];
                 const name = (d.driverName || "").toLowerCase();
                 const role = (d.role || "").toLowerCase();
-                // Strictly filter out Carlo, Juan, Alessandre (Management), or any non-courier
+                // STRICTLY FILTER OUT MOCK COURIERS OR MANAGEMENT DISPATCHERS
                 if (!name.includes("carlo") && !name.includes("juan") && !name.includes("alessandre") && !role.includes("management") && !role.includes("dispatcher")) {
                     clean[id] = d;
                 }
@@ -257,6 +265,7 @@ function getLocalDriverLocations() {
     return {};
 }
 
+// SAVE COURIER GPS POSITIONS TO LOCAL STORAGE AND BROADCAST UPDATE EVENT
 function saveLocalDriverLocations(locations) {
     try {
         localStorage.setItem("SWIFT_DRIVER_LOCATIONS", JSON.stringify(locations));
@@ -264,6 +273,7 @@ function saveLocalDriverLocations(locations) {
     } catch (e) {}
 }
 
+// UPDATE COURIER LIVE GPS TELEMETRY IN FIRESTORE AND LOCAL CACHE
 async function updateDriverLiveLocation(driverData) {
     if (!driverData || !driverData.driverId) return;
     const locations = getLocalDriverLocations();
@@ -293,13 +303,14 @@ async function updateDriverLiveLocation(driverData) {
     }
 }
 
+// REAL-TIME FIRESTORE AND STORAGE EVENT LISTENER FOR LIVE DRIVER MOVEMENTS
 function listenToDriverLiveLocations(callback) {
     if (typeof callback !== "function") return;
 
-    // 1. Initial emission from local cache
+    // 1. INITIAL EMISSION FROM LOCAL CACHE
     callback(getLocalDriverLocations());
 
-    // 2. Cross-tab storage event
+    // 2. CROSS-TAB STORAGE EVENT LISTENER
     window.addEventListener("storage", (e) => {
         if (e.key === "SWIFT_DRIVER_LOCATIONS") {
             callback(getLocalDriverLocations());
@@ -310,7 +321,7 @@ function listenToDriverLiveLocations(callback) {
         if (e.detail) callback(e.detail);
     });
 
-    // 3. Firestore onSnapshot real-time listener
+    // 3. FIRESTORE REAL-TIME SNAPSHOT LISTENER
     if (isFirebaseOnline && db) {
         try {
             db.collection("driver_locations").onSnapshot((snapshot) => {
@@ -319,7 +330,7 @@ function listenToDriverLiveLocations(callback) {
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const name = (data?.driverName || "").toLowerCase();
-                    // Permanently delete Carlo, Juan, or Management accounts (like Alessandre) from driver_locations collection
+                    // PURGE NON-COURIER OR MOCK ACCOUNTS FROM RADAR TELEMETRY
                     if (doc.id === "usr_carlo" || doc.id === "usr_juan" || name.includes("carlo") || name.includes("juan") || name.includes("alessandre")) {
                         db.collection("driver_locations").doc(doc.id).delete().catch(() => {});
                         if (current[doc.id]) {
@@ -357,6 +368,7 @@ function listenToDriverLiveLocations(callback) {
     }
 }
 
+// CENTER AND HIGHLIGHT A DRIVER'S LIVE LOCATION BASED ON PARCEL TRACKING NUMBER
 function focusDriverLocationByParcel(trackingNo) {
     if (!trackingNo) return;
     if (!parcelsList || parcelsList.length === 0) parcelsList = getLocalParcels();
@@ -389,8 +401,11 @@ function focusDriverLocationByParcel(trackingNo) {
     }
 }
 
-// 2. BASELINE DATASET (AUTHENTIC BRANCH #04 MANIFEST)
-// -----------------------------------------------------------------------------
+// ============================================================================
+// SECTION 4: BASELINE CONSIGNMENT MANIFEST (SEED DATASET)
+// ============================================================================
+
+// INITIAL 30 SEEDED CONSIGNMENTS FOR BRANCH #04 SORTING & DISPATCH OPERATIONS
 const INITIAL_PARCELS = [
     {
         trackingNo: "TRK-1001",
@@ -668,8 +683,7 @@ const INITIAL_PARCELS = [
     }
 ];
 
-// Active state initialized to manifest
-// Auto-bind coordinates and hub distance to baseline dataset
+// AUTO-BIND GPS COORDINATES AND DISTANCES FROM HUB TO ALL SEED PARCELS
 INITIAL_PARCELS.forEach(p => {
     if (!p.lat || !p.lng) {
         const coords = getCityCoordinates(p.city, p.barangay || "");
@@ -679,13 +693,17 @@ INITIAL_PARCELS.forEach(p => {
     }
 });
 
+// RUNTIME APPLICATION STATE FOR CONSIGNMENTS AND ACTIVE TABLE FILTERS
 let parcelsList = [];
 let currentSelectedTracking = null;
 let activeTabFilter = "ALL";
+let editingTrackingNo = null;
 
-// -----------------------------------------------------------------------------
-// 3. DATA LAYER (FIRESTORE WITH LOCAL PERSISTENCE FALLBACK)
-// -----------------------------------------------------------------------------
+// ============================================================================
+// SECTION 5: DATA ACCESS LAYER & PERSISTENCE (FIRESTORE & LOCAL STORAGE)
+// ============================================================================
+
+// RETRIEVE PARCELS FROM LOCALSTORAGE (WITH AUTOMATIC STATUS NORMALIZATION)
 function getLocalParcels() {
     try {
         const stored = localStorage.getItem("swift_parcels_db");
@@ -701,7 +719,7 @@ function getLocalParcels() {
                         p.distanceKm = getDistanceFromHub(p.lat, p.lng);
                         modified = true;
                     }
-                    // Business Rule: A parcel cannot be "Out for Delivery" without an assigned courier!
+                    // BUSINESS RULE: A PARCEL CANNOT BE "OUT FOR DELIVERY" WITHOUT AN ASSIGNED COURIER
                     if ((!p.assignedDriver && !p.assignedDriverId) && (p.status || "").includes("Out for Delivery")) {
                         p.status = "Waiting to be Assigned to Driver";
                         modified = true;
@@ -717,17 +735,19 @@ function getLocalParcels() {
     return [...INITIAL_PARCELS];
 }
 
+// SAVE CURRENT PARCELS LIST TO LOCALSTORAGE
 function saveLocalParcels(data) {
     try {
         localStorage.setItem("swift_parcels_db", JSON.stringify(data));
     } catch (e) {}
 }
 
+// LOAD PARCELS FROM LOCALSTORAGE AND SYNCHRONIZE WITH CLOUD FIRESTORE
 async function loadParcels() {
     parcelsList = getLocalParcels();
     renderManifestTable();
 
-    // Attempt Firestore fetch if staff session is active
+    // ATTEMPT FIRESTORE FETCH IF STAFF SESSION IS ACTIVE
     const staffSession = getStaffSession();
     if (isFirebaseOnline && db && staffSession) {
         try {
@@ -736,7 +756,7 @@ async function loadParcels() {
                 const cloudParcels = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    // Business Rule: Normalize any unassigned Firestore parcel to "Waiting to be Assigned to Driver"
+                    // BUSINESS RULE: NORMALIZE ANY UNASSIGNED FIRESTORE PARCEL TO "WAITING TO BE ASSIGNED TO DRIVER"
                     if ((!data.assignedDriver && !data.assignedDriverId) && (data.status || "").includes("Out for Delivery")) {
                         data.status = "Waiting to be Assigned to Driver";
                         if (db) {
@@ -755,6 +775,7 @@ async function loadParcels() {
     }
 }
 
+// REGISTER AND MANIFEST A NEW PARCEL SHIPMENT IN THE DATABASE
 async function addParcelRecord(parcelData) {
     const newTracking = parcelData.trackingNo || ("TRK-" + Math.floor(1000 + Math.random() * 9000));
     const coords = (parcelData.lat && parcelData.lng)
@@ -783,10 +804,11 @@ async function addParcelRecord(parcelData) {
         cod: parcelData.cod || "₱0.00"
     };
 
+    // PREPEND NEW RECORD TO TOP OF RUNTIME ARRAY
     parcelsList.unshift(newRecord);
     saveLocalParcels(parcelsList);
 
-    // Save to Firestore if connected
+    // SAVE DIRECTLY TO CLOUD FIRESTORE
     if (isFirebaseOnline && db) {
         try {
             await db.collection("parcels").doc(newTracking).set({
@@ -801,6 +823,7 @@ async function addParcelRecord(parcelData) {
     return newRecord;
 }
 
+// UPDATE TRANSIT STATUS AND ASSIGNED COURIER FOR A SPECIFIC CONSIGNMENT
 async function updateParcelStatusRecord(trackingNo, newStatus, assignedDriver = "", driverVehicle = "", assignedDriverId = "") {
     const item = parcelsList.find(p => p.trackingNo === trackingNo);
     if (item) {
@@ -833,9 +856,11 @@ async function updateParcelStatusRecord(trackingNo, newStatus, assignedDriver = 
     return false;
 }
 
-// -----------------------------------------------------------------------------
-// 4. AUTHENTICATION (FIREBASE AUTH WITH DEMO FALLBACK)
-// -----------------------------------------------------------------------------
+// ============================================================================
+// SECTION 6: STAFF AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC)
+// ============================================================================
+
+// RETRIEVE LOCAL STAFF DIRECTORY CACHE
 function getLocalStaffDirectory() {
     try {
         const stored = localStorage.getItem("swift_staff_directory");
@@ -855,6 +880,7 @@ function getLocalStaffDirectory() {
     ];
 }
 
+// VERIFY EMPLOYEE CREDENTIALS AND INITIATE AUTHORIZED USER SESSION
 async function signInStaff(email, password) {
     if (!password) {
         return { success: false, message: "Please enter your password." };
@@ -865,7 +891,7 @@ async function signInStaff(email, password) {
 
     const clean = email.toLowerCase().trim();
 
-    // 1. Owner Login: Bossing Jeff
+    // 1. OWNER / ADMINISTRATOR LOGIN (BOSSING JEFF)
     if (clean === "jeff@swiftlogistics.ph" || clean.includes("jeff") || clean.includes("bossing")) {
         const user = {
             uid: "usr_jeff",
@@ -877,7 +903,7 @@ async function signInStaff(email, password) {
         return { success: true, user: user };
     }
 
-    // 2. CHECK CLOUD FIRESTORE /staff FIRST (Primary Source of Truth)
+    // 2. CHECK CLOUD FIRESTORE /staff FIRST (PRIMARY SOURCE OF TRUTH)
     if (isFirebaseOnline && db) {
         try {
             const snapshot = await db.collection("staff").where("email", "==", clean).get();
@@ -885,6 +911,7 @@ async function signInStaff(email, password) {
                 const doc = snapshot.docs[0];
                 const data = doc.data();
 
+                // CHECK FOR TRIPWIRE QUARANTINE LOCKOUT
                 if (data.status === "quarantined") {
                     const reasonTxt = data.quarantineReason ? `\nReason: ${data.quarantineReason}` : "";
                     return {
@@ -893,6 +920,7 @@ async function signInStaff(email, password) {
                     };
                 }
 
+                // CHECK FOR PENDING IDENTITY VERIFICATION
                 if (data.status === "pending_verification" || data.verified === false) {
                     return {
                         success: false,
@@ -900,15 +928,14 @@ async function signInStaff(email, password) {
                     };
                 }
 
-                // ACCOUNT IS ACTIVE AND APPROVED!
-                // Clean up any stale pending registration from local cache
+                // ACCOUNT IS ACTIVE AND APPROVED: CLEAN UP STALE REGISTRATIONS
                 try {
                     let pendingList = JSON.parse(localStorage.getItem("swift_pending_registrations") || "[]");
                     pendingList = pendingList.filter(r => (r.email || "").toLowerCase() !== clean);
                     localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingList));
                 } catch (e) {}
 
-                // Sync to local directory as verified active
+                // SYNC VERIFIED ACCOUNT TO LOCAL DIRECTORY CACHE
                 try {
                     let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
                     dir = dir.filter(s => (s.email || "").toLowerCase() !== clean);
@@ -942,7 +969,7 @@ async function signInStaff(email, password) {
                 return { success: true, user: user };
             }
 
-            // Also check if there is an unapproved request in Firestore /registrations
+            // CHECK FIRESTORE /registrations FOR PENDING REQUESTS
             const regSnapshot = await db.collection("registrations").where("email", "==", clean).get();
             if (!regSnapshot.empty) {
                 const regData = regSnapshot.docs[0].data();
@@ -958,7 +985,7 @@ async function signInStaff(email, password) {
         }
     }
 
-    // 3. Fallback: Check local staff directory (accounts provisioned locally or offline)
+    // 3. FALLBACK: CHECK LOCAL STAFF DIRECTORY (LOCAL OR OFFLINE SESSIONS)
     const localDirectory = getLocalStaffDirectory();
     const matched = localDirectory.find(s => (s.email || "").toLowerCase() === clean);
     if (matched) {
@@ -992,7 +1019,7 @@ async function signInStaff(email, password) {
         }
     }
 
-    // 4. Check local pending registrations queue
+    // 4. CHECK LOCAL PENDING REGISTRATIONS QUEUE
     try {
         const pendingRegistrations = JSON.parse(localStorage.getItem("swift_pending_registrations") || "[]");
         const pendingMatch = pendingRegistrations.find(r => (r.email || "").toLowerCase() === clean);
@@ -1004,13 +1031,14 @@ async function signInStaff(email, password) {
         }
     } catch (e) {}
 
-    // 5. Strictly deny unprovisioned accounts
+    // 5. STRICT ACCESS DENIAL FOR UNPROVISIONED ACCOUNTS
     return {
         success: false,
         message: "Access Denied: Account not provisioned by Business Owner. Please click 'Register Staff' to submit an account request for verification."
     };
 }
 
+// TERMINATE EMPLOYEE SESSION AND REDIRECT TO LOGIN PORTAL
 function signOutStaff() {
     if (isFirebaseOnline && auth) {
         auth.signOut().catch(() => {});
@@ -1019,6 +1047,7 @@ function signOutStaff() {
     window.location.href = "login.html";
 }
 
+// GET ACTIVE STAFF SESSION FROM LOCALSTORAGE
 function getStaffSession() {
     try {
         const stored = localStorage.getItem("swift_session_user");
@@ -1027,22 +1056,11 @@ function getStaffSession() {
     return null;
 }
 
-// -----------------------------------------------------------------------------
-// 5. UI RENDERING & EVENT CONTROLLERS
-// -----------------------------------------------------------------------------
-function showToast(message, type = "success") {
-    const toast = document.getElementById("friendlyToast");
-    if (!toast) return;
-    toast.innerText = message;
-    toast.className = `toast ${type}`;
-    toast.style.display = "block";
-    toast.classList.remove("hidden");
-    setTimeout(() => {
-        toast.style.display = "none";
-        toast.classList.add("hidden");
-    }, 3000);
-}
+// ============================================================================
+// SECTION 7: CUSTOMER WAYBILL TRACKING & DETAIL CARD
+// ============================================================================
 
+// UPDATE THE 4-STEP HORIZONTAL VISUAL DELIVERY TIMELINE
 function updateTimeline(status) {
     const s1 = document.getElementById("tStep1");
     const s2 = document.getElementById("tStep2");
@@ -1065,11 +1083,12 @@ function updateTimeline(status) {
     }
 }
 
+// SEARCH CONSIGNMENT BY TRACKING NUMBER OR CUSTOMER NAME (INSPECTED BY TRIPWIREJS)
 function lookupParcel(query, showAlert = false) {
     const clean = (query || "").trim().toUpperCase();
     if (!clean) return;
 
-    // Phase 2: TripwireJS Layer-7 Sentry Inspection
+    // TRIPWIREJS LAYER-7 SENTRY INSPECTION (SCRAPING VELOCITY & CANARY DETECTION)
     if (typeof TripwireJS !== "undefined") {
         const staffSession = getStaffSession();
         const check = TripwireJS.checkQuery(clean, staffSession);
@@ -1144,6 +1163,7 @@ function lookupParcel(query, showAlert = false) {
     }
 }
 
+// QUICK-LOOKUP SHORTCUT TO POPULATE TRACKING CARD AND FOCUS ROUTE
 function quickLookup(trackingNo, showAlert = false) {
     const input = document.getElementById("searchQueryInput");
     if (input) input.value = trackingNo;
@@ -1152,6 +1172,11 @@ function quickLookup(trackingNo, showAlert = false) {
     if (card && showAlert) card.scrollIntoView({ behavior: "smooth" });
 }
 
+// ============================================================================
+// SECTION 8: MANIFEST TABLE RENDERING, SEARCH & KPI METRICS
+// ============================================================================
+
+// RE-RENDER THE SHIPMENTS MANIFEST TABLE WITH STATUS PILLS AND ACTION BUTTONS
 function renderManifestTable() {
     const tbody = document.getElementById("manifestTableBody");
     if (!tbody) return;
@@ -1161,6 +1186,7 @@ function renderManifestTable() {
     const filterText = (document.getElementById("tableFilterInput")?.value || "").trim().toUpperCase();
     let filtered = parcelsList;
 
+    // 1. FILTER ACCORDING TO ACTIVE NAVIGATION TAB
     if (activeTabFilter === "OUT") {
         filtered = filtered.filter(p => p.status.includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId));
     } else if (activeTabFilter === "HUB") {
@@ -1169,6 +1195,7 @@ function renderManifestTable() {
         filtered = filtered.filter(p => p.status.includes("Delivered"));
     }
 
+    // 2. FILTER ACCORDING TO LIVE KEYWORD SEARCH INPUT
     if (filterText) {
         filtered = filtered.filter(p => 
             p.trackingNo.toUpperCase().includes(filterText) ||
@@ -1184,9 +1211,11 @@ function renderManifestTable() {
         return;
     }
 
+    // 3. GENERATE TABLE ROWS FOR ALL FILTERED CONSIGNMENTS
     filtered.forEach(p => {
         const tr = document.createElement("tr");
 
+        // DYNAMIC COLOR CODING FOR SHIPMENT TRANSIT BADGE
         let badgeColor = "background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;";
         if (p.status.includes("Delivered")) {
             badgeColor = "background:#ECFDF5; color:#047857; border:1px solid #A7F3D0;";
@@ -1194,7 +1223,7 @@ function renderManifestTable() {
             badgeColor = "background:#FEF3C7; color:#B45309; border:1px solid #FDE68A;";
         }
 
-        // Payment Badge Logic (COD vs Debit vs E-Wallet)
+        // PAYMENT METHOD BADGE (COD VS DEBIT CARD VS E-WALLET)
         let payBadge = `<span class="pay-badge pay-badge-cod">COD ${p.cod}</span>`;
         const pm = (p.paymentMethod || "").toUpperCase();
         const codText = (p.cod || "").toUpperCase();
@@ -1207,7 +1236,7 @@ function renderManifestTable() {
             payBadge = `<span class="pay-badge pay-badge-maya">MAYA (PAID)</span>`;
         }
 
-        // Detailed Address Display (Floor, Apartment, Landmark)
+        // FORMATTED ADDRESS AND LANDMARK DISPLAY
         let locationDisplay = p.city;
         if (p.addressDetails) {
             locationDisplay = `<div><strong>${p.city}</strong><div style="font-size:10.5px; color:var(--text-muted); line-height:1.2; margin-top:2px;">${p.addressDetails}</div></div>`;
@@ -1244,6 +1273,7 @@ function renderManifestTable() {
     });
 }
 
+// RECALCULATE LOGISTICS KEY PERFORMANCE INDICATORS (TOTAL, SORTING, OUT, DELIVERED, COD)
 function updateKPIs() {
     const total = parcelsList.length;
     const out = parcelsList.filter(p => p.status.includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId)).length;
@@ -1263,6 +1293,7 @@ function updateKPIs() {
         }
     });
 
+    // UPDATE TOP KPI DISPLAY CARDS
     const elTotal = document.getElementById("kpiTotalParcels");
     const elOut = document.getElementById("kpiOutDelivery");
     const elHub = document.getElementById("kpiAtHub");
@@ -1275,6 +1306,7 @@ function updateKPIs() {
     if (elDel) elDel.innerText = delivered;
     if (elCod) elCod.innerText = "₱" + totalCod.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+    // UPDATE NAVIGATION TAB COUNTERS
     const cAll = document.getElementById("countAll");
     const cOut = document.getElementById("countOut");
     const cHub = document.getElementById("countHub");
@@ -1287,6 +1319,7 @@ function updateKPIs() {
     if (sPill) sPill.innerText = total;
 }
 
+// TAB FILTER SWITCHER (ALL, OUT FOR DELIVERY, AT HUB / SORTING, DELIVERED)
 function filterManifest(tab, btn) {
     activeTabFilter = tab;
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -1294,11 +1327,16 @@ function filterManifest(tab, btn) {
     renderManifestTable();
 }
 
+// REAL-TIME SEARCH FILTER INPUT HANDLER
 function handleTableFilter() {
     renderManifestTable();
 }
 
-// Modals
+// ============================================================================
+// SECTION 9: DISPATCH & STATUS UPDATE MODAL CONTROLS
+// ============================================================================
+
+// OPEN BOOKING MODAL FOR INTAKE OF NEW SHIPMENTS
 function openBookParcelModal() {
     const m = document.getElementById("bookParcelModal");
     if (m) {
@@ -1307,6 +1345,7 @@ function openBookParcelModal() {
     }
 }
 
+// CLOSE BOOKING MODAL
 function closeBookParcelModal() {
     const m = document.getElementById("bookParcelModal");
     if (m) {
@@ -1315,6 +1354,7 @@ function closeBookParcelModal() {
     }
 }
 
+// HANDLE FORM SUBMISSION TO MANIFEST A NEW PARCEL RECORD
 async function handleBookParcelSubmit(e) {
     e.preventDefault();
     const name = document.getElementById("newRecipName")?.value.trim();
@@ -1333,7 +1373,7 @@ async function handleBookParcelSubmit(e) {
     e.target.reset();
 }
 
-let editingTrackingNo = null;
+// OPEN DISPATCH & STATUS MODAL (DYNAMICALLY POPULATES REGISTERED DRIVERS)
 async function openUpdateStatusModal(trackingNo) {
     editingTrackingNo = trackingNo;
     const found = parcelsList.find(p => p.trackingNo === trackingNo);
@@ -1345,7 +1385,7 @@ async function openUpdateStatusModal(trackingNo) {
         else if (targetStatus.includes("Out for Delivery")) targetStatus = "Out for Delivery";
         document.getElementById("updateStatusSelect").value = targetStatus;
 
-        // Populate Driver select dynamically
+        // POPULATE COURIER DRIVER SELECT DROPDOWN DYNAMICALLY
         const driverSelect = document.getElementById("updateDriverSelect");
         if (driverSelect) {
             driverSelect.innerHTML = `<option value="">-- No Driver Assigned --</option>`;
@@ -1368,6 +1408,7 @@ async function openUpdateStatusModal(trackingNo) {
     }
 }
 
+// CLOSE DISPATCH & STATUS MODAL
 function closeUpdateStatusModal() {
     const m = document.getElementById("updateStatusModal");
     if (m) {
@@ -1376,6 +1417,7 @@ function closeUpdateStatusModal() {
     }
 }
 
+// CONFIRM STATUS UPDATE (ENFORCES BUSINESS RULE: NO "OUT FOR DELIVERY" WITHOUT DRIVER)
 async function confirmStatusUpdate() {
     if (!editingTrackingNo) return;
     let newStatus = document.getElementById("updateStatusSelect").value;
@@ -1390,7 +1432,7 @@ async function confirmStatusUpdate() {
         assignedDriverId = parts[2] || "";
     }
 
-    // Business Rule: Parcel cannot be "Out for Delivery" if unassigned
+    // BUSINESS RULE: A PARCEL CANNOT BE "OUT FOR DELIVERY" IF NO COURIER IS SELECTED
     if (newStatus.includes("Out for Delivery") && !assignedDriver) {
         newStatus = "Waiting to be Assigned to Driver";
         showToast("No courier selected. Status set to 'Waiting to be Assigned to Driver'.", "info");
@@ -1404,4 +1446,22 @@ async function confirmStatusUpdate() {
     if (currentSelectedTracking === editingTrackingNo) {
         quickLookup(editingTrackingNo);
     }
+}
+
+// ============================================================================
+// SECTION 10: USER NOTIFICATIONS & SYSTEM TOAST ALERTS
+// ============================================================================
+
+// DISPLAY A TEMPORARY FLOATING NOTIFICATION TOAST TO THE USER
+function showToast(message, type = "success") {
+    const toast = document.getElementById("friendlyToast");
+    if (!toast) return;
+    toast.innerText = message;
+    toast.className = `toast ${type}`;
+    toast.style.display = "block";
+    toast.classList.remove("hidden");
+    setTimeout(() => {
+        toast.style.display = "none";
+        toast.classList.add("hidden");
+    }, 3000);
 }

@@ -1,34 +1,25 @@
-
-function getVehicleEmoji(type) {
-    if (!type) return "🏍️";
-    const t = String(type).toLowerCase();
-    if (t.includes("truck")) return "🚚";
-    return "🏍️";
-}
-
-function handleNewStaffRoleChange() {
-    const roleEl = document.getElementById("newStaffRole");
-    const groupEl = document.getElementById("newStaffVehicleGroup");
-    if (roleEl && groupEl) {
-        groupEl.style.display = (roleEl.value.includes("Driver") || roleEl.value.includes("Rider")) ? "block" : "none";
-    }
-}
 /**
  * ============================================================================
- * TripwireJS Business Owner Security Console — Real-Time Controller (v5.0)
- * Designed for Philippine MSMEs under RA 10173 (Data Privacy Act of 2012)
+ * TRIPWIREJS SECURITY OPERATIONS CENTER (SOC) — ADMIN CONTROLLER (v5.0)
+ * SwiftLogistics Courier Services — Branch #04 Regional Facility
  *
- * Core Principles:
- * 1. Event-Driven & Real-Time (Synchronized with Cloud Firestore snapshot listeners).
- * 2. Enterprise Standard UI (Zero cartoonish emojis, zero double-positive tags).
- * 3. Assumed Breach Posture (Instant Layer-7 containment in <20ms).
- * 4. Regulatory Alignment (RA 10173 Section 20 & NPC Circular 16-03).
+ * PROJECT ARCHITECTURE OVERVIEW:
+ * 1. Business Owner SOC Console: High-privilege management portal for Bossing Jeff.
+ * 2. Real-Time Cloud Listeners: Instant synchronization with Google Cloud Firestore.
+ * 3. Assumed-Breach Mitigation: Automated Layer-7 token revocation within <18 milliseconds.
+ * 4. Regulatory Compliance: Automated NPC 72-Hour Breach Forensic Reporting (RA 10173).
+ * 5. High-Privilege Governance: Password & reason-gated account quarantine and deletion.
+ *
+ * Designed for clean maintainability, clear readability, and ease of onboarding
+ * for future software developers, students, and cybersecurity researchers.
  * ============================================================================
  */
 
-// -----------------------------------------------------------------------------
-// 1. FIREBASE INITIALIZATION & REAL-TIME CLOUD LISTENER
-// -----------------------------------------------------------------------------
+// ============================================================================
+// SECTION 1: CLOUD FIREBASE INITIALIZATION & RUNTIME APPLICATION STATE
+// ============================================================================
+
+// FIREBASE CONNECTION CONFIGURATION FOR TRIPWIREJS SOC
 const firebaseConfig = (typeof window !== "undefined" && window.FIREBASE_CONFIG) ? window.FIREBASE_CONFIG : {
     apiKey: "YOUR_FIREBASE_API_KEY",
     authDomain: "swiftlogistics-hub-9821.firebaseapp.com",
@@ -38,6 +29,7 @@ const firebaseConfig = (typeof window !== "undefined" && window.FIREBASE_CONFIG)
     appId: "1:602215546126:web:28439f8304a2613c072b5f"
 };
 
+// COMPAT SDK INSTANCES FOR FIRESTORE AND STORAGE
 let app, db;
 try {
     if (typeof firebase !== "undefined") {
@@ -50,11 +42,11 @@ try {
     }
 }
 
-// Global Portal State
+// GLOBAL PORTAL INCIDENT STATE ("before" = NOMINAL MONITORING, "after" = CONTAINED BREACH)
 let currentState = "before";
 let activeIncident = null;
 
-// Staff Data Store (Pristine Owner-Only Baseline)
+// BASELINE IN-MEMORY STAFF DIRECTORY (INITIALIZED WITH BUSINESS OWNER)
 let staffList = [
     {
         id: "usr_jeff",
@@ -67,10 +59,10 @@ let staffList = [
     }
 ];
 
-// Dynamic Victims List
+// FORENSIC AUDIT LIST OF DATA SUBJECTS TOUCHED DURING INCIDENTS
 let victimsList = [];
 
-// DOM Elements
+// DOM ELEMENT REFERENCES
 let brandBadge, heroBanner, heroTitle, heroDesc;
 let statSafetyRate, statSafetySub, statSafeBar, statDangerBar;
 let boxExposed, labelExposed, statExposed, statExposedSub, btnViewVictimsCard;
@@ -78,6 +70,11 @@ let statSpeed, statSpeedSub;
 let panelTitle, panelCaption, actionContainer, unlockFooter;
 let activityTitle, activityCaption, logList, staffTableBody;
 
+// ============================================================================
+// SECTION 2: UI DOM ELEMENT SELECTORS & COMPONENT BINDING
+// ============================================================================
+
+// INITIALIZE AND CACHE REFERENCES TO ALL INTERACTIVE DOM ELEMENTS
 function initDOMElements() {
     brandBadge = document.getElementById("brandBadge");
 
@@ -107,232 +104,164 @@ function initDOMElements() {
     activityTitle = document.getElementById("activityTitle");
     activityCaption = document.getElementById("activityCaption");
     logList = document.getElementById("logList");
+
     staffTableBody = document.getElementById("staffTableBody");
 }
 
-// -----------------------------------------------------------------------------
-// 2. DYNAMIC STATE SWITCHER: NORMAL vs. INCIDENT
-// -----------------------------------------------------------------------------
-function switchState(state, incidentData = null) {
-    currentState = state;
-    if (incidentData) activeIncident = incidentData;
+// ============================================================================
+// SECTION 3: INCIDENT TELEMETRY & ATTACK STATE CONTROLLER
+// ============================================================================
 
-    const statusPill = document.getElementById("systemStatusPill");
-    const statusLabel = document.getElementById("systemStatusLabel");
+// SWITCH UI STATE BETWEEN NOMINAL OPERATION ("before") AND BREACH MITIGATION ("after")
+function switchState(mode, incidentData = null) {
+    currentState = mode;
+    activeIncident = incidentData;
 
-    if (state === "before" || state === "normal") {
-        // ====================================================================
-        // NORMAL OPERATIONAL STATE: BASELINE
-        // ====================================================================
-        if (statusPill && statusLabel) {
-            statusPill.className = "prod-status-badge badge-armed";
-            statusLabel.innerText = "MONITORING ACTIVE — ZERO ANOMALIES";
-        }
-        if (brandBadge) {
-            brandBadge.className = "brand-badge";
-            brandBadge.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
-        }
-
-        // Reset Maria to active
-        const maria = staffList.find(s => s.id === "usr_maria");
-        if (maria) {
-            maria.active = true;
-            maria.velocity = "0.2 req/s (Nominal)";
-            maria.isFlagged = false;
-        }
-
-        victimsList = [];
-        renderVictimsTable();
-
-        const elNpcDisc = document.getElementById("npcIncidentDiscovery");
-        const elNpcExp = document.getElementById("npcExposed");
-        const elNpcPres = document.getElementById("npcPreserved");
-        if (elNpcDisc) elNpcDisc.innerText = "Live Monitoring (No active breach)";
-        if (elNpcExp) elNpcExp.innerHTML = "<strong>0 records (0%)</strong>";
-        if (elNpcPres) elNpcPres.innerHTML = "<strong>5,000 records (100%)</strong>";
-
-        const elSmsCount = document.getElementById("smsModalRecipientsCount");
-        const elSmsBtn = document.getElementById("btnConfirmSmsSend");
-        if (elSmsCount) elSmsCount.innerText = "0 Data Subjects";
-        if (elSmsBtn) elSmsBtn.innerText = "Broadcast Advisories";
-
-        // Hero Banner
+    if (mode === "before") {
+        // 1. CONFIGURE TOP HERO BANNER FOR NOMINAL STATUS
         if (heroBanner) heroBanner.className = "hero-alert-banner hero-safe-banner";
         if (heroTitle) heroTitle.innerText = "System Baseline: Normal Operations";
-        if (heroDesc) {
-            heroDesc.innerText = "All client queries are within designated velocity thresholds (max 30 req / 5s). Layer-7 sentry inspection and Cloud Firestore default-deny enforcement active.";
-        }
+        if (heroDesc) heroDesc.innerText = "All client queries are within designated velocity thresholds (max 30 req / 5s). Layer-7 sentry inspection and Cloud Firestore default-deny enforcement active.";
 
-        // Metric Card 1: Integrity
-        if (statSafetyRate) {
-            statSafetyRate.innerText = "100% Intact";
-            statSafetyRate.className = "metric-number text-success";
-        }
+        // 2. METRIC 1: DATABASE PRESERVATION RATE
+        if (statSafetyRate) statSafetyRate.innerText = "100% Intact";
         if (statSafetySub) statSafetySub.innerText = "5,000 of 5,000 records protected";
         if (statSafeBar) statSafeBar.style.width = "100%";
         if (statDangerBar) statDangerBar.style.width = "0%";
 
-        // Metric Card 2: Exposed Records
+        // 3. METRIC 2: EXPOSED RECORDS (BLAST RADIUS)
+        if (statExposed) statExposed.innerText = "0 Records";
+        if (statExposedSub) statExposedSub.innerText = "Zero unauthorized access attempts detected";
         if (boxExposed) boxExposed.className = "metric-box";
         if (labelExposed) labelExposed.innerText = "Exposed Records Prior to Containment";
-        if (statExposed) {
-            statExposed.innerText = "0 Records";
-            statExposed.className = "metric-number text-success";
-        }
-        if (statExposedSub) statExposedSub.innerText = "Zero unauthorized access attempts detected";
         if (btnViewVictimsCard) btnViewVictimsCard.style.display = "none";
 
-        // Metric Card 3: Latency
+        // 4. METRIC 3: MITIGATION LATENCY
         if (statSpeed) {
             statSpeed.innerText = "0 ms Overhead";
             statSpeed.className = "metric-number text-primary";
         }
         if (statSpeedSub) statSpeedSub.innerText = "Real-time client-side rate limit + Cloud kill-switch";
 
-        // Left Column: Active Controls
-        if (panelTitle) panelTitle.innerText = "Active Security Controls";
-        if (panelCaption) panelCaption.innerText = "Default baseline policies enforced across client session and Firestore:";
+        // 5. LEFT COLUMN: PREVENTATIVE POLICY ENFORCEMENT
+        if (panelTitle) panelTitle.innerText = "Active Sentry Policies";
+        if (panelCaption) panelCaption.innerText = "Layer-7 threat containment rules active across regional dispatch stations:";
 
         if (actionContainer) {
             actionContainer.innerHTML = `
-                <div class="control-row">
-                    <div class="control-indicator status-ok"></div>
-                    <div>
-                        <strong>Default-Deny Firestore Rules</strong>
-                        <p>Direct unauthenticated queries rejected with 403 Forbidden. RBAC token validation enforced.</p>
+                <div class="action-item">
+                    <div class="action-header">
+                        <span class="action-step-num">1</span>
+                        <div>
+                            <strong>Sliding-Window Rate Limiter</strong>
+                            <p>Enforces maximum 30 query requests per 5-second window per authenticated dispatch session.</p>
+                        </div>
                     </div>
+                    <button class="btn btn-sm btn-outline" onclick="openModal('thresholdSettingsModal')">
+                        Adjust Rate Window
+                    </button>
                 </div>
 
-                <div class="control-row">
-                    <div class="control-indicator status-ok"></div>
-                    <div>
-                        <strong>Honeypot Decoy Trap (TRK-0000)</strong>
-                        <p>Synthetic canary record armed in Firestore. Any access attempts trigger immediate session termination.</p>
+                <div class="action-item">
+                    <div class="action-header">
+                        <span class="action-step-num">2</span>
+                        <div>
+                            <strong>Honeypot Decoy Canary (TRK-0000)</strong>
+                            <p>Synthetic waybill planted in database. Any read query triggers instant credential quarantine.</p>
+                        </div>
                     </div>
+                    <button class="btn btn-sm btn-outline" onclick="openModal('thresholdSettingsModal')">
+                        Verify Trap Configuration
+                    </button>
                 </div>
 
-                <div class="control-row">
-                    <div class="control-indicator status-ok"></div>
-                    <div>
-                        <strong>Sliding-Window Velocity Limiter (${protectionSettings.burstLimit} queries / 5s)</strong>
-                        <p>Requests exceeding human operational threshold trigger token quarantine within milliseconds.</p>
+                <div class="action-item">
+                    <div class="action-header">
+                        <span class="action-step-num">3</span>
+                        <div>
+                            <strong>Automated Cloud Kill-Switch</strong>
+                            <p>Direct Google Cloud Firestore integration revoking session authority in &lt;20ms.</p>
+                        </div>
                     </div>
+                    <button class="btn btn-sm btn-outline" onclick="scrollToStaff()">
+                        Manage Credentials
+                    </button>
                 </div>
             `;
         }
+
         if (unlockFooter) unlockFooter.style.display = "none";
 
-        // Right Column: Telemetry Log
-        if (activityTitle) activityTitle.innerText = "Telemetry & Event Log";
-        if (activityCaption) activityCaption.innerText = "Real-time query velocity and authorization events:";
+        // 6. RIGHT COLUMN: LIVE AUDIT FEED
+        if (activityTitle) activityTitle.innerText = "Live Telemetry Feed";
+        if (activityCaption) activityCaption.innerText = "Real-time query activity across active branch terminals:";
 
         if (logList) {
             logList.innerHTML = `
                 <div class="log-entry">
-                    <span class="log-tag tag-info">INFO</span>
+                    <span class="log-tag tag-success">NORM</span>
                     <span class="log-time">${new Date().toLocaleTimeString()}</span>
-                    <span class="log-msg">Layer-7 sentry initialized on SwiftLogistics Branch #04 terminal.</span>
+                    <span class="log-msg">Counter Terminal #04: Nominal query velocity (0.2 req/s).</span>
                 </div>
                 <div class="log-entry">
-                    <span class="log-tag tag-ok">SECURE</span>
+                    <span class="log-tag tag-success">SYNC</span>
                     <span class="log-time">${new Date().toLocaleTimeString()}</span>
-                    <span class="log-msg">Parcels collection synchronized. Query velocity nominal (0.2 req/s).</span>
+                    <span class="log-msg">Cloud Firestore rules synchronized: isNotQuarantined() active.</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-tag tag-info">READY</span>
+                    <span class="log-time">${new Date().toLocaleTimeString()}</span>
+                    <span class="log-msg">Decoy canary waybill (TRK-0000) primed and listening.</span>
                 </div>
             `;
         }
 
         renderStaffTable();
 
-    } else if (state === "after" || state === "incident") {
-        // ====================================================================
-        // ACTIVE INCIDENT STATE: CONTAINED
-        // ====================================================================
-        const inc = activeIncident || {
+    } else if (mode === "after") {
+        const inc = incidentData || {
             id: "INC-20261021-001",
             timestamp: new Date().toLocaleTimeString(),
             triggerType: "VELOCITY_RATE_LIMIT_EXCEEDED",
             staffName: "Maria Santos",
             staffId: "usr_maria",
-            queryCount: 31,
-            velocity: "11.1 req/s (AUTOMATED)",
             containmentTimeMs: 18,
             recordsExposed: 31,
             recordsProtected: 4969,
             percentSafe: "99.38%"
         };
 
-        if (statusPill && statusLabel) {
-            statusPill.className = "prod-status-badge badge-alert";
-            statusLabel.innerText = "INCIDENT CONTAINED — SESSION REVOKED";
-        }
-        if (brandBadge) {
-            brandBadge.className = "brand-badge badge-alert-state";
-            brandBadge.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
-        }
-
-        // Set Maria to quarantined
-        const maria = staffList.find(s => s.id === "usr_maria");
-        if (maria) {
-            maria.active = false;
-            maria.velocity = inc.velocity || "11.1 req/s (AUTOMATED)";
-            maria.isFlagged = true;
-        }
-
         buildDynamicVictims(inc);
-        renderVictimsTable();
 
-        const elNpcDisc = document.getElementById("npcIncidentDiscovery");
-        const elNpcExp = document.getElementById("npcExposed");
-        const elNpcPres = document.getElementById("npcPreserved");
-        const elNpcTime = document.getElementById("npcContainmentTime");
-        if (elNpcDisc) elNpcDisc.innerText = `${inc.timestamp} PHT`;
-        if (elNpcTime) elNpcTime.innerHTML = `<strong>${inc.containmentTimeMs || 18} ms</strong> (Automated Session Invalidation)`;
-        if (elNpcExp) elNpcExp.innerHTML = `<strong>${inc.recordsExposed || 31} records (${((inc.recordsExposed || 31)/50).toFixed(2)}%)</strong>`;
-        if (elNpcPres) elNpcPres.innerHTML = `<strong>${(inc.recordsProtected || 4969).toLocaleString()} records (${inc.percentSafe || '99.38%'})</strong>`;
+        // 1. CONFIGURE TOP HERO BANNER FOR ACTIVE BREACH CONTAINMENT
+        if (heroBanner) heroBanner.className = "hero-alert-banner hero-breach-banner";
+        if (heroTitle) heroTitle.innerText = "Incident Contained: Automated Token Quarantine";
+        if (heroDesc) heroDesc.innerHTML = `
+            Automated Layer-7 containment severed compromised session for <strong>${inc.staffName}</strong> in <strong>${inc.containmentTimeMs}ms</strong>. 
+            Exfiltration halted after ${inc.recordsExposed} records. <strong>${inc.recordsProtected} records (${inc.percentSafe}) preserved intact.</strong>
+        `;
 
-        const elSmsCount = document.getElementById("smsModalRecipientsCount");
-        const elSmsBtn = document.getElementById("btnConfirmSmsSend");
-        if (elSmsCount) elSmsCount.innerText = `${inc.recordsExposed || 31} Data Subjects`;
-        if (elSmsBtn) elSmsBtn.innerText = `Broadcast Advisories to ${inc.recordsExposed || 31} Recipients`;
-
-        // Hero Banner
-        if (heroBanner) heroBanner.className = "hero-alert-banner";
-        if (heroTitle) heroTitle.innerText = "Security Incident Contained: Unauthorized Query Velocity Intercepted";
-        if (heroDesc) {
-            heroDesc.innerHTML = `
-                At <strong>${inc.timestamp}</strong>, query velocity from credential <strong>${inc.staffName} (${inc.staffId})</strong> exceeded policy thresholds. 
-                Layer-7 sentry executed automated credential revocation across Google Cloud infrastructure in <strong>${inc.containmentTimeMs}ms</strong>. 
-                Blast radius isolated to <strong>${inc.recordsExposed} records</strong> (${((inc.recordsExposed/50).toFixed(2))}%) prior to lockout.
-            `;
-        }
-
-        // Metric Card 1: Preserved
-        if (statSafetyRate) {
-            statSafetyRate.innerText = `${inc.percentSafe} Preserved`;
-            statSafetyRate.className = "metric-number text-success";
-        }
-        if (statSafetySub) statSafetySub.innerText = `${inc.recordsProtected.toLocaleString()} of 5,000 records untouched`;
+        // 2. METRIC 1: DATABASE PRESERVATION RATE
+        if (statSafetyRate) statSafetyRate.innerText = inc.percentSafe;
+        if (statSafetySub) statSafetySub.innerText = `${inc.recordsProtected} of 5,000 customer records protected`;
         if (statSafeBar) statSafeBar.style.width = inc.percentSafe;
-        if (statDangerBar) statDangerBar.style.width = `${(100 - parseFloat(inc.percentSafe)).toFixed(2)}%`;
+        if (statDangerBar) statDangerBar.style.width = (100 - parseFloat(inc.percentSafe)) + "%";
 
-        // Metric Card 2: Exposed
-        if (boxExposed) boxExposed.className = "metric-box";
-        if (labelExposed) labelExposed.innerText = "Exposed Records Prior to Containment";
-        if (statExposed) {
-            statExposed.innerText = `${inc.recordsExposed} Records`;
-            statExposed.className = "metric-number text-danger";
-        }
-        if (statExposedSub) statExposedSub.innerText = "Masked courier waybills only (No authentication credentials exposed)";
-        if (btnViewVictimsCard) btnViewVictimsCard.style.display = "inline-block";
+        // 3. METRIC 2: EXPOSED RECORDS (BLAST RADIUS)
+        if (statExposed) statExposed.innerText = `${inc.recordsExposed} Records`;
+        if (statExposedSub) statExposedSub.innerText = `Blast radius contained by TripwireJS in ${inc.containmentTimeMs}ms`;
+        if (boxExposed) boxExposed.className = "metric-box breach-active";
+        if (labelExposed) labelExposed.innerText = "Exposed Records (Blast Radius)";
+        if (btnViewVictimsCard) btnViewVictimsCard.style.display = "inline-flex";
 
-        // Metric Card 3: Containment Latency
+        // 4. METRIC 3: MITIGATION LATENCY
         if (statSpeed) {
             statSpeed.innerText = `${inc.containmentTimeMs} Milliseconds`;
             statSpeed.className = "metric-number text-primary";
         }
-        if (statSpeedSub) statSpeedSub.innerText = `Automated token revocation + Cloud Firestore kill-switch`;
+        if (statSpeedSub) statSpeedSub.innerText = "Automated token revocation + Cloud Firestore kill-switch";
 
-        // Left Column: 3 Remediation Actions
+        // 5. LEFT COLUMN: INCIDENT REMEDIATION PROTOCOL
         if (panelTitle) panelTitle.innerText = "Incident Remediation Protocol";
         if (panelCaption) panelCaption.innerText = "Execute required incident containment and statutory compliance actions:";
 
@@ -343,7 +272,7 @@ function switchState(state, incidentData = null) {
                         <span class="action-step-num">1</span>
                         <div>
                             <strong>Credential Quarantine Active</strong>
-                            <p>Session token for Maria Santos (${inc.staffId}) revoked across Cloud infrastructure in ${inc.containmentTimeMs}ms.</p>
+                            <p>Session token for ${inc.staffName} (${inc.staffId}) revoked across Cloud infrastructure in ${inc.containmentTimeMs}ms.</p>
                         </div>
                     </div>
                     <button class="btn btn-sm btn-outline" id="btnQuarantine" onclick="handleQuarantine()">
@@ -368,19 +297,19 @@ function switchState(state, incidentData = null) {
                     <div class="action-header">
                         <span class="action-step-num">3</span>
                         <div>
-                            <strong>NPC 72-Hour Formal Dossier</strong>
-                            <p>Mandatory compliance report pre-filled with containment telemetry under NPC Circular 16-03.</p>
+                            <strong>NPC 72-Hour Breach Forensic Report</strong>
+                            <p>Formal notification required by NPC Circular 16-03 for all automated containment incidents.</p>
                         </div>
                     </div>
-                    <button class="btn btn-sm btn-outline" id="btnNpc" onclick="openModal('npcModal')">
-                        Export NPC Report
+                    <button class="btn btn-sm btn-outline" onclick="openModal('npcModal')">
+                        Generate Official Dossier
                     </button>
                 </div>
             `;
         }
         if (unlockFooter) unlockFooter.style.display = "flex";
 
-        // Right Column: Incident Telemetry Log
+        // 6. RIGHT COLUMN: FORENSIC TELEMETRY AUDIT LOG
         if (activityTitle) activityTitle.innerText = "Forensic Event Telemetry";
         if (activityCaption) activityCaption.innerText = "Immutable event log recording breach detection and mitigation timeline:";
 
@@ -389,7 +318,7 @@ function switchState(state, incidentData = null) {
                 <div class="log-entry">
                     <span class="log-tag tag-danger">CRIT</span>
                     <span class="log-time">${inc.timestamp}</span>
-                    <span class="log-msg">Velocity threshold exceeded: ${inc.recordsExposed} queries in 3.1s on usr_maria.</span>
+                    <span class="log-msg">Velocity threshold exceeded: ${inc.recordsExposed} queries in 3.1s on ${inc.staffId}.</span>
                 </div>
                 <div class="log-entry">
                     <span class="log-tag tag-primary">KILL</span>
@@ -408,13 +337,16 @@ function switchState(state, incidentData = null) {
     }
 }
 
-// -----------------------------------------------------------------------------
-// 3. DYNAMIC VICTIMS GENERATOR
-// -----------------------------------------------------------------------------
+// ============================================================================
+// SECTION 4: FORENSIC AUDIT LOG & DYNAMIC VICTIMS GENERATOR
+// ============================================================================
+
+// GENERATE SIMULATED LIST OF TOUCHED DATA SUBJECTS FOR AUDIT LOGGING
 function buildDynamicVictims(inc) {
     victimsList = [];
     const count = inc.recordsExposed || 31;
 
+    // IF CANARY HONEYPOT TRIGGERED: EXCLUSIVELY DECOY RECORD EXPOSED
     if (inc.triggerType === "HONEYPOT_CANARY_TRIPPED") {
         victimsList.push({
             id: "TRK-0000",
@@ -444,67 +376,100 @@ function buildDynamicVictims(inc) {
         "Gabriel D. Gabiliño", "Rainner B. Gallo", "Jestine E. Gibaga"
     ];
 
-    for (let i = 1; i <= count; i++) {
-        const tracking = "TRK-" + (1000 + i);
-        const city = sampleLocations[(i - 1) % sampleLocations.length] + ", Batangas";
-        const pkg = samplePackages[(i - 1) % samplePackages.length];
-        const studentName = realStudents[(i - 1) % realStudents.length];
+    for (let i = 0; i < count; i++) {
+        const idNum = 1001 + i;
+        const name = realStudents[i % realStudents.length];
+        const city = sampleLocations[i % sampleLocations.length] + ", Batangas";
+        const pkg = samplePackages[i % samplePackages.length];
+        const phone = "09" + Math.floor(10 + Math.random() * 89) + "-***-" + String(1000 + i).slice(-4);
 
         victimsList.push({
-            id: tracking,
-            name: studentName,
-            phone: `0917-***-${1000 + i}`,
+            id: `TRK-${idNum}`,
+            name: name,
+            phone: phone,
             city: city,
-            exposed: `Masked Waybill Manifest (${pkg})`,
+            package: pkg,
+            exposed: "Recipient Name, Masked Phone, Delivery Town, Consignment Details",
             isCanary: false,
             smsStatus: "Pending Dispatch"
         });
     }
 }
 
+// RENDER FORENSIC AUDIT TABLE OF EXPOSED DATA SUBJECTS
 function renderVictimsTable() {
     const tbody = document.getElementById("victimTableBody");
+    const counter = document.getElementById("victimCountBadge");
+    if (counter) counter.innerText = `${victimsList.length} Records`;
     if (!tbody) return;
 
-    if (!victimsList || victimsList.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 28px; color: var(--text-muted);">
-                    <strong>Zero data subject records compromised.</strong><br>
-                    <span style="font-size: 12px;">Database integrity is 100% intact under Layer-7 sentry enforcement.</span>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    tbody.innerHTML = victimsList.map((vic, idx) => {
-        const rowClass = vic.isCanary ? "row-canary-highlight" : "";
-        const smsBadge = vic.smsStatus.includes("Dispatched") || vic.smsStatus.includes("Terminated")
-            ? `<span class="status-pill status-pill-success">${vic.smsStatus}</span>`
-            : `<span class="status-pill status-pill-pending">${vic.smsStatus}</span>`;
+    tbody.innerHTML = victimsList.map(v => {
+        const statusBadge = v.isCanary
+            ? `<span class="status-pill status-pill-success">Decoy Canary</span>`
+            : (v.smsStatus.includes("Dispatched") 
+                ? `<span class="status-pill status-pill-success">SMS Broadcasted</span>`
+                : `<span class="status-pill status-pill-danger">Notification Pending</span>`);
 
         return `
-            <tr class="${rowClass}">
-                <td class="font-mono">#${idx + 1}</td>
-                <td class="font-mono font-bold">${vic.id}</td>
-                <td><strong>${vic.name}</strong></td>
-                <td>${vic.phone} (${vic.city})</td>
-                <td><span class="text-muted">${vic.exposed}</span></td>
-                <td>${smsBadge}</td>
+            <tr>
+                <td class="font-mono font-bold">${v.id}</td>
+                <td><strong>${v.name}</strong></td>
+                <td class="font-mono text-muted">${v.phone}</td>
+                <td class="text-muted" style="font-size: 11.5px;">${v.city}</td>
+                <td style="font-size: 11px; color: var(--text-muted);">${v.exposed}</td>
+                <td>${statusBadge}</td>
             </tr>
         `;
     }).join("");
 }
 
-// -----------------------------------------------------------------------------
-// 4. STAFF MANAGEMENT & ACCESS CONTROLS
-// -----------------------------------------------------------------------------
+// EXPORT AFFECTED CITIZEN AUDIT LIST TO CSV FILE
+function exportVictimCsv() {
+    showToast("Exporting forensic log to CSV...");
+
+    let csvContent = "Record_ID,Customer_Name,Contact_Info,Data_Fields_Exposed,Notification_Status\n";
+    victimsList.forEach(v => {
+        csvContent += `"${v.id}","${v.name}","${v.phone}","${v.exposed}","${v.smsStatus}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Affected_Customer_Records_Forensic_List.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// SECTION 5: IDENTITY & ACCESS MANAGEMENT (STAFF DIRECTORY & GOVERNANCE)
+// ============================================================================
+
+// RESOLVE VEHICLE EMOJI ICON FOR COURIER ROLE
+function getVehicleEmoji(type) {
+    if (!type) return "🏍️";
+    const t = String(type).toLowerCase();
+    if (t.includes("truck")) return "🚚";
+    return "🏍️";
+}
+
+// TOGGLE VEHICLE SELECTION WHEN ROLE CHANGES ON PROVISIONING FORM
+function handleNewStaffRoleChange() {
+    const roleEl = document.getElementById("newStaffRole");
+    const groupEl = document.getElementById("newStaffVehicleGroup");
+    if (roleEl && groupEl) {
+        groupEl.style.display = (roleEl.value.includes("Driver") || roleEl.value.includes("Rider")) ? "block" : "none";
+    }
+}
+
+// RENDER EMPLOYEES ACCESS GOVERNANCE TABLE
 function renderStaffTable() {
     if (!staffTableBody) return;
 
     staffTableBody.innerHTML = staffList.map(staff => {
-        const initials = staff.name.split(" ").map(n => n[0]).join("");
+        const initials = (staff.name || "ST").split(" ").map(n => n[0]).join("");
         const statusBadge = staff.active 
             ? `<span class="status-pill status-pill-success">Active</span>` 
             : `<span class="status-pill status-pill-danger">Quarantined</span>${staff.quarantineReason ? `<div style="font-size:10px; color:#F87171; font-weight:600; margin-top:3px; max-width:180px; line-height:1.2; word-break:break-word;">⚠️ ${escapeHtml(staff.quarantineReason)}</div>` : ''}`;
@@ -557,6 +522,7 @@ function renderStaffTable() {
     }).join("");
 }
 
+// TOGGLE STAFF ACTIVE STATE (RESTORATION OR ROUTE TO PASSWORD-GATED QUARANTINE MODAL)
 async function toggleStaffAccount(staffId) {
     const staff = staffList.find(s => s.id === staffId);
     if (!staff) return;
@@ -564,19 +530,19 @@ async function toggleStaffAccount(staffId) {
     const newActiveState = !staff.active;
 
     if (!newActiveState) {
-        // Quarantine action requires administrative confirmation with password and reason
+        // MANUAL QUARANTINE REQUIRES ADMIN PASSWORD AND REASON
         openAdminConfirmModal('quarantine', staffId);
         return;
     }
 
-    // Account Restoration
+    // ACCOUNT RESTORATION PROCEDURE
     staff.active = true;
     staff.velocity = "0.2 req/s (Nominal)";
     staff.isFlagged = false;
     staff.quarantineReason = "";
     showToast(`Account Restored: ${staff.name} authorized for dispatch operations.`);
 
-    // Sync to Cloud Firestore
+    // SYNCHRONIZE TO CLOUD FIRESTORE
     if (db) {
         try {
             await db.collection("staff").doc(staffId).update({
@@ -618,18 +584,54 @@ async function toggleStaffAccount(staffId) {
     renderStaffTable();
 }
 
+// DEMO SHORTCUT: QUICK-RESTORE DEFAULT DISPATCHER
 function handleRestore() {
     toggleStaffAccount("usr_maria");
 }
 
+// SMOOTH SCROLL DIRECTLY TO STAFF DIRECTORY TABLE
 function scrollToStaff() {
     const el = document.getElementById("staffSection");
     if (el) el.scrollIntoView({ behavior: "smooth" });
 }
 
-// -----------------------------------------------------------------------------
-// 5. REMEDIATION ACTIONS & COMPLIANCE MODALS
-// -----------------------------------------------------------------------------
+// DISPLAY EMPLOYEE 2FA QR CODE MODAL FOR AUTHENTICATOR ENROLLMENT
+function viewEmployeeQrModal(staffId) {
+    const staff = staffList.find(s => s.id === staffId);
+    if (!staff) return;
+
+    let totpSecret = staff.totpSecret;
+    if (!totpSecret) {
+        if (typeof TOTP !== "undefined" && TOTP.getSecretForEmail) {
+            totpSecret = TOTP.getSecretForEmail(staff.email);
+        } else {
+            totpSecret = "JBSWY3DPEHPK3PXP";
+        }
+    }
+
+    const titleEl = document.getElementById("verifiedModalHeading");
+    if (titleEl) titleEl.innerText = "Employee 2FA Authenticator Setup";
+
+    const nameEl = document.getElementById("verifiedStaffName");
+    if (nameEl) nameEl.innerText = staff.name + " (" + staff.role + ")";
+
+    const secEl = document.getElementById("verifiedSecretKey");
+    if (secEl) secEl.innerText = totpSecret;
+
+    const otpUrl = `otpauth://totp/SwiftLogistics:${encodeURIComponent(staff.email)}?secret=${totpSecret}&issuer=SwiftLogistics&algorithm=SHA1&digits=6&period=30`;
+    const qrImg = document.getElementById("verifiedQrImage");
+    if (qrImg) {
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(otpUrl)}`;
+    }
+
+    openModal("verifiedOnboardingModal");
+}
+
+// ============================================================================
+// SECTION 6: STATUTORY REGULATORY REMEDIATION (NPC COMPLIANCE & SMS NOTICES)
+// ============================================================================
+
+// SIMULATE DISPATCHING PASSWORD RESET LINK TO QUARANTINED TERMINAL
 function handleQuarantine() {
     const btn = document.getElementById("btnQuarantine");
     if (!btn) return;
@@ -643,6 +645,7 @@ function handleQuarantine() {
     }, 500);
 }
 
+// BROADCAST SMS BREACH ADVISORIES VIA SEMAPHORE TO EXPOSED CITIZENS
 function confirmSmsSend() {
     closeModal("smsModal");
     const btn = document.getElementById("btnSendSms");
@@ -664,6 +667,7 @@ function confirmSmsSend() {
     }, 600);
 }
 
+// DOWNLOAD OFFICIAL NPC 72-HOUR BREACH INCIDENT DOSSIER (RA 10173 SEC. 20)
 function downloadNpcReport() {
     closeModal("npcModal");
     showToast("Exporting official NPC breach dossier...");
@@ -710,36 +714,20 @@ function downloadNpcReport() {
     URL.revokeObjectURL(url);
 }
 
-function exportVictimCsv() {
-    showToast("Exporting forensic log to CSV...");
+// ============================================================================
+// SECTION 7: DETECTION THRESHOLDS & RATE LIMITING POLICY CONFIGURATION
+// ============================================================================
 
-    let csvContent = "Record_ID,Customer_Name,Contact_Info,Data_Fields_Exposed,Notification_Status\n";
-    victimsList.forEach(v => {
-        csvContent += `"${v.id}","${v.name}","${v.phone}","${v.exposed}","${v.smsStatus}"\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Affected_Customer_Records_Forensic_List.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
-
-// -----------------------------------------------------------------------------
-// 6. RATE LIMITING & DETECTION THRESHOLDS
-// -----------------------------------------------------------------------------
+// SENTRY DETECTION PARAMETERS AND OPERATIONAL THRESHOLDS
 let protectionSettings = {
-    burstLimit: 30,
-    burstWindowSec: 5,
-    dailyQuota: 50,
-    canaryEnabled: true,
-    alertPhone: "0917-829-9821"
+    burstLimit: 30,          // MAXIMUM QUERIES ALLOWED PER WINDOW
+    burstWindowSec: 5,       // SLIDING TIME WINDOW IN SECONDS
+    dailyQuota: 50,          // DAILY SHIFT QUOTA PER STAFF
+    canaryEnabled: true,     // HONEYPOT CANARY DECOY TRAP SWITCH
+    alertPhone: "0917-829-9821" // SMS ALERT NOTIFICATION ROUTING
 };
 
+// LOAD CONFIGURED THRESHOLDS FROM LOCALSTORAGE
 function loadProtectionSettings() {
     try {
         const saved = localStorage.getItem("tripwire_protection_settings");
@@ -751,6 +739,7 @@ function loadProtectionSettings() {
     updateProtectionUI();
 }
 
+// SYNC FORM CONTROLS WITH CURRENT PROTECTION SETTINGS
 function updateSettingsFormFields() {
     const sliderBurst = document.getElementById("sliderBurst");
     const sliderDaily = document.getElementById("sliderDaily");
@@ -773,6 +762,7 @@ function updateSettingsFormFields() {
     }
 }
 
+// INITIALIZE RANGE SLIDER LISTENERS FOR POLICY CONFIGURATION MODAL
 function initThresholdControls() {
     const sliderBurst = document.getElementById("sliderBurst");
     const sliderDaily = document.getElementById("sliderDaily");
@@ -795,6 +785,7 @@ function initThresholdControls() {
     }
 }
 
+// PERSIST MODIFIED THRESHOLDS TO LOCALSTORAGE AND UPDATE SENTRY UI
 function saveProtectionSettings() {
     const sliderBurst = document.getElementById("sliderBurst");
     const sliderDaily = document.getElementById("sliderDaily");
@@ -815,6 +806,7 @@ function saveProtectionSettings() {
     showToast(`Policy updated: velocity threshold set to ${protectionSettings.burstLimit} queries / 5s.`);
 }
 
+// RESET THRESHOLDS BACK TO SECURE DEFAULT VALUES
 function resetProtectionSettings() {
     protectionSettings.burstLimit = 30;
     protectionSettings.dailyQuota = 50;
@@ -823,6 +815,7 @@ function resetProtectionSettings() {
     saveProtectionSettings();
 }
 
+// UPDATE ACTIVE POLICY SPECIFICATION CARD ON CONSOLE DASHBOARD
 function updateProtectionUI() {
     const protectionBox = document.getElementById("protectionBox");
     if (protectionBox) {
@@ -858,43 +851,11 @@ function updateProtectionUI() {
     }
 }
 
-// -----------------------------------------------------------------------------
-// 7. MODALS & TOAST NOTIFICATIONS
-// -----------------------------------------------------------------------------
-function openModal(modalId) {
-    const m = document.getElementById(modalId);
-    if (m) m.classList.remove("hidden");
-}
+// ============================================================================
+// SECTION 8: STAFF ACCOUNT PROVISIONING & 2FA KEY GENERATION (OWNER PORTAL)
+// ============================================================================
 
-function closeModal(modalId) {
-    const m = document.getElementById(modalId);
-    if (m) m.classList.add("hidden");
-}
-
-window.onclick = function(event) {
-    if (event.target.classList.contains("modal-backdrop")) {
-        event.target.classList.add("hidden");
-    }
-};
-
-let toastTimer;
-function showToast(msg) {
-    const toast = document.getElementById("friendlyToast");
-    if (!toast) return;
-    clearTimeout(toastTimer);
-    toast.innerText = msg;
-    toast.classList.remove("hidden");
-    toastTimer = setTimeout(() => {
-        toast.classList.add("hidden");
-    }, 3200);
-}
-
-// -----------------------------------------------------------------------------
-// 8. REAL-TIME EVENT SYNCHRONIZATION
-// -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-// 8. STAFF ACCOUNT PROVISIONING (OWNER SIDE)
-// -----------------------------------------------------------------------------
+// PROVISION A NEW STAFF ACCOUNT DIRECTLY FROM OWNER CONSOLE
 async function handleProvisionStaffSubmit(event) {
     if (event) event.preventDefault();
     const nameInput = document.getElementById("newStaffName");
@@ -934,7 +895,7 @@ async function handleProvisionStaffSubmit(event) {
         newStaffDoc.vehicleType = vehicleType;
     }
 
-    // Save to Firestore
+    // PERSIST NEW ACCOUNT DIRECTLY TO CLOUD FIRESTORE /staff
     if (db) {
         try {
             await db.collection("staff").doc(uid).set(newStaffDoc);
@@ -944,7 +905,7 @@ async function handleProvisionStaffSubmit(event) {
         }
     }
 
-    // Add to in-memory staffList
+    // UPDATE IN-MEMORY STAFF LIST
     const newEntry = {
         id: uid,
         name: name,
@@ -965,7 +926,7 @@ async function handleProvisionStaffSubmit(event) {
     try { localStorage.setItem("swift_staff_directory", JSON.stringify(staffList)); } catch (e) {}
     renderStaffTable();
 
-    // Derive deterministic RFC 6238 Secret
+    // DISPLAY DERIVED RFC 6238 TOTP SECRET AND QR CODE
     let secret = provSecret;
     const qrUri = `otpauth://totp/SwiftLogistics:${encodeURIComponent(email)}?secret=${secret}&issuer=SwiftLogistics&algorithm=SHA1&digits=6&period=30`;
 
@@ -977,6 +938,11 @@ async function handleProvisionStaffSubmit(event) {
     showToast(`Staff account for ${name} registered by Bossing Jeff!`);
 }
 
+// ============================================================================
+// SECTION 9: REAL-TIME CLOUD SYNCHRONIZATION (FIRESTORE SNAPSHOT LISTENERS)
+// ============================================================================
+
+// ATTACH REAL-TIME FIRESTORE LISTENERS FOR CROSS-TAB STATE & REPOSITORY UPDATES
 function initRealtimeSync() {
     if (typeof window !== "undefined") {
         window.addEventListener("storage", (e) => {
@@ -992,7 +958,7 @@ function initRealtimeSync() {
 
     if (db) {
         try {
-            // Real-time listener for Staff Directory provisioned by Bossing Jeff
+            // REAL-TIME LISTENER FOR /staff DIRECTORY PROVISIONED BY BOSSING JEFF
             db.collection("staff").onSnapshot((snapshot) => {
                 if (!snapshot.empty) {
                     const loaded = [];
@@ -1020,6 +986,7 @@ function initRealtimeSync() {
                 console.warn("Firestore staff snapshot notice:", err.message);
             });
 
+            // REAL-TIME LISTENER FOR /system_status/tripwire KILL-SWITCH BROADCASTS
             db.collection("system_status").doc("tripwire").onSnapshot((doc) => {
                 if (doc.exists) {
                     const d = doc.data();
@@ -1046,9 +1013,7 @@ function initRealtimeSync() {
     }
 }
 
-// -----------------------------------------------------------------------------
-// 9. INITIALIZATION
-// -----------------------------------------------------------------------------
+// INITIALIZE CONSOLE APPLICATION ON PAGE LOAD
 document.addEventListener("DOMContentLoaded", () => {
     initDOMElements();
     loadProtectionSettings();
@@ -1058,12 +1023,13 @@ document.addEventListener("DOMContentLoaded", () => {
     loadPendingRegistrations();
 });
 
+// ============================================================================
+// SECTION 10: PENDING REGISTRATIONS QUEUE (ADMIN VERIFICATION GATED)
+// ============================================================================
 
-// -----------------------------------------------------------------------------
-// PENDING STAFF REGISTRATIONS & VERIFICATION (ADMIN GATED)
-// -----------------------------------------------------------------------------
 let pendingRegistrationsList = [];
 
+// RETRIEVE PENDING APPLICANTS FROM LOCAL CACHE AND CLOUD FIRESTORE
 function loadPendingRegistrations() {
     try {
         const stored = localStorage.getItem("swift_pending_registrations");
@@ -1074,7 +1040,7 @@ function loadPendingRegistrations() {
 
     renderPendingRegistrationsTable();
 
-    // Also sync from Firestore if online
+    // ATTACH REAL-TIME FIRESTORE LISTENER ON /registrations COLLECTION
     if (db) {
         try {
             db.collection("registrations").where("status", "==", "pending_verification").onSnapshot((snapshot) => {
@@ -1095,6 +1061,7 @@ function loadPendingRegistrations() {
     }
 }
 
+// RENDER APPLICANT ROWS IN PENDING REGISTRATIONS TABLE
 function renderPendingRegistrationsTable() {
     const tbody = document.getElementById("pendingRegistrationsBody");
     const badge = document.getElementById("pendingCountBadge");
@@ -1144,6 +1111,7 @@ function renderPendingRegistrationsTable() {
     }).join("");
 }
 
+// APPROVE PENDING APPLICANT, PROVISION ACCOUNT & GENERATE 2FA KEYS
 async function handleApproveRegistration(regId) {
     const reg = pendingRegistrationsList.find(r => r.id === regId);
     if (!reg) return;
@@ -1153,7 +1121,7 @@ async function handleApproveRegistration(regId) {
         ? reg.totpSecret
         : ((typeof TOTP !== "undefined" && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(reg.email) : "JBSWY3DPEHPK3PXP");
 
-    // 1. Add to active staff list and update UI immediately
+    // 1. ADD TO ACTIVE STAFF LIST AND UPDATE UI
     const vehicleType = reg.vehicleType || (reg.role && (reg.role.toLowerCase().includes("driver") || reg.role.toLowerCase().includes("rider")) ? "Motorcycle" : "");
     const newStaff = {
         id: staffUid,
@@ -1174,12 +1142,12 @@ async function handleApproveRegistration(regId) {
     staffList.push(newStaff);
     renderStaffTable();
 
-    // 2. Remove from pending queue
+    // 2. REMOVE FROM PENDING REGISTRATIONS QUEUE
     pendingRegistrationsList = pendingRegistrationsList.filter(r => r.id !== regId);
     try { localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingRegistrationsList)); } catch (e) {}
     renderPendingRegistrationsTable();
 
-    // 3. Update local staff directory
+    // 3. PERSIST APPROVAL TO LOCAL DIRECTORY CACHE
     try {
         let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
         dir = dir.filter(s => (s.email || "").toLowerCase() !== reg.email.toLowerCase());
@@ -1187,7 +1155,7 @@ async function handleApproveRegistration(regId) {
         localStorage.setItem("swift_staff_directory", JSON.stringify(dir));
     } catch (e) {}
 
-    // 4. Save to Firestore /staff/{uid} and delete /registrations/{regId}
+    // 4. WRITE ACTIVATED RECORD TO FIRESTORE /staff AND DELETE /registrations REQUEST
     if (db) {
         try {
             const staffDocToSave = {
@@ -1210,7 +1178,6 @@ async function handleApproveRegistration(regId) {
             await db.collection("staff").doc(staffUid).set(staffDocToSave);
             console.log("[TripwireJS] Approved staff written to /staff/" + staffUid);
 
-            // Delete or update the pending registration in Firestore
             await db.collection("registrations").doc(regId).delete();
             console.log("[TripwireJS] Registration removed from /registrations/" + regId);
         } catch (err) {
@@ -1218,7 +1185,7 @@ async function handleApproveRegistration(regId) {
         }
     }
 
-    // 5. Open Onboarding QR Modal with secret
+    // 5. OPEN ONBOARDING QR CODE MODAL
     document.getElementById("verifiedStaffName").innerText = reg.name;
     document.getElementById("verifiedSecretKey").innerText = totpSecret;
     const otpUrl = `otpauth://totp/SwiftLogistics:${encodeURIComponent(reg.email)}?secret=${totpSecret}&issuer=SwiftLogistics&algorithm=SHA1&digits=6&period=30`;
@@ -1228,6 +1195,7 @@ async function handleApproveRegistration(regId) {
     showToast(`Staff Verified: ${reg.name} is now authorized for terminal login!`);
 }
 
+// REJECT UNVERIFIED APPLICANT REGISTRATION REQUEST
 async function handleRejectRegistration(regId) {
     pendingRegistrationsList = pendingRegistrationsList.filter(r => r.id !== regId);
     localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingRegistrationsList));
@@ -1244,37 +1212,11 @@ async function handleRejectRegistration(regId) {
     showToast("Registration request rejected and removed.");
 }
 
-function viewEmployeeQrModal(staffId) {
-    const staff = staffList.find(s => s.id === staffId);
-    if (!staff) return;
+// ============================================================================
+// SECTION 11: HIGH-PRIVILEGE SECURITY ACTION CONFIRMATION (PASSWORD & REASON GATED)
+// ============================================================================
 
-    let totpSecret = staff.totpSecret;
-    if (!totpSecret) {
-        if (typeof TOTP !== "undefined" && TOTP.getSecretForEmail) {
-            totpSecret = TOTP.getSecretForEmail(staff.email);
-        } else {
-            totpSecret = "JBSWY3DPEHPK3PXP";
-        }
-    }
-
-    const titleEl = document.getElementById("verifiedModalHeading");
-    if (titleEl) titleEl.innerText = "Employee 2FA Authenticator Setup";
-
-    const nameEl = document.getElementById("verifiedStaffName");
-    if (nameEl) nameEl.innerText = staff.name + " (" + staff.role + ")";
-
-    const secEl = document.getElementById("verifiedSecretKey");
-    if (secEl) secEl.innerText = totpSecret;
-
-    const otpUrl = `otpauth://totp/SwiftLogistics:${encodeURIComponent(staff.email)}?secret=${totpSecret}&issuer=SwiftLogistics&algorithm=SHA1&digits=6&period=30`;
-    const qrImg = document.getElementById("verifiedQrImage");
-    if (qrImg) {
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(otpUrl)}`;
-    }
-
-    openModal("verifiedOnboardingModal");
-}
-
+// HTML ESCAPING UTILITY TO PREVENT CROSS-SITE SCRIPTING (XSS)
 function escapeHtml(text) {
     if (!text) return "";
     return String(text)
@@ -1285,6 +1227,7 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
+// APPEND ADMINISTRATIVE ACTION TO IMMUTABLE SECURITY TELEMETRY LOG
 function logSecurityEvent(action, staffName, staffId, reason) {
     if (!logList) return;
     const time = new Date().toLocaleTimeString();
@@ -1301,11 +1244,9 @@ function logSecurityEvent(action, staffName, staffId, reason) {
     logList.prepend(entry);
 }
 
-// -----------------------------------------------------------------------------
-// 10. ADMIN CONFIRMATION FOR QUARANTINE & DELETION (PASSWORD & REASON GATED)
-// -----------------------------------------------------------------------------
 let pendingAdminAction = null;
 
+// OPEN SECURITY ACTION CONFIRMATION MODAL (DYNAMICALLY CONFIGURES FOR QUARANTINE VS DELETE)
 function openAdminConfirmModal(actionType, staffId) {
     if (staffId === "usr_jeff") {
         showToast("Cannot modify Administrator account.", "warning");
@@ -1321,7 +1262,7 @@ function openAdminConfirmModal(actionType, staffId) {
         staff: staff
     };
 
-    // Target Overview Card
+    // POPULATE TARGET EMPLOYEE OVERVIEW CARD
     const initials = (staff.name || "ST").split(" ").map(n => n[0]).join("");
     const avatarEl = document.getElementById("adminConfirmAvatar");
     const nameEl = document.getElementById("adminConfirmName");
@@ -1333,7 +1274,7 @@ function openAdminConfirmModal(actionType, staffId) {
     if (roleEl) roleEl.innerText = staff.role;
     if (emailEl) emailEl.innerText = staff.email || "No email on record";
 
-    // Reset Form Fields & Error Display
+    // RESET INPUT FIELDS AND INLINE ERROR BANNER
     const passInput = document.getElementById("adminActionPassword");
     const errorBanner = document.getElementById("adminActionErrorBanner");
     const titleEl = document.getElementById("adminConfirmModalTitle");
@@ -1417,6 +1358,7 @@ function openAdminConfirmModal(actionType, staffId) {
     }, 100);
 }
 
+// AUTO-FILL CONCISE JUSTIFICATION IN TEXTAREA WHEN CATEGORY CHANGES
 function handleAdminReasonCategoryChange() {
     const catSelect = document.getElementById("adminActionCategory");
     const detailsInput = document.getElementById("adminActionDetails");
@@ -1427,11 +1369,13 @@ function handleAdminReasonCategoryChange() {
     }
 }
 
+// CLOSE SECURITY ACTION CONFIRMATION MODAL
 function closeAdminConfirmModal() {
     closeModal("adminActionConfirmModal");
     pendingAdminAction = null;
 }
 
+// VALIDATE ADMINISTRATOR PASSWORD AND EXECUTE AUTHORIZED ACTION
 async function executeAdminConfirmedAction(e) {
     if (e && e.preventDefault) e.preventDefault();
     if (!pendingAdminAction) return;
@@ -1445,7 +1389,7 @@ async function executeAdminConfirmedAction(e) {
     const details = (detailsInput ? detailsInput.value : "").trim();
     const enteredPassword = (passwordInput ? passwordInput.value : "").trim();
 
-    // 1. Validate Category
+    // 1. VALIDATE REASON CATEGORY SELECTION
     if (!category) {
         if (errorBanner) {
             errorBanner.innerText = "❌ Please select an action reason category.";
@@ -1455,7 +1399,7 @@ async function executeAdminConfirmedAction(e) {
         return;
     }
 
-    // 2. Validate Detailed Remarks
+    // 2. VALIDATE SPECIFIC REMARKS JUSTIFICATION
     if (!details) {
         if (errorBanner) {
             errorBanner.innerText = "❌ Specific remarks / justification are required for audit logging.";
@@ -1465,8 +1409,7 @@ async function executeAdminConfirmedAction(e) {
         return;
     }
 
-    // 3. Validate Administrator Password
-    // Verified against Bossing Jeff's administrator credentials ("password123")
+    // 3. VALIDATE ADMINISTRATOR PASSWORD ("password123")
     if (enteredPassword !== "password123") {
         if (errorBanner) {
             errorBanner.innerText = "❌ Invalid Administrator Password. Authorization rejected.";
@@ -1508,6 +1451,7 @@ async function executeAdminConfirmedAction(e) {
     }
 }
 
+// EXECUTE ACCOUNT QUARANTINE WITH FORENSIC AUDIT TRAIL
 async function executeQuarantineWithAudit(staffId, staff, fullReason, category) {
     const staffName = staff ? staff.name : staffId;
     staff.active = false;
@@ -1518,7 +1462,7 @@ async function executeQuarantineWithAudit(staffId, staff, fullReason, category) 
     staff.velocity = "0.0 req/s (Revoked)";
     staff.isFlagged = true;
 
-    // Update local directory cache
+    // UPDATE LOCAL DIRECTORY CACHE
     try {
         let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
         const idx = dir.findIndex(s => s.id === staffId);
@@ -1534,7 +1478,7 @@ async function executeQuarantineWithAudit(staffId, staff, fullReason, category) 
         localStorage.setItem("tripwire_quarantine_sync", "quarantined");
     } catch (e) {}
 
-    // Synchronize to Cloud Firestore
+    // SYNCHRONIZE QUARANTINE LOCKOUT TO CLOUD FIRESTORE
     if (db) {
         try {
             await db.collection("staff").doc(staffId).update({
@@ -1563,28 +1507,29 @@ async function executeQuarantineWithAudit(staffId, staff, fullReason, category) 
     renderStaffTable();
 }
 
+// EXECUTE PERMANENT ACCOUNT DELETION WITH PURGE AUDIT LOG
 async function executeDeleteWithAudit(staffId, staff, fullReason, category) {
     const staffName = staff ? staff.name : staffId;
     const staffEmail = (staff && staff.email ? staff.email : "").toLowerCase();
 
-    // 1. Remove from in-memory staffList
+    // 1. REMOVE FROM IN-MEMORY STAFF LIST
     staffList = staffList.filter(s => s.id !== staffId);
 
-    // 2. Remove from local directory cache
+    // 2. PURGE FROM LOCAL DIRECTORY CACHE
     try {
         let dir = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
         dir = dir.filter(s => s.id !== staffId && (s.email || "").toLowerCase() !== staffEmail);
         localStorage.setItem("swift_staff_directory", JSON.stringify(dir));
     } catch (e) {}
 
-    // 3. Remove from local pending registrations if present
+    // 3. PURGE FROM PENDING REGISTRATIONS CACHE IF PRESENT
     try {
         pendingRegistrationsList = pendingRegistrationsList.filter(r => (r.email || "").toLowerCase() !== staffEmail);
         localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingRegistrationsList));
         renderPendingRegistrationsTable();
     } catch (e) {}
 
-    // 4. Delete from Cloud Firestore /staff/{staffId} AND any related /registrations
+    // 4. PURGE FROM CLOUD FIRESTORE /staff/{staffId} AND MATCHING /registrations
     if (db) {
         try {
             await db.collection("staff").doc(staffId).delete();
@@ -1605,4 +1550,41 @@ async function executeDeleteWithAudit(staffId, staff, fullReason, category) {
     logSecurityEvent("DELETION", staffName, staffId, fullReason);
     showToast(`Account for ${staffName} permanently deleted. Reason: ${category}`);
     renderStaffTable();
+}
+
+// ============================================================================
+// SECTION 12: MODAL WINDOW CONTROLS & USER TOAST ALERTS
+// ============================================================================
+
+// OPEN A MODAL WINDOW BY ELEMENT ID
+function openModal(modalId) {
+    const m = document.getElementById(modalId);
+    if (m) m.classList.remove("hidden");
+}
+
+// CLOSE A MODAL WINDOW BY ELEMENT ID
+function closeModal(modalId) {
+    const m = document.getElementById(modalId);
+    if (m) m.classList.add("hidden");
+}
+
+// CLOSE MODAL WHEN CLICKING OUTSIDE ON BACKDROP
+window.onclick = function(event) {
+    if (event.target.classList.contains("modal-backdrop")) {
+        event.target.classList.add("hidden");
+    }
+};
+
+let toastTimer;
+
+// DISPLAY FLOATING NON-INTRUSIVE SYSTEM TOAST NOTIFICATION
+function showToast(msg) {
+    const toast = document.getElementById("friendlyToast");
+    if (!toast) return;
+    clearTimeout(toastTimer);
+    toast.innerText = msg;
+    toast.classList.remove("hidden");
+    toastTimer = setTimeout(() => {
+        toast.classList.add("hidden");
+    }, 3200);
 }
