@@ -1474,7 +1474,7 @@ function closeBookParcelModal() {
 }
 
 // ============================================================================
-// FUNCTION: SUBMIT NEW CONSIGNMENT BOOKING FROM MODAL
+// SUBMIT NEW CONSIGNMENT BOOKING FROM MODAL
 // PURPOSE:  Reads user inputs, geocodes destination, generates tracking number,
 //           and registers shipment in both local cache and Cloud Firestore.
 // ============================================================================
@@ -1504,7 +1504,7 @@ async function handleBookParcelSubmit(e) {
 }
 
 // ============================================================================
-// FUNCTION: OPEN STATUS & DISPATCH MODAL (ASSIGN COURIER OR UPDATE TRANSIT STAGE)
+// OPEN STATUS & DISPATCH MODAL (ASSIGN COURIER OR UPDATE TRANSIT STAGE)
 // PURPOSE:  Populates current shipment status and queries approved couriers from
 //           Cloud Firestore to populate the assignment dropdown.
 // ============================================================================
@@ -1558,7 +1558,7 @@ function closeUpdateStatusModal() {
 }
 
 // ============================================================================
-// FUNCTION: CONFIRM STATUS TRANSITION & ASSIGN FIELD COURIER
+// CONFIRM STATUS TRANSITION & ASSIGN FIELD COURIER
 // PURPOSE:  Enforces core business rule: A parcel CANNOT be "Out for Delivery"
 //           without an assigned courier. Writes update to Cloud Firestore.
 // ============================================================================

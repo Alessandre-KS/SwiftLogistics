@@ -479,7 +479,7 @@
         let geocodeDebounceTimer = null;    // DEBOUNCE TIMER TO PREVENT FLOODING NOMINATIM API
 
         // ============================================================================
-        // FUNCTION: HIGH-PRECISION REVERSE-GEOCODING VIA OPENSTREETMAP JSONP
+        // HIGH-PRECISION REVERSE-GEOCODING VIA OPENSTREETMAP JSONP
         // PURPOSE:  Converts GPS coordinates [lat, lng] into exact Batangas street names,
         //           puroks, and barangays using Nominatim reverse geocoding.
         // ============================================================================
@@ -833,7 +833,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: SELECT ACTIVE PAYMENT METHOD (COD, DEBIT CARD, OR E-WALLET)
+        // SELECT ACTIVE PAYMENT METHOD (COD, DEBIT CARD, OR E-WALLET)
         // PURPOSE:  Updates UI card selection states, toggles amount input labels,
         //           and triggers live thermal waybill sticker re-rendering.
         // ============================================================================
@@ -866,7 +866,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: RENDER LIVE THERMAL WAYBILL STICKER & ESTIMATE HUB DISTANCE
+        // RENDER LIVE THERMAL WAYBILL STICKER & ESTIMATE HUB DISTANCE
         // PURPOSE:  Harvests form fields in real-time, masks customer phone numbers
         //           for RA 10173 Data Privacy compliance, resolves routing sort codes,
         //           and live-updates the Leaflet map and sticker preview.
@@ -979,7 +979,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: SUBMIT AND PERSIST COMPLETE WAYBILL CONSIGNMENT TO FIRESTORE
+        // SUBMIT AND PERSIST COMPLETE WAYBILL CONSIGNMENT TO FIRESTORE
         // PURPOSE:  Packages all input values, calculates distance, applies privacy
         //           masking, and writes document to Cloud Firestore /parcels collection.
         // ============================================================================

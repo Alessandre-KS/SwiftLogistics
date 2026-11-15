@@ -423,7 +423,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: PLOT ACTIVE DELIVERY STOPS AND REAL ROAD CORRIDOR
+        // PLOT ACTIVE DELIVERY STOPS AND REAL ROAD CORRIDOR
         // PURPOSE:  Takes all assigned parcels, renders numbered sequence stop pins
         //           (Stop #1, #2, etc.), auto-zooms to fit all consignees, and
         //           traces the real highway driving geometry using Leaflet Polyline.
@@ -535,7 +535,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: REFRESH RUN-SHEET VIA MANUAL SYNC BUTTON
+        // REFRESH RUN-SHEET VIA MANUAL SYNC BUTTON
         // PURPOSE:  Fetches latest parcel updates from Cloud Firestore and refreshes UI.
         // ============================================================================
         async function refreshDriverParcels() {
@@ -545,7 +545,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: FILTER PARCELS EXCLUSIVELY ASSIGNED TO THIS ACTIVE DRIVER
+        // FILTER PARCELS EXCLUSIVELY ASSIGNED TO THIS ACTIVE DRIVER
         // PURPOSE:  Checks logged-in courier's name, UID, and email against consignment records.
         // ============================================================================
         function getAssignedDriverParcels() {
@@ -568,7 +568,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: RENDER DRIVER RUN-SHEET, KPI CARDS & CORRIDOR MAP
+        // RENDER DRIVER RUN-SHEET, KPI CARDS & CORRIDOR MAP
         // PURPOSE:  Calculates transit statistics, tallies pending vs delivered parcels,
         //           computes COD cash to collect, and builds consignment card elements.
         // ============================================================================
@@ -786,7 +786,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: OPEN DELIVERY CONFIRMATION & PROOF OF DELIVERY (POD) MODAL
+        // OPEN DELIVERY CONFIRMATION & PROOF OF DELIVERY (POD) MODAL
         // PURPOSE:  Pre-populates consignment details, customer name, and COD collection
         //           amount into the modal dialog for courier handoff confirmation.
         // ============================================================================
@@ -825,7 +825,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: SUBMIT DELIVERY CONFIRMATION & PERSIST TO FIRESTORE
+        // SUBMIT DELIVERY CONFIRMATION & PERSIST TO FIRESTORE
         // PURPOSE:  Transitions consignment status to "Delivered", timestamps handoff,
         //           records COD cash collected, and updates Cloud Firestore /parcels.
         // ============================================================================

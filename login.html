@@ -283,7 +283,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: STEP 1 - PRIMARY CREDENTIALS VERIFICATION (EMAIL & PASSWORD)
+        // STEP 1 - PRIMARY CREDENTIALS VERIFICATION (EMAIL & PASSWORD)
         // PURPOSE:  Validates user's corporate email and password against Cloud Firestore
         //           or authorized staff directory before prompting for MFA.
         // ============================================================================
@@ -313,7 +313,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: STEP 2 - INITIATE TOTP MFA CHALLENGE
+        // STEP 2 - INITIATE TOTP MFA CHALLENGE
         // PURPOSE:  Hides Step 1 password form, displays Step 2 6-digit OTP boxes,
         //           derives user's secret, and activates the 30-second hardware ticker.
         // ============================================================================
@@ -342,7 +342,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: CANCEL STEP 2 AND RETURN TO PRIMARY LOGIN SCREEN
+        // CANCEL STEP 2 AND RETURN TO PRIMARY LOGIN SCREEN
         // PURPOSE:  Clears OTP timer and resets form inputs back to Step 1.
         // ============================================================================
         function cancelStep2() {
@@ -358,7 +358,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: SETUP 6-DIGIT OTP INPUT BOX CONTROLLERS
+        // SETUP 6-DIGIT OTP INPUT BOX CONTROLLERS
         // PURPOSE:  Configures auto-advancing focus, backspace navigation, and clipboard
         //           paste support across the 6 individual numeric input cells.
         // ============================================================================
@@ -425,7 +425,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: CONCATENATE ENTERED 6 DIGITS INTO A SINGLE STRING
+        // CONCATENATE ENTERED 6 DIGITS INTO A SINGLE STRING
         // ============================================================================
         function getEnteredOtp() {
             let code = "";
@@ -436,7 +436,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: CLEAR ALL 6 DIGIT BOXES AND RESET CURSOR TO FIRST CELL
+        // CLEAR ALL 6 DIGIT BOXES AND RESET CURSOR TO FIRST CELL
         // ============================================================================
         function clearOtpBoxes() {
             for (let i = 1; i <= 6; i++) {
@@ -451,7 +451,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: 30-SECOND TOTP HARDWARE TICKER
+        // 30-SECOND TOTP HARDWARE TICKER
         // PURPOSE:  Computes remaining seconds in the current 30-second window and
         //           animates the countdown progress bar.
         // ============================================================================
@@ -477,7 +477,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: VERIFY 6-DIGIT TOTP CODE AGAINST RFC 6238 CRYPTOGRAPHIC SPECIFICATION
+        // VERIFY 6-DIGIT TOTP CODE AGAINST RFC 6238 CRYPTOGRAPHIC SPECIFICATION
         // PURPOSE:  Validates code using Web Crypto HMAC-SHA1. Upon success, stores
         //           MFA-verified session and redirects user to their appropriate role terminal.
         // ============================================================================
@@ -546,7 +546,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: OPEN NEW EMPLOYEE ONBOARDING REGISTRATION MODAL
+        // OPEN NEW EMPLOYEE ONBOARDING REGISTRATION MODAL
         // PURPOSE:  Presents self-service application form for dispatchers and couriers.
         // ============================================================================
         function openRegistrationModal() {
@@ -594,7 +594,7 @@
         }
 
         // ============================================================================
-        // FUNCTION: PROCESS AND SUBMIT EMPLOYEE REGISTRATION REQUEST
+        // PROCESS AND SUBMIT EMPLOYEE REGISTRATION REQUEST
         // PURPOSE:  Performs client-side validation, verifies email and phone uniqueness
         //           against Cloud Firestore, and provisions pending request in database.
         // ============================================================================

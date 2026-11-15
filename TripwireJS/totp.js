@@ -19,10 +19,10 @@ const TOTP = (function () {
     const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
     // ============================================================================
-    // FUNCTION 1: DECODE BASE32 STRING INTO RAW BYTE ARRAY (UINT8ARRAY)
-    // PURPOSE:    Converts a human-readable 16-character Base32 secret (e.g. JBSWY3DPEHPK3PXP)
-    //             into raw cryptographic bytes needed by Web Crypto API.
-    // RFC 4648:   Each Base32 character represents exactly 5 bits of data.
+    // DECODE BASE32 STRING INTO RAW BYTE ARRAY (UINT8ARRAY)
+    // PURPOSE: Converts a human-readable 16-character Base32 secret (e.g. JBSWY3DPEHPK3PXP)
+    //          into raw cryptographic bytes needed by Web Crypto API.
+    // RFC 4648: Each Base32 character represents exactly 5 bits of data.
     // ============================================================================
     function base32ToBytes(base32) {
         // VARIABLES FOR BASE32 BIT EXTRACTION
@@ -48,9 +48,9 @@ const TOTP = (function () {
     }
 
     // ============================================================================
-    // FUNCTION 2: CONVERT INTEGER COUNTER TO 8-BYTE BIG-ENDIAN ARRAY BUFFER
-    // PURPOSE:    RFC 4226 requires the timestep counter to be encoded as an 8-byte
-    //             (64-bit) unsigned integer in Big-Endian network byte order.
+    // CONVERT INTEGER COUNTER TO 8-BYTE BIG-ENDIAN ARRAY BUFFER
+    // PURPOSE: RFC 4226 requires the timestep counter to be encoded as an 8-byte
+    //          (64-bit) unsigned integer in Big-Endian network byte order.
     // ============================================================================
     function counterToBuffer(counter) {
         // VARIABLES FOR 64-BIT INTEGER MEMORY ALLOCATION
@@ -65,9 +65,9 @@ const TOTP = (function () {
     }
 
     // ============================================================================
-    // FUNCTION 3: GENERATE HOTP CODE (RFC 4226 HMAC-SHA1 + DYNAMIC TRUNCATION)
-    // PURPOSE:    Hashes the secret with the timestep counter using HMAC-SHA1, then
-    //             extracts a 6-digit numeric token using standard dynamic truncation.
+    // GENERATE HOTP CODE (RFC 4226 HMAC-SHA1 + DYNAMIC TRUNCATION)
+    // PURPOSE: Hashes the secret with the timestep counter using HMAC-SHA1, then
+    //          extracts a 6-digit numeric token using standard dynamic truncation.
     // ============================================================================
     async function generateHOTP(secretBytes, counter) {
         // IMPORT RAW SECRET BYTES AS AN HMAC CRYPTOGRAPHIC KEY
@@ -98,8 +98,8 @@ const TOTP = (function () {
     }
 
     // ============================================================================
-    // FUNCTION 4: COMPUTE CURRENT RFC 6238 TOTP CODE
-    // FORMULA:    Timestep Counter = Floor(Unix Time in Seconds / 30)
+    // COMPUTE CURRENT RFC 6238 TOTP CODE
+    // FORMULA: Timestep Counter = Floor(Unix Time in Seconds / 30)
     // ============================================================================
     async function getCode(base32Secret, timeOffsetSeconds = 0) {
         // VARIABLES FOR TIME-BASED TOKEN GENERATION
@@ -111,9 +111,9 @@ const TOTP = (function () {
     }
 
     // ============================================================================
-    // FUNCTION 5: VERIFY EMPLOYEE-ENTERED 6-DIGIT TOTP CODE
-    // PURPOSE:    Validates user input against the expected code with clock-drift
-    //             tolerance (+/- 30 seconds) recommended by RFC 6238.
+    // VERIFY EMPLOYEE-ENTERED 6-DIGIT TOTP CODE
+    // PURPOSE: Validates user input against the expected code with clock-drift
+    //          tolerance (+/- 30 seconds) recommended by RFC 6238.
     // ============================================================================
     async function verifyCode(base32Secret, userCode) {
         // SANITIZE USER INPUT
@@ -132,8 +132,8 @@ const TOTP = (function () {
     }
 
     // ============================================================================
-    // FUNCTION 6: GET REMAINING SECONDS IN CURRENT 30-SECOND TIMESTEP
-    // PURPOSE:    Powers the visual animated countdown progress bar in the login UI.
+    // GET REMAINING SECONDS IN CURRENT 30-SECOND TIMESTEP
+    // PURPOSE: Powers the visual animated countdown progress bar in the login UI.
     // ============================================================================
     function getRemainingSeconds() {
         // VARIABLES FOR 30-SECOND COUNTDOWN
@@ -142,9 +142,9 @@ const TOTP = (function () {
     }
 
     // ============================================================================
-    // FUNCTION 7: GENERATE STANDARD 'OTPAUTH://' URI FOR QR CODES
-    // PURPOSE:    Produces standard URI readable by Google Authenticator, Authy, etc.
-    // FORMAT:     otpauth://totp/ISSUER:ACCOUNT?secret=SECRET&issuer=ISSUER&digits=6&period=30
+    // GENERATE STANDARD 'OTPAUTH://' URI FOR QR CODES
+    // PURPOSE: Produces standard URI readable by Google Authenticator, Authy, etc.
+    // FORMAT:  otpauth://totp/ISSUER:ACCOUNT?secret=SECRET&issuer=ISSUER&digits=6&period=30
     // ============================================================================
     function getOtpAuthUrl(accountName, base32Secret, issuer = 'SwiftLogistics') {
         const encodedIssuer = encodeURIComponent(issuer);
@@ -153,10 +153,10 @@ const TOTP = (function () {
     }
 
     // ============================================================================
-    // FUNCTION 8: RETRIEVE OR DERIVE BASE32 SECRET FOR AN EMPLOYEE EMAIL
-    // PURPOSE:    Retrieves client-cached device token or generates a persistent
-    //             RFC 4648 Base32 secret for local simulation and offline use.
-    //             Production seeds are delivered dynamically from Cloud Firestore.
+    // RETRIEVE OR DERIVE BASE32 SECRET FOR AN EMPLOYEE EMAIL
+    // PURPOSE: Retrieves client-cached device token or generates a persistent
+    //          RFC 4648 Base32 secret for local simulation and offline use.
+    //          Production seeds are delivered dynamically from Cloud Firestore.
     // ============================================================================
     function getSecretForEmail(email) {
         if (!email) return 'JBSWY3DPEHPK3PXP';
@@ -184,8 +184,8 @@ const TOTP = (function () {
     }
 
     // ============================================================================
-    // FUNCTION 9: GENERATE CRYPTOGRAPHICALLY SECURE RANDOM BASE32 SECRET
-    // PURPOSE:    Creates a fresh 16-character RFC 4648 Base32 secret for onboarding.
+    // GENERATE CRYPTOGRAPHICALLY SECURE RANDOM BASE32 SECRET
+    // PURPOSE: Creates a fresh 16-character RFC 4648 Base32 secret for onboarding.
     // ============================================================================
     function generateSecret(length = 16) {
         const bytes = new Uint8Array(length);
