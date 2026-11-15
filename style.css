@@ -346,7 +346,8 @@ body.courier-body {
 
 /* TOPBAR */
 .courier-topbar {
-    height: 60px;
+    min-height: 60px;
+    height: auto;
     background: #FFFFFF;
     border-bottom: 1px solid var(--border-subtle);
     padding: 0 28px;
@@ -1464,14 +1465,17 @@ body.courier-body {
     }
 
     .courier-topbar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 14px 16px;
+        height: auto;
+        min-height: 56px;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 16px;
     }
 
     .topbar-actions {
-        width: 100%;
+        width: auto;
         justify-content: flex-end;
     }
 
