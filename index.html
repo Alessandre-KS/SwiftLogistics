@@ -7,7 +7,11 @@
     <link rel="stylesheet" href="style.css?v=5.0.0">
     <!-- DEDICATED DISPATCH COUNTER WORKBENCH STYLESHEET -->
     <link rel="stylesheet" href="index.css?v=1.0.0">
-    <!-- LEAFLET.JS V1.9.4 MAP ENGINE (OPENSTREETMAP / ARCGIS) -->
+    <!-- ====================================================================
+         LEAFLET.JS V1.9.4 MAP STYLESHEET
+         PURPOSE: Provides core styling for OpenStreetMap / ArcGIS GIS canvas,
+                  tile layers, popups, and zoom controls without subscription fees.
+         ==================================================================== -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 </head>
 <body class="courier-body">
@@ -500,7 +504,12 @@
     <!-- TRIPWIREJS LAYER-7 SENTRY SDK (VENDOR) -->
     <script src="vendor/tripwire.js?v=2.1.0"></script>
     <script src="firebase-config.js"></script>
-    <!-- LEAFLET.JS V1.9.4 MAP ENGINE (OPENSTREETMAP / ARCGIS) -->
+    <!-- ====================================================================
+         LEAFLET.JS V1.9.4 MAP ENGINE (OPEN-SOURCE CLIENT GIS RUNTIME)
+         PURPOSE: Interactive mapping engine that streams map tiles dynamically,
+                  plots live courier GPS coordinates, renders custom animated
+                  HTML pins (divIcon), and smoothly animates camera viewport.
+         ==================================================================== -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="app.js?v=4.5.0"></script>
     <script>
@@ -556,15 +565,38 @@
         }
     </script>
 
-    <!-- FLEET RADAR MAP CONTROLLER -->
+    <!-- ============================================================================ -->
+    <!-- SECTION: FLEET RADAR MAP CONTROLLER (POWERED BY LEAFLET.JS V1.9.4)            -->
+    <!-- ============================================================================ -->
+    <!--                                                                              -->
+    <!-- WHAT IS LEAFLET.JS?                                                          -->
+    <!-- Leaflet is an open-source, mobile-friendly JavaScript library designed to    -->
+    <!-- render interactive, high-performance geographic maps inside web browsers.    -->
+    <!--                                                                              -->
+    <!-- WHY IS LEAFLET USED INSTEAD OF PROPRIETARY MAPS (E.G. GOOGLE MAPS API)?      -->
+    <!-- 1. Cost Efficiency (Free & Open Source): Google Maps API charges billing     -->
+    <!--    credits per map load. Leaflet has zero API costs, making it ideal for     -->
+    <!--    Philippine MSMEs and academic capstone defense.                            -->
+    <!-- 2. Lightweight (<42 KB): Loads instantly on mobile data and low-bandwidth.  -->
+    <!-- 3. Flexible Tile Providers: Seamlessly pulls raster map tiles from free       -->
+    <!--    worldwide GIS servers like Esri ArcGIS and OpenStreetMap (OSM).            -->
+    <!-- 4. Pure CSS/HTML Marker Pins: Uses 'L.divIcon' to render custom animated     -->
+    <!--    radar rings, vehicle icons, and courier labels without image assets.      -->
+    <!-- ============================================================================ -->
     <script>
-        let fleetRadarMap = null;
-        let fleetHubMarker = null;
-        let fleetDriverMarkers = {};
-        let currentDriverLocations = {};
+        // GLOBAL LEAFLET MAP OBJECTS AND MARKER REPOSITORIES
+        let fleetRadarMap = null;             // MAIN LEAFLET MAP INSTANCE CANVAS
+        let fleetHubMarker = null;            // CENTRAL DISPATCH HUB ANCHOR MARKER (UB LIPA)
+        let fleetDriverMarkers = {};          // DICTIONARY OF LIVE DRIVER MARKERS KEYED BY DRIVER ID
+        let currentDriverLocations = {};      // LOCAL RUNTIME CACHE OF RECENT DRIVER TELEMETRY POSITIONS
 
+        // ============================================================================
+        // FUNCTION: INITIALIZE FLEET RADAR LEAFLET MAP
+        // PURPOSE:  Mounts the interactive Leaflet map canvas into the HTML container,
+        //           loads GIS street tiles, and plots the central distribution hub.
+        // ============================================================================
         function initFleetRadarMap() {
-            // Immediate purge of obsolete/mock courier records from localStorage
+            // STEP 1: CLEANUP STALE OR MOCK COURIER DATA FROM LOCAL STORAGE
             try {
                 const raw = localStorage.getItem("SWIFT_DRIVER_LOCATIONS");
                 if (raw) {
@@ -582,12 +614,18 @@
                 }
             } catch(e) {}
 
+            // STEP 2: VERIFY HTML CANVAS ELEMENT AND LEAFLET LIBRARY AVAILABILITY
             const canvas = document.getElementById("fleetRadarMapCanvas");
             if (!canvas || typeof L === "undefined") return;
 
+            // STEP 3: RESOLVE CENTRAL HUB GPS COORDINATES (UB LIPA CAMPUS)
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
 
+            // STEP 4: INITIALIZE LEAFLET MAP INSTANCE ('L.map')
+            // - center: Initial geographical focal point [latitude, longitude]
+            // - zoom: Initial magnification level (12 = regional town overview)
+            // - zoomControl: Displays interactive [+] and [-] buttons
             fleetRadarMap = L.map("fleetRadarMapCanvas", {
                 center: [hubLat, hubLng],
                 zoom: 12,
@@ -595,18 +633,23 @@
                 attributionControl: false
             });
 
+            // STEP 5: ATTACH ESRI ARCGIS WORLD STREET BASEMAP TILE LAYER ('L.tileLayer')
+            // Leaflet streams 256x256 pixel PNG map slices dynamically as the operator zooms/pans.
             L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
                 maxZoom: 18,
                 attribution: '&copy; Esri &bull; ArcGIS Logistics Basemap'
             }).addTo(fleetRadarMap);
 
+            // STEP 6: CREATE CUSTOM CENTRAL HUB DIV ICON ('L.divIcon')
+            // Unlike static PNG pins, Leaflet divIcon allows custom HTML, CSS animations, and emojis.
             const hubIcon = L.divIcon({
                 className: "leaflet-hub-pin",
                 html: '<div class="hub-marker-pin" title="SwiftLogistics Hub #04 (UB Lipa)"><span class="hub-pulse"></span>🏢</div>',
                 iconSize: [34, 34],
-                iconAnchor: [17, 17]
+                iconAnchor: [17, 17] // Centers the pin directly over the GPS coordinate
             });
 
+            // STEP 7: PLACE CENTRAL HUB MARKER ON THE MAP ('L.marker')
             fleetHubMarker = L.marker([hubLat, hubLng], { icon: hubIcon }).addTo(fleetRadarMap);
             fleetHubMarker.bindPopup(`
                 <div style="font-weight: 800; color: #EA580C; margin-bottom: 2px;">🏢 SwiftLogistics Central Hub #04</div>
@@ -615,7 +658,8 @@
                 <div style="font-size: 10.5px; color: #059669; font-weight: 700; margin-top: 3px;">Fleet Dispatch & Sorting Center Origin</div>
             `);
 
-            // Connect to real-time driver locations stream (Dual-Mode: Local Storage & Firestore)
+            // STEP 8: SUBSCRIBE TO REAL-TIME DRIVER LOCATIONS TELEMETRY (FIRESTORE ON-SNAPSHOT)
+            // When field couriers transmit GPS coordinates, this updates the Leaflet pins instantly.
             if (typeof listenToDriverLiveLocations === "function") {
                 listenToDriverLiveLocations((locations) => {
                     currentDriverLocations = locations || {};
@@ -623,11 +667,17 @@
                 });
             }
 
+            // STEP 9: TRIGGER MAP RESIZE RE-CALCULATION AFTER RENDER
             setTimeout(() => {
                 if (fleetRadarMap) fleetRadarMap.invalidateSize();
             }, 300);
         }
 
+        // ============================================================================
+        // FUNCTION: RENDER COURIER FLEET MARKERS ON LEAFLET RADAR
+        // PURPOSE:  Iterates active courier GPS coordinates, instantiates/updates
+        //           Leaflet marker pins with pulsing radar rings, and builds popups.
+        // ============================================================================
         function renderFleetRadarDrivers(locations) {
             if (!fleetRadarMap || typeof L === "undefined") return;
 
@@ -635,6 +685,7 @@
             const controls = document.getElementById("fleetRadarDriverButtons");
             const currentActiveBtn = controls ? controls.querySelector(".btn-radar-driver.active")?.dataset?.driverId : null;
 
+            // 1. REFRESH QUICK-FOCUS FILTER BUTTONS ABOVE THE MAP
             if (controls) {
                 controls.innerHTML = `
                     <button type="button" class="btn-radar-driver ${!currentActiveBtn ? 'active' : ''}" onclick="focusFleetRadarAll()">
@@ -667,6 +718,7 @@
                 });
             }
 
+            // 2. PLOT OR SMOOTHLY MOVE LEAFLET MARKERS FOR EACH ACTIVE COURIER
             driverIds.forEach(id => {
                 const d = locations[id];
                 if (d.lat == null || d.lng == null) return;
@@ -674,6 +726,7 @@
                 const isTruck = (d.vehicleType || "").toLowerCase().includes("truck");
                 const emoji = isTruck ? "🚛" : "🛵";
 
+                // BUILD DYNAMIC HTML PIN WITH PULSING RADAR RING
                 const customIcon = L.divIcon({
                     className: "leaflet-driver-pin",
                     html: `
@@ -688,6 +741,7 @@
                     popupAnchor: [0, -18]
                 });
 
+                // BUILD INTERACTIVE TOOLTIP POPUP CARD
                 const popupContent = `
                     <div style="font-weight: 800; font-size: 13px; color: #0F172A; display: flex; align-items: center; gap: 5px; margin-bottom: 3px;">
                         <span>${emoji}</span> <span>${d.driverName}</span>
@@ -706,17 +760,20 @@
                     </div>
                 `;
 
+                // IF MARKER ALREADY EXISTS ON MAP, UPDATE ITS POSITION SMOOTHLY
                 if (fleetDriverMarkers[id]) {
                     fleetDriverMarkers[id].setLatLng([d.lat, d.lng]);
                     fleetDriverMarkers[id].setIcon(customIcon);
                     fleetDriverMarkers[id].setPopupContent(popupContent);
                 } else {
+                    // OTHERWISE CREATE NEW LEAFLET MARKER AND ADD TO MAP CANVAS
                     const marker = L.marker([d.lat, d.lng], { icon: customIcon }).addTo(fleetRadarMap);
                     marker.bindPopup(popupContent);
                     fleetDriverMarkers[id] = marker;
                 }
             });
 
+            // 3. REMOVE MARKERS FOR COURIERS WHO WENT OFFLINE
             Object.keys(fleetDriverMarkers).forEach(id => {
                 if (!locations[id]) {
                     fleetRadarMap.removeLayer(fleetDriverMarkers[id]);
@@ -725,6 +782,11 @@
             });
         }
 
+        // ============================================================================
+        // FUNCTION: CAMERA VIEWPORT ZOOM TO SPECIFIC COURIER
+        // PURPOSE:  Uses Leaflet's smooth animated flyTo transition to center the map
+        //           directly onto the selected driver's live GPS coordinates.
+        // ============================================================================
         window.focusFleetRadarDriver = function(driverId) {
             if (!fleetRadarMap) return;
             if (!currentDriverLocations[driverId]) {
@@ -741,6 +803,10 @@
             });
         };
 
+        // ============================================================================
+        // FUNCTION: CAMERA VIEWPORT ZOOM TO CENTRAL DISTRIBUTION HUB
+        // PURPOSE:  Animates the map viewport back to the Lipa City Central Hub.
+        // ============================================================================
         window.focusFleetRadarHub = function() {
             if (!fleetRadarMap) return;
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
@@ -750,6 +816,11 @@
             document.querySelectorAll(".btn-radar-driver").forEach(b => b.classList.remove("active"));
         };
 
+        // ============================================================================
+        // FUNCTION: CAMERA VIEWPORT AUTO-FIT BOUNDS FOR ALL COURIERS
+        // PURPOSE:  Uses Leaflet's 'fitBounds' algorithm to automatically compute
+        //           the bounding box that encompasses all couriers and the hub.
+        // ============================================================================
         window.focusFleetRadarAll = function() {
             if (!fleetRadarMap) return;
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
@@ -759,6 +830,7 @@
                 if (d.lat && d.lng) points.push([d.lat, d.lng]);
             });
             if (points.length > 1) {
+                // AUTO-ZOOM TO FIT ALL MARKERS ON SCREEN SIMULTANEOUSLY
                 fleetRadarMap.fitBounds(points, { padding: [40, 40], maxZoom: 14 });
             } else {
                 fleetRadarMap.flyTo([hubLat, hubLng], 12, { duration: 1 });

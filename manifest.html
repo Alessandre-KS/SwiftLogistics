@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SwiftLogistics Hub — Manifest New Shipment</title>
     <link rel="stylesheet" href="style.css?v=6.1.0">
-    <!-- LEAFLET.JS V1.9.4 MAP STYLES -->
+    <!-- ====================================================================
+         LEAFLET.JS V1.9.4 MAP STYLESHEET
+         PURPOSE: Provides map frame styles, marker icon positioning, and
+                  drag-and-drop cursor styling for consignment address pinpointing.
+         ==================================================================== -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <!-- DEDICATED CONSIGNMENT MANIFEST & WAYBILL STYLESHEET -->
     <link rel="stylesheet" href="manifest.css?v=1.0.0">
@@ -408,7 +412,12 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="vendor/tripwire.js?v=2.1.0"></script>
     <script src="firebase-config.js"></script>
-    <!-- LEAFLET.JS V1.9.4 MAP ENGINE (OPENSTREETMAP) -->
+    <!-- ====================================================================
+         LEAFLET.JS V1.9.4 MAP ENGINE (OPEN-SOURCE CLIENT GIS RUNTIME)
+         PURPOSE: Enables dispatchers to drag-and-drop a delivery pin across
+                  the map, converts coordinates, and live-calculates driving
+                  distances and highway routes from the central UB Lipa hub.
+         ==================================================================== -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="app.js?v=4.4.0"></script>
 
@@ -670,16 +679,37 @@
             }
         }
 
+        // ============================================================================
+        // SECTION: CONSIGNMENT DESTINATION PINPOINTING MAP (POWERED BY LEAFLET.JS)
+        // ============================================================================
+        //
+        // WHAT IS LEAFLET.JS DOING IN THE MANIFEST SCREEN?
+        // Leaflet provides the interactive geographic canvas that enables dispatchers
+        // to pinpoint, drag, and fine-tune delivery addresses across Batangas province.
+        //
+        // KEY LEAFLET CAPABILITIES USED HERE:
+        // 1. Draggable Pin ('L.marker({ draggable: true })'): Allows dragging the
+        //    customer's drop-off point directly on the road or building on the map.
+        // 2. Interactive Map Click ('manifestMap.on("click")'): Allows clicking anywhere
+        //    on the map to immediately relocate the customer pin.
+        // 3. Dynamic Road Corridors ('L.polyline'): Dynamically redraws turn-by-turn
+        //    highway paths connecting UB Lipa Hub to the customer's exact coordinates.
+        // ============================================================================
+
+        // INITIALIZE THE CONSIGNMENT ROUTING AND PINPOINTING MAP
         function initManifestMap() {
+            // STEP 1: VERIFY CANVAS ELEMENT SLOT IN DOM
             const canvas = document.getElementById("manifestMapCanvas");
             if (!canvas || typeof L === "undefined") return;
 
             canvas.innerHTML = "";
             canvas.style.border = "1px solid var(--border-subtle)";
 
+            // STEP 2: RESOLVE CENTRAL HUB ORIGIN COORDINATES (UB LIPA)
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
 
+            // STEP 3: INSTANTIATE LEAFLET MAP VIEWPORT ('L.map')
             manifestMap = L.map("manifestMapCanvas", {
                 center: [hubLat, hubLng],
                 zoom: 13,
@@ -687,12 +717,13 @@
                 attributionControl: false
             });
 
+            // STEP 4: LOAD ESRI ARCGIS WORLD STREET BASEMAP TILE LAYER
             L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
                 maxZoom: 18,
                 attribution: '&copy; <a href="https://www.esri.com/" target="_blank">Esri</a> &bull; ArcGIS Logistics Basemap'
             }).addTo(manifestMap);
 
-            // Custom Hub Marker (UB Lipa Anchor)
+            // STEP 5: CREATE CENTRAL DISTRIBUTION HUB MARKER ('L.divIcon' & 'L.marker')
             const hubIcon = L.divIcon({
                 className: "leaflet-hub-pin",
                 html: '<div class="hub-marker-pin" title="UB Lipa Central Hub"><span class="hub-pulse"></span>🏢</div>',
@@ -707,7 +738,7 @@
                 <div style="font-size: 10px; color: #64748B; font-family: monospace; margin-top: 2px;">Plus Code: X595+MQ6 (13.9692° N, 121.1594° E)</div>
             `);
 
-            // Custom Consignee Destination Marker (Draggable)
+            // STEP 6: CREATE CUSTOM CONSIGNMENT DESTINATION PIN (DRAGGABLE)
             const consigneeIcon = L.divIcon({
                 className: "leaflet-consignee-pin",
                 html: '<div class="consignee-marker-pin" title="Drag pin or click map to pinpoint exact location">📍</div>',
@@ -719,6 +750,7 @@
                 ? getCityCoordinates("Lipa City, Batangas", "Brgy. Marawoy") 
                 : { lat: 13.9575, lng: 121.1633 };
 
+            // MOUNT DRAGGABLE LEAFLET MARKER
             destMarker = L.marker([initCoords.lat, initCoords.lng], { 
                 icon: consigneeIcon,
                 draggable: true,
@@ -732,16 +764,17 @@
                 <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">(💡 Drag pin or click map to fine-tune exact drop-off spot)</div>
             `);
 
+            // STEP 7: DRAW DELIVERY CORRIDOR POLYLINE ('L.polyline')
             routePolyline = L.polyline([[hubLat, hubLng], [initCoords.lat, initCoords.lng]], {
                 color: "#EA580C",
                 weight: 4.5,
                 opacity: 0.85
             }).addTo(manifestMap);
 
-            // Fetch actual turn-by-turn road route
+            // STEP 8: FETCH REAL TURN-BY-TURN ROAD GEOMETRY VIA OSRM
             updateManifestRoadRoute(hubLat, hubLng, initCoords.lat, initCoords.lng, 1.4);
 
-            // Live straight-line tracking while user is dragging
+            // STEP 9: LISTEN FOR LEAFLET DRAG EVENTS (REAL-TIME LINE STRETCHING)
             destMarker.on("drag", function (e) {
                 const pos = e.target.getLatLng();
                 if (routePolyline) {
@@ -750,17 +783,18 @@
                 }
             });
 
-            // Snap to actual road route on drag end
+            // STEP 10: LISTEN FOR DRAGEND EVENT (SNAP TO HIGHWAY ROAD NETWORK)
             destMarker.on("dragend", function (e) {
                 const pos = e.target.getLatLng();
                 handlePinUpdate(pos.lat, pos.lng, true);
             });
 
-            // Click event anywhere on the map to pin
+            // STEP 11: LISTEN FOR MAP CLICK EVENTS (CLICK ANYWHERE TO RE-PIN)
             manifestMap.on("click", function (e) {
                 handlePinUpdate(e.latlng.lat, e.latlng.lng, true);
             });
 
+            // STEP 12: FIT CAMERA VIEWPORT TO BOUNDS (HUB TO DESTINATION)
             manifestMap.fitBounds([[hubLat, hubLng], [initCoords.lat, initCoords.lng]], {
                 padding: [30, 30],
                 maxZoom: 15

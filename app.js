@@ -45,7 +45,23 @@ try {
 }
 
 // ============================================================================
-// SECTION 2: CENTRAL LOGISTICS HUB & GEOLOCATION SERVICES (OSM / LEAFLET)
+// SECTION 2: CENTRAL LOGISTICS HUB & GEOLOCATION SERVICES (OSM / LEAFLET / OSRM)
+// ============================================================================
+//
+// PURPOSE OF THIS SECTION:
+// This module provides the mathematical and geographical backbone for all Leaflet
+// maps in SwiftLogistics Hub (Fleet Radar, Courier Route, and Consignment Pinning).
+//
+// CORE CONCEPTS EXPLAINED FOR CODERS & DEFENSE PANEL:
+// 1. LEAFLET COORDINATE CONVENTION: Leaflet expects coordinates as [LATITUDE, LONGITUDE].
+//    - Latitude (N/S): Batangas is ~13.7° to 14.1° North of the Equator.
+//    - Longitude (E/W): Batangas is ~121.0° to 121.2° East of the Prime Meridian.
+// 2. HAVERSINE FORMULA: Calculates straight-line distance across Earth's sphere (Radius = 6,371 km).
+// 3. OSRM (OPEN SOURCE ROUTING MACHINE): Paired with Leaflet to calculate real
+//    turn-by-turn road routes following actual Batangas highways (e.g. STAR Tollway,
+//    Pres. J.P. Laurel Highway) instead of straight "crow-flies" lines.
+// 4. GEOJSON VS LEAFLET FLIP: OSRM returns coordinates as [Longitude, Latitude]
+//    (GeoJSON standard), which this script converts into [Latitude, Longitude] for Leaflet.
 // ============================================================================
 
 // CENTRAL DISPATCH HUB ANCHOR (UB LIPA CAMPUS, LEVISTE HIGHWAY)
@@ -144,21 +160,23 @@ function getDistanceFromHub(lat, lng) {
 async function fetchRoadRoute(waypoints) {
     if (!waypoints || waypoints.length < 2) return null;
     try {
-        // OSRM REQUIRES COORDINATES AS "LONGITUDE,LATITUDE" DELIMITED BY SEMICOLONS
+        // STEP 1: CONVERT LEAFLET [LAT, LNG] ARRAY TO OSRM "LNG,LAT" DELIMITED STRING
         const coordString = waypoints.map(pt => {
             const lat = Number(pt[0]);
             const lng = Number(pt[1]);
             return `${lng.toFixed(6)},${lat.toFixed(6)}`;
         }).join(";");
 
+        // STEP 2: QUERY OSRM PUBLIC ROUTING API FOR DRIVING GEOMETRIES
         const url = `https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson`;
         const resp = await fetch(url);
         if (!resp.ok) return null;
         const data = await resp.json();
 
+        // STEP 3: PARSE GEOJSON ROUTE COORDINATES BACK INTO LEAFLET POLYLINE FORMAT
         if (data.code === "Ok" && data.routes && data.routes.length > 0) {
             const route = data.routes[0];
-            // CONVERT GEOJSON [LNG, LAT] BACK TO LEAFLET [LAT, LNG]
+            // FLIP GEOJSON [LNG, LAT] INTO LEAFLET [LAT, LNG]
             const latLngs = route.geometry.coordinates.map(pt => [pt[1], pt[0]]);
             const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
             const durationMins = Math.max(1, Math.round(route.duration / 60));

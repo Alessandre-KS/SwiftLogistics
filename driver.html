@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SwiftLogistics Hub — Driver Transit Terminal & Run-Sheet</title>
     <link rel="stylesheet" href="style.css?v=6.2.0">
-    <!-- LEAFLET.JS V1.9.4 MAP STYLES -->
+    <!-- ====================================================================
+         LEAFLET.JS V1.9.4 MAP STYLESHEET
+         PURPOSE: Provides mobile-optimized CSS styling for the courier transit
+                  map canvas, popup speech bubbles, and road polyline paths.
+         ==================================================================== -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <!-- DEDICATED DRIVER TRANSIT TERMINAL STYLESHEET -->
     <link rel="stylesheet" href="driver.css?v=1.0.0">
@@ -266,7 +270,12 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="vendor/tripwire.js?v=2.1.0"></script>
     <script src="firebase-config.js"></script>
-    <!-- LEAFLET.JS V1.9.4 MAP ENGINE (OPENSTREETMAP) -->
+    <!-- ====================================================================
+         LEAFLET.JS V1.9.4 MAP ENGINE (OPEN-SOURCE CLIENT GIS RUNTIME)
+         PURPOSE: Mobile-first interactive map library that plots delivery stops,
+                  traces turn-by-turn road routes with OSRM, and handles responsive
+                  touch zoom/pinch gestures on courier smartphones.
+         ==================================================================== -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="app.js?v=4.4.0"></script>
 
@@ -344,16 +353,39 @@
             });
         });
 
+        // ============================================================================
+        // SECTION: COURIER TRANSIT ROUTE MAP CONTROLLER (POWERED BY LEAFLET.JS V1.9.4)
+        // ============================================================================
+        //
+        // WHAT IS LEAFLET.JS IN THIS TRANSIT TERMINAL?
+        // Leaflet is an open-source, mobile-first mapping engine that renders the
+        // field courier's turn-by-turn multi-stop delivery route and hub location.
+        //
+        // WHY USE LEAFLET INSTEAD OF PROPRIETARY GOOGLE MAPS API?
+        // 1. Zero API Usage Costs: Google Maps API charges credit fees per map load.
+        //    Leaflet is 100% free with no credit card or billing quotas required.
+        // 2. High-Speed Mobile Rendering: Under 42 KB of footprint, minimizing mobile
+        //    data consumption for riders operating across Batangas regional roads.
+        // 3. Dynamic Numbered Pins (L.divIcon): Generates HTML sequence numbers
+        //    (Stop #1, Stop #2, etc.) directly in CSS without loading custom graphic assets.
+        // 4. Road Corridor Integration (OSRM): Combines Leaflet Polyline geometry with
+        //    OSRM (Open Source Routing Machine) to trace real highway turns and bends.
+        // ============================================================================
+
+        // INITIALIZE THE COURIER ROUTE LEAFLET MAP INSTANCE
         function initDriverRouteMap() {
+            // STEP 1: VERIFY CANVAS ELEMENT SLOT IN DOM
             const canvas = document.getElementById("driverRouteMapCanvas");
             if (!canvas || typeof L === "undefined") return;
 
             canvas.innerHTML = "";
             canvas.style.border = "1px solid var(--border-subtle)";
 
+            // STEP 2: RESOLVE CENTRAL HUB ORIGIN COORDINATES (UB LIPA)
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
 
+            // STEP 3: INSTANTIATE LEAFLET MAP VIEWPORT ('L.map')
             driverMap = L.map("driverRouteMapCanvas", {
                 center: [hubLat, hubLng],
                 zoom: 12,
@@ -361,11 +393,13 @@
                 attributionControl: false
             });
 
+            // STEP 4: LOAD ESRI ARCGIS HIGH-RESOLUTION WORLD STREET BASEMAP TILES
             L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
                 maxZoom: 18,
                 attribution: '&copy; <a href="https://www.esri.com/" target="_blank">Esri</a> &bull; ArcGIS Logistics Basemap'
             }).addTo(driverMap);
 
+            // STEP 5: BUILD CENTRAL DISTRIBUTION HUB ANCHOR PIN ('L.divIcon')
             const hubIcon = L.divIcon({
                 className: "leaflet-hub-pin",
                 html: '<div class="hub-marker-pin" title="UB Lipa Central Hub"><span class="hub-pulse"></span>🏢</div>',
@@ -373,6 +407,7 @@
                 iconAnchor: [17, 17]
             });
 
+            // STEP 6: MOUNT HUB MARKER AND BIND DETAILED POPUP CARD ('L.marker')
             driverHubMarker = L.marker([hubLat, hubLng], { icon: hubIcon }).addTo(driverMap);
             driverHubMarker.bindPopup(`
                 <div style="font-weight: 800; color: #EA580C; margin-bottom: 2px;">🏢 SwiftLogistics Central Hub #04</div>
@@ -381,14 +416,22 @@
                 <div style="font-size: 10px; color: #059669; font-weight: 700; margin-top: 3px;">Fleet Dispatch & Sorting Origin</div>
             `);
 
+            // STEP 7: TRIGGER CANVAS REFLOW ADJUSTMENT
             setTimeout(() => {
                 if (driverMap) driverMap.invalidateSize();
             }, 300);
         }
 
+        // ============================================================================
+        // FUNCTION: PLOT ACTIVE DELIVERY STOPS AND REAL ROAD CORRIDOR
+        // PURPOSE:  Takes all assigned parcels, renders numbered sequence stop pins
+        //           (Stop #1, #2, etc.), auto-zooms to fit all consignees, and
+        //           traces the real highway driving geometry using Leaflet Polyline.
+        // ============================================================================
         function updateDriverMapMarkers(activeDeliveries) {
             if (!driverMap || typeof L === "undefined") return;
 
+            // STEP 1: CLEAR PREVIOUS ROUTE MARKERS AND POLYLINES FROM MAP
             driverStopMarkers.forEach(m => driverMap.removeLayer(m));
             driverStopMarkers = [];
             if (driverRoutePolyline) {
@@ -396,11 +439,13 @@
                 driverRoutePolyline = null;
             }
 
+            // STEP 2: ESTABLISH ORIGIN STARTING POINT AT UB LIPA HUB
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
             const routeCoords = [[hubLat, hubLng]];
             const bounds = [[hubLat, hubLng]];
 
+            // STEP 3: LOOP THROUGH ASSIGNED DELIVERIES AND PLOT NUMBERED PINS
             activeDeliveries.forEach((p, idx) => {
                 let lat = p.lat;
                 let lng = p.lng;
@@ -412,10 +457,11 @@
                     lng = coords.lng;
                 }
 
-                // Add slight jitter for distinct markers if coordinates overlap
+                // Add slight offset for distinct pins if multiple consignments share the exact same barangay
                 const plotLat = lat + (idx * 0.00035);
                 const plotLng = lng + (idx * 0.00035);
 
+                // BUILD NUMBERED DELIVERY BADGE (1, 2, 3...) VIA LEAFLET DIV ICON
                 const stopIcon = L.divIcon({
                     className: "leaflet-stop-pin",
                     html: `<div class="stop-marker-pin" title="Stop ${idx + 1}">${idx + 1}</div>`,
@@ -425,6 +471,7 @@
 
                 const dist = p.distanceKm != null ? p.distanceKm : (typeof getDistanceFromHub === "function" ? getDistanceFromHub(lat, lng) : 0);
 
+                // MOUNT STOP PIN WITH POPUP CUSTOMER WAYBILL DETAILS
                 const stopMarker = L.marker([plotLat, plotLng], { icon: stopIcon }).addTo(driverMap);
                 stopMarker.bindPopup(`
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 3px;">
@@ -442,10 +489,11 @@
                 bounds.push([plotLat, plotLng]);
             });
 
+            // STEP 4: IF PARCELS ARE ACTIVE, DRAW ROAD ROUTE POLYLINE ('L.polyline')
             if (activeDeliveries.length > 0) {
                 const reqId = ++activeDriverRouteReqId;
 
-                // Immediate dashed preview line
+                // Render immediate dashed preview line connecting all stops
                 driverRoutePolyline = L.polyline(routeCoords, {
                     color: "#EA580C",
                     weight: 3.5,
@@ -453,20 +501,21 @@
                     opacity: 0.85
                 }).addTo(driverMap);
 
+                // Auto-fit camera viewport to encompass all delivery points ('map.fitBounds')
                 driverMap.fitBounds(bounds, {
                     padding: [40, 40],
                     maxZoom: 15
                 });
 
-                // Fetch real turn-by-turn road route connecting all delivery stops
+                // Fetch real turn-by-turn road geometry from OSRM and upgrade polyline to solid road line
                 if (typeof fetchRoadRoute === "function") {
                     fetchRoadRoute(routeCoords).then(roadData => {
-                        if (reqId !== activeDriverRouteReqId) return; // Stale request, ignore
+                        if (reqId !== activeDriverRouteReqId) return; // Stale request guard
                         if (roadData && roadData.latLngs && driverRoutePolyline) {
                             driverRoutePolyline.setStyle({
                                 color: "#EA580C",
                                 weight: 4.5,
-                                dashArray: null, // Solid road line
+                                dashArray: null, // Upgrades to solid road line
                                 opacity: 0.9,
                                 lineJoin: "round",
                                 lineCap: "round"
@@ -480,6 +529,7 @@
                     }).catch(() => {});
                 }
             } else {
+                // If all packages delivered, center camera back onto UB Lipa Central Hub
                 driverMap.setView([hubLat, hubLng], 13);
             }
         }
