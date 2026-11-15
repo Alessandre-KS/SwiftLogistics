@@ -253,14 +253,20 @@
     <script src="app.js?v=4.2.0"></script>
 
     <script>
-        let pendingUser = null;
-        let totpInterval = null;
-        let activeSecret = "JBSWY3DPEHPK3PXP";
+        // ============================================================================
+        // SECTION 1: GLOBAL AUTHENTICATION STATE VARIABLES
+        // ============================================================================
+        let pendingUser = null;                 // STORES VERIFIED USER OBJECT BETWEEN STEP 1 AND STEP 2
+        let totpInterval = null;                // 1-SECOND TIMER INTERVAL FOR 30-SECOND HARDWARE TICKER
+        let activeSecret = "JBSWY3DPEHPK3PXP";  // ACTIVE 16-CHAR BASE32 TOTP ENCRYPTION SECRET
 
+        // QUICK-FILL HELPER FOR TESTING DEFAULT ACCOUNT PASSWORDS
         function quickFillPassword() {
+            // INJECTS DEFAULT ENTERPRISE TESTING PASSWORD INTO INPUT BOX
             document.getElementById("staffPasswordInput").value = "password123";
         }
 
+        // DISPLAY ERROR NOTIFICATION ALERT BOX TO USER
         function showAlert(msg) {
             const box = document.getElementById("loginAlertBox");
             const text = document.getElementById("loginAlertText");
@@ -269,81 +275,108 @@
             box.classList.remove("hidden");
         }
 
+        // HIDE ERROR NOTIFICATION ALERT BOX
         function hideAlert() {
             const box = document.getElementById("loginAlertBox");
             box.style.display = "none";
             box.classList.add("hidden");
         }
 
-        /**
-         * STEP 1: Verify Primary Credentials (Email & Password)
-         */
+        // ============================================================================
+        // FUNCTION: STEP 1 - PRIMARY CREDENTIALS VERIFICATION (EMAIL & PASSWORD)
+        // PURPOSE:  Validates user's corporate email and password against Cloud Firestore
+        //           or authorized staff directory before prompting for MFA.
+        // ============================================================================
         async function handleStep1Credentials(e) {
+            // STEP 1: PREVENT DEFAULT FORM RELOAD AND CLEAR PREVIOUS ERROR ALERTS
             if (e) e.preventDefault();
             hideAlert();
 
+            // STEP 2: READ EMPLOYEE IDENTIFIER AND PASSWORD INPUTS
             const staffId = document.getElementById("staffIdInput").value.trim();
             const pass = document.getElementById("staffPasswordInput").value.trim();
             const btn = document.getElementById("btnStep1Submit");
 
+            // STEP 3: UPDATE BUTTON STATE TO INDICATE NETWORK VERIFICATION IN PROGRESS
             btn.disabled = true;
             btn.innerText = "Verifying Password...";
 
+            // STEP 4: AUTHENTICATE WITH APP.JS AUTHENTICATION ENGINE
             const res = await signInStaff(staffId, pass);
+
+            // STEP 5: EVALUATE AUTHENTICATION RESULT
             if (res.success) {
-                // Primary authentication successful! Now challenge for Step 2: TOTP MFA
+                // PRIMARY CREDENTIALS ACCEPTED -> ADVANCE TO SECOND FACTOR (TOTP MFA)
                 pendingUser = res.user;
                 initiateStep2Totp(pendingUser);
             } else {
+                // AUTHENTICATION FAILED -> RESTORE BUTTON AND DISPLAY ERROR MESSAGE
                 btn.disabled = false;
                 btn.innerText = "Verify Credentials & Continue";
                 showAlert(res.message || "Invalid Employee ID or password.");
             }
         }
 
-        /**
-         * STEP 2: Transition to TOTP Challenge Screen
-         */
+        // ============================================================================
+        // FUNCTION: STEP 2 - INITIATE TOTP MFA CHALLENGE
+        // PURPOSE:  Hides Step 1 password form, displays Step 2 6-digit OTP boxes,
+        //           derives user's secret, and activates the 30-second hardware ticker.
+        // ============================================================================
         function initiateStep2Totp(user) {
+            // STEP 1: SWITCH VISIBLE FORM BLOCKS (HIDE PASSWORD, SHOW MFA DIGITS)
             document.getElementById("step1CredentialsBlock").style.display = "none";
             document.getElementById("step2TotpBlock").style.display = "block";
 
-            // Populate user banner
+            // STEP 2: DISPLAY EMPLOYEE PROFILE BANNER (NAME, EMAIL, INITIALS)
             document.getElementById("totpUserName").innerText = user.name || "Staff Member";
             document.getElementById("totpUserEmail").innerText = user.email;
-            // Generate initials
+
+            // STEP 3: EXTRACT INITIALS FOR THE ROUND AVATAR BADGE (E.G. "TC" FOR TOM CRUISE)
             const p = (user.name || "Staff Member").trim().split(/\s+/);
             const initials = p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : p[0].slice(0, 2).toUpperCase();
             document.getElementById("totpUserInitials").innerText = initials;
 
-            // Determine secret based on account: prefer user.totpSecret from Firestore profile, else derive deterministically
+            // STEP 4: RESOLVE BASE32 ENCRYPTION SECRET FOR THIS EMPLOYEE
+            // PREFERS CLOUD FIRESTORE PROFILE SECRET, ELSE DETERMINISTICALLY DERIVES FROM EMAIL
             activeSecret = (user && user.totpSecret) 
                 ? user.totpSecret 
                 : ((typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) 
                     ? TOTP.getSecretForEmail(user.email) 
                     : "JBSWY3DPEHPK3PXP");
 
-            // Setup auto-advance for the 6 digit inputs
+            // STEP 5: ATTACH AUTO-FOCUS EVENT LISTENERS TO THE 6 DIGIT INPUT BOXES
             setupOtpInputs();
 
-            // Start 30s countdown bar and live authenticator sync ticker
+            // STEP 6: START 30-SECOND ANIMATED COUNTDOWN PROGRESS BAR
             startTotpTicker();
         }
 
+        // ============================================================================
+        // FUNCTION: CANCEL STEP 2 AND RETURN TO PRIMARY LOGIN SCREEN
+        // PURPOSE:  Clears OTP timer and resets form inputs back to Step 1.
+        // ============================================================================
         function cancelStep2() {
+            // STEP 1: STOP HARDWARE TICKER INTERVAL
             if (totpInterval) clearInterval(totpInterval);
+
+            // STEP 2: SWITCH VISIBLE FORM BLOCKS BACK TO STEP 1
             document.getElementById("step2TotpBlock").style.display = "none";
             document.getElementById("step1CredentialsBlock").style.display = "block";
+
+            // STEP 3: RESET SUBMIT BUTTON AND CLEAR SENSITIVE TEMPORARY STATE
             document.getElementById("btnStep1Submit").disabled = false;
             document.getElementById("btnStep1Submit").innerText = "Verify Credentials & Continue";
             clearOtpBoxes();
             pendingUser = null;
         }
 
-        /**
-         * Manages digit input navigation (auto-focus next, backspace support, paste support)
-         */
+        // ============================================================================
+        // FUNCTION: SETUP 6-DIGIT OTP INPUT BOX CONTROLLERS
+        // PURPOSE:  Configures auto-advancing focus, backspace navigation, and clipboard
+        //           paste support across the 6 individual numeric input cells.
+        // ============================================================================
         function setupOtpInputs() {
+            // STEP 1: GATHER ARRAY REFERENCES TO ALL 6 DIGIT CELLS
             const boxes = [
                 document.getElementById("otpDigit1"),
                 document.getElementById("otpDigit2"),
@@ -353,33 +386,39 @@
                 document.getElementById("otpDigit6")
             ];
 
+            // STEP 2: BIND INPUT, KEYDOWN, AND PASTE EVENT HANDLERS TO EACH CELL
             boxes.forEach((box, index) => {
                 box.value = "";
                 box.classList.remove("filled");
 
+                // HANDLER: NUMERIC INPUT DETECTION AND AUTO-ADVANCE
                 box.oninput = (e) => {
+                    // SANITIZE INPUT TO STRIP ANY NON-NUMERIC CHARACTERS
                     const val = box.value.replace(/[^0-9]/g, "");
                     box.value = val;
+
                     if (val) {
                         box.classList.add("filled");
+                        // AUTO-ADVANCE CURSOR FOCUS TO NEXT INPUT CELL
                         if (index < 5) boxes[index + 1].focus();
                     } else {
                         box.classList.remove("filled");
                     }
 
-                    // Auto-submit when all 6 digits entered
+                    // AUTO-TRIGGER VERIFICATION AS SOON AS ALL 6 DIGITS ARE POPULATED
                     if (getEnteredOtp().length === 6) {
                         handleTotpVerification();
                     }
                 };
 
+                // HANDLER: BACKSPACE KEYBOARD NAVIGATION (RETURNS TO PREVIOUS CELL)
                 box.onkeydown = (e) => {
                     if (e.key === "Backspace" && !box.value && index > 0) {
                         boxes[index - 1].focus();
                     }
                 };
 
-                // Support full 6-digit paste
+                // HANDLER: CLIPBOARD PASTE SUPPORT (ALLOWS PASTING COMPLETE 6-DIGIT CODE)
                 box.onpaste = (e) => {
                     e.preventDefault();
                     const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim().replace(/[^0-9]/g, "");
@@ -394,9 +433,13 @@
                 };
             });
 
+            // STEP 3: AUTOMATICALLY FOCUS FIRST DIGIT INPUT BOX UPON ACTIVATION
             setTimeout(() => boxes[0].focus(), 100);
         }
 
+        // ============================================================================
+        // FUNCTION: CONCATENATE ENTERED 6 DIGITS INTO A SINGLE STRING
+        // ============================================================================
         function getEnteredOtp() {
             let code = "";
             for (let i = 1; i <= 6; i++) {
@@ -405,6 +448,9 @@
             return code;
         }
 
+        // ============================================================================
+        // FUNCTION: CLEAR ALL 6 DIGIT BOXES AND RESET CURSOR TO FIRST CELL
+        // ============================================================================
         function clearOtpBoxes() {
             for (let i = 1; i <= 6; i++) {
                 const el = document.getElementById(`otpDigit${i}`);
@@ -417,50 +463,61 @@
             if (first) first.focus();
         }
 
-        /**
-         * 30-Second Timestep Ticker & Live Authenticator Code Sync
-         */
+        // ============================================================================
+        // FUNCTION: 30-SECOND TOTP HARDWARE TICKER
+        // PURPOSE:  Computes remaining seconds in the current 30-second window and
+        //           animates the countdown progress bar.
+        // ============================================================================
         async function updateTotpTicker() {
+            // STEP 1: CALCULATE REMAINING SECONDS (1 TO 30)
             const remaining = TOTP.getRemainingSeconds();
+
+            // STEP 2: CALCULATE PERCENTAGE WIDTH FOR VISUAL BAR
             const percent = (remaining / 30) * 100;
             const bar = document.getElementById("totpTimerBar");
             const text = document.getElementById("totpTimerText");
 
+            // STEP 3: UPDATE PROGRESS BAR WIDTH AND LABEL
             if (bar) bar.style.width = percent + "%";
             if (text) text.innerText = `Code expires in ${remaining}s`;
         }
 
+        // ACTIVATE 1-SECOND REPEATING INTERVAL TIMER FOR THE TICKER
         function startTotpTicker() {
             if (totpInterval) clearInterval(totpInterval);
             updateTotpTicker();
             totpInterval = setInterval(updateTotpTicker, 1000);
         }
 
-
-
-        /**
-         * STEP 2: Verify TOTP Code (RFC 6238 Engine)
-         */
+        // ============================================================================
+        // FUNCTION: VERIFY 6-DIGIT TOTP CODE AGAINST RFC 6238 CRYPTOGRAPHIC SPECIFICATION
+        // PURPOSE:  Validates code using Web Crypto HMAC-SHA1. Upon success, stores
+        //           MFA-verified session and redirects user to their appropriate role terminal.
+        // ============================================================================
         let failedAttempts = 0;
         async function handleTotpVerification() {
+            // STEP 1: READ CONCATENATED 6-DIGIT STRING
             const enteredCode = getEnteredOtp();
             if (enteredCode.length !== 6) {
                 showAlert("Please enter all 6 digits from your Authenticator app.");
                 return;
             }
 
+            // STEP 2: UPDATE BUTTON STATE TO INDICATE SIGNATURE VERIFICATION
             const btn = document.getElementById("btnVerifyTotp");
             btn.disabled = true;
             btn.innerText = "Verifying RFC 6238 Signature...";
 
-            // Verify with +/- 1 timestep tolerance
+            // STEP 3: CRYPTOGRAPHIC VERIFICATION (ALLOWS +/- 1 TIMESTEP WINDOW TOLERANCE)
             const isValid = await TOTP.verifyCode(activeSecret, enteredCode);
 
+            // STEP 4: EVALUATE CRYPTOGRAPHIC RESULT
             if (isValid) {
+                // AUTHENTICATION PASSED -> UPDATE UI TO SUCCESS STATE
                 btn.style.background = "#059669";
                 btn.innerText = "✓ TOTP Verified! Launching Terminal...";
                 
-                // Store official session with MFA verification flag
+                // STEP 5: RECORD ACTIVE AUTHENTICATED SESSION IN LOCAL STORAGE
                 if (pendingUser) {
                     pendingUser.mfaVerified = true;
                     pendingUser.mfaMethod = "TOTP_RFC6238";
@@ -468,6 +525,9 @@
                     localStorage.setItem("swift_session_user", JSON.stringify(pendingUser));
                 }
 
+                // STEP 6: ROLE-BASED AUTOMATIC REDIRECT
+                // - FIELD COURIERS (DRIVERS/RIDERS) ARE DIRECTED TO THE DRIVER RUN-SHEET (driver.html)
+                // - DISPATCH MANAGERS AND ADMINISTRATORS ARE DIRECTED TO THE MAIN HUB (index.html)
                 setTimeout(() => {
                     const isDriver = pendingUser && pendingUser.role && (
                         pendingUser.role.toLowerCase().includes("driver") || 
@@ -476,14 +536,16 @@
                     window.location.href = isDriver ? "driver.html" : "index.html";
                 }, 400);
             } else {
+                // AUTHENTICATION FAILED -> INCREMENT RATE LIMIT COUNTER
                 failedAttempts++;
                 btn.disabled = false;
                 btn.innerText = "Verify & Launch Terminal";
                 
-                // Shake boxes animation
+                // CLEAR BOXES AND ALERT OPERATOR OF MISMATCH
                 clearOtpBoxes();
                 showAlert(`Invalid 6-digit TOTP code. Please check your Authenticator app (Attempt ${failedAttempts}/3).`);
 
+                // STEP 7: RATE LIMITING COOLDOWN (LOCKOUT FOR 15 SECONDS AFTER 3 FAILED ATTEMPTS)
                 if (failedAttempts >= 3) {
                     showAlert("Security Warning: 3 invalid TOTP attempts detected. Terminal locked for 15 seconds.");
                     btn.disabled = true;
@@ -496,6 +558,10 @@
             }
         }
 
+        // ============================================================================
+        // FUNCTION: OPEN NEW EMPLOYEE ONBOARDING REGISTRATION MODAL
+        // PURPOSE:  Presents self-service application form for dispatchers and couriers.
+        // ============================================================================
         function openRegistrationModal() {
             const m = document.getElementById("registerStaffModal");
             if (m) {
@@ -508,6 +574,7 @@
             }
         }
 
+        // CLOSE ONBOARDING MODAL
         function closeRegistrationModal() {
             const m = document.getElementById("registerStaffModal");
             if (m) {
@@ -516,6 +583,7 @@
             }
         }
 
+        // TOGGLE VEHICLE SELECTION ROW WHEN ROLE IS DRIVER / COURIER
         function handleRegRoleChange() {
             const role = document.getElementById("regRole").value;
             const vehicleRow = document.getElementById("regVehicleRow");
@@ -524,6 +592,7 @@
             }
         }
 
+        // DISPLAY ERROR ALERT IN REGISTRATION FORM
         function showRegError(msg) {
             const errBox = document.getElementById("regErrorAlert");
             if (errBox) {
@@ -537,15 +606,23 @@
             }
         }
 
+        // ============================================================================
+        // FUNCTION: PROCESS AND SUBMIT EMPLOYEE REGISTRATION REQUEST
+        // PURPOSE:  Performs client-side validation, verifies email and phone uniqueness
+        //           against Cloud Firestore, and provisions pending request in database.
+        // ============================================================================
         async function handleStaffRegisterSubmit(e) {
+            // STEP 1: PREVENT FORM RELOAD AND CLEAR PREVIOUS ERROR ALERTS
             if (e) e.preventDefault();
             const errBox = document.getElementById("regErrorAlert");
             if (errBox) errBox.style.display = "none";
 
+            // STEP 2: UPDATE SUBMIT BUTTON TO INDICATE AVAILABILITY CHECK IN PROGRESS
             const btn = document.getElementById("btnSubmitReg");
             btn.disabled = true;
             btn.innerText = "Checking availability...";
 
+            // STEP 3: HARVEST AND SANITIZE APPLICANT PROFILE DETAILS
             const name = document.getElementById("regFullName").value.trim();
             const email = document.getElementById("regEmail").value.trim().toLowerCase();
             const phone = document.getElementById("regPhone").value.trim();
@@ -557,7 +634,7 @@
                 vehicleType = vEl ? vEl.value : "Motorcycle (Express 2-Wheeler)";
             }
 
-            // Input validation
+            // STEP 4: VALIDATE ESSENTIAL CORPORATE EMAIL AND PHONE FORMATS
             if (!email || !email.includes("@")) {
                 showRegError("Please enter a valid corporate email address.");
                 return;
@@ -568,17 +645,17 @@
                 return;
             }
 
-            // 1. UNIQUE CHECKS IN CLOUD FIRESTORE
+            // STEP 5: VERIFY UNIQUENESS OF EMAIL AND PHONE NUMBER IN CLOUD FIRESTORE
             if (typeof db !== "undefined" && db) {
                 try {
-                    // Check if email already registered in /staff
+                    // VERIFY EMAIL DOES NOT ALREADY EXIST IN ACTIVE /staff COLLECTION
                     const staffEmailSnap = await db.collection("staff").where("email", "==", email).get();
                     if (!staffEmailSnap.empty) {
                         showRegError(`The email <strong>${email}</strong> is already taken by an existing staff account. Please sign in or contact Bossing Jeff.`);
                         return;
                     }
 
-                    // Check if email already pending in /registrations
+                    // VERIFY EMAIL IS NOT ALREADY PENDING IN /registrations QUEUE
                     const regEmailSnap = await db.collection("registrations")
                         .where("email", "==", email)
                         .where("status", "==", "pending_verification")
@@ -588,7 +665,7 @@
                         return;
                     }
 
-                    // Check if phone number already registered in /staff
+                    // VERIFY MOBILE NUMBER IS UNIQUE (NO TWO EMPLOYEES CAN SHARE A PHONE NUMBER)
                     const allStaffSnap = await db.collection("staff").get();
                     let phoneConflict = false;
                     allStaffSnap.forEach(doc => {
@@ -601,43 +678,12 @@
                         showRegError(`The mobile number <strong>${phone}</strong> is already taken by another registered employee. Each staff member must have a unique contact number.`);
                         return;
                     }
-
-                    // Check if phone number is already pending in /registrations
-                    const allRegSnap = await db.collection("registrations").where("status", "==", "pending_verification").get();
-                    let regPhoneConflict = false;
-                    allRegSnap.forEach(doc => {
-                        const d = doc.data();
-                        if (d.phone && d.phone.replace(/\D/g, "") === cleanDigits) {
-                            regPhoneConflict = true;
-                        }
-                    });
-                    if (regPhoneConflict) {
-                        showRegError(`The mobile number <strong>${phone}</strong> is already attached to a pending registration request.`);
-                        return;
-                    }
                 } catch (checkErr) {
                     console.warn("Pre-registration validation notice:", checkErr);
                 }
             }
 
-            // 2. CHECK LOCAL CACHES (OFFLINE FALLBACK)
-            try {
-                const localStaff = JSON.parse(localStorage.getItem("swift_staff_directory") || "[]");
-                if (localStaff.some(s => (s.email || "").toLowerCase() === email)) {
-                    showRegError(`The email <strong>${email}</strong> is already taken in the directory.`);
-                    return;
-                }
-                if (localStaff.some(s => s.phone && s.phone.replace(/\D/g, "") === cleanDigits)) {
-                    showRegError(`The mobile number <strong>${phone}</strong> is already registered to another staff member.`);
-                    return;
-                }
-                const localPending = JSON.parse(localStorage.getItem("swift_pending_registrations") || "[]");
-                if (localPending.some(r => (r.email || "").toLowerCase() === email && r.status === "pending_verification")) {
-                    showRegError(`A registration for <strong>${email}</strong> is already in the pending verification queue.`);
-                    return;
-                }
-            } catch (e) {}
-
+            // STEP 6: CONSTRUCT NEW REGISTRATION APPLICATION RECORD
             btn.innerText = "Submitting Registration...";
             const regId = "reg_" + Date.now();
             const registrationRecord = {
@@ -651,13 +697,14 @@
                 verified: false,
                 active: false,
                 requestedAt: new Date().toISOString(),
+                // DERIVE DEDICATED 16-CHAR BASE32 TOTP SECRET FOR THE NEW APPLICANT
                 totpSecret: (typeof TOTP !== 'undefined' && TOTP.getSecretForEmail) ? TOTP.getSecretForEmail(email) : "JBSWY3DPEHPK3PXP"
             };
             if (vehicleType && vehicleType.trim().length > 0) {
                 registrationRecord.vehicleType = vehicleType.trim();
             }
 
-            // 1. Save to Firestore registrations collection if online
+            // STEP 7: WRITE PENDING ONBOARDING APPLICATION TO CLOUD FIRESTORE
             if (typeof db !== 'undefined' && db) {
                 try {
                     await db.collection("registrations").doc(regId).set({
@@ -674,7 +721,7 @@
                 }
             }
 
-            // 2. Save to Local Pending Registrations Cache
+            // STEP 8: SYNC TO LOCAL STORAGE CACHE (OFFLINE FALLBACK SUPPORT)
             let pendingList = [];
             try {
                 const stored = localStorage.getItem("swift_pending_registrations");
@@ -683,24 +730,7 @@
             pendingList.unshift(registrationRecord);
             localStorage.setItem("swift_pending_registrations", JSON.stringify(pendingList));
 
-            // Also register in local staff directory as pending so signInStaff detects it
-            let localStaff = [];
-            try {
-                const storedStaff = localStorage.getItem("swift_staff_directory");
-                if (storedStaff) localStaff = JSON.parse(storedStaff);
-            } catch (err) {}
-            localStaff.push({
-                id: "usr_" + email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "_"),
-                name: name,
-                email: email,
-                role: role,
-                active: false,
-                status: "pending_verification",
-                verified: false,
-                totpSecret: registrationRecord.totpSecret
-            });
-            localStorage.setItem("swift_staff_directory", JSON.stringify(localStaff));
-
+            // STEP 9: DISPLAY REGISTRATION SUCCESS CARD AND RESET BUTTON
             document.getElementById("regFormBody").style.display = "none";
             document.getElementById("regSuccessCard").style.display = "block";
             btn.disabled = false;

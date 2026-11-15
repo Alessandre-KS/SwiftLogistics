@@ -422,27 +422,38 @@
     <script src="app.js?v=4.4.0"></script>
 
     <script>
-        let currentSelectedPayment = "COD";
-        let autoTrackingNo = "TRK-" + Math.floor(1031 + Math.random() * 50);
-        let manifestMap = null;
-        let hubMarker = null;
-        let destMarker = null;
-        let routePolyline = null;
-        let customPinnedCoords = null;
-        let activeRouteRequestId = 0;
+        // ============================================================================
+        // SECTION 1: CONSIGNMENT MANIFEST STATE VARIABLES
+        // ============================================================================
+        let currentSelectedPayment = "COD";                                     // ACTIVE PAYMENT METHOD (COD, DEBIT, GCASH)
+        let autoTrackingNo = "TRK-" + Math.floor(1031 + Math.random() * 50);    // DYNAMIC UNIQUE WAYBILL REFERENCE NUMBER
+        let manifestMap = null;                                                 // LEAFLET MAP OBJECT FOR ADDRESS PINPOINTING
+        let hubMarker = null;                                                   // LEAFLET MARKER PIN FOR UB LIPA CENTRAL HUB
+        let destMarker = null;                                                  // DRAGGABLE LEAFLET MARKER PIN FOR CONSIGNEE
+        let routePolyline = null;                                               // HIGHWAY DRIVING POLYLINE BETWEEN HUB AND CONSIGNEE
+        let customPinnedCoords = null;                                          // STORES FINE-TUNED DRAG-AND-DROP COORDINATES
+        let activeRouteRequestId = 0;                                           // GUARD COUNTER TO PREVENT OUT-OF-ORDER OSRM RESPONSES
 
+        // ============================================================================
+        // INITIALIZATION ON DOM CONTENT LOADED
+        // PURPOSE: Authenticates active dispatcher session, arms Tripwire security sentry,
+        //          generates unique tracking code, and mounts Leaflet destination map.
+        // ============================================================================
         document.addEventListener("DOMContentLoaded", () => {
+            // STEP 1: VERIFY EMPLOYEE SESSION (REDIRECT TO LOGIN IF NOT SIGNED IN)
             const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
             if (!session) {
                 window.location.href = "login.html";
                 return;
             }
 
+            // STEP 2: DISPLAY ACTIVE DISPATCHER NAME ON TOP NAVIGATION BAR
             const opEl = document.getElementById("activeOperatorName");
             if (opEl) {
                 opEl.innerText = session.name || "Bossing Jeff";
             }
 
+            // STEP 3: ARM TRIPWIREJS LAYER-7 AUTOMATED CYBER-DEFENSE SENTRY
             if (typeof TripwireJS !== "undefined") {
                 TripwireJS.init({
                     protectedCollection: "parcels",
@@ -453,31 +464,42 @@
                 });
             }
 
+            // STEP 4: POPULATE INITIAL DYNAMIC TRACKING CODE ACROSS FORM & THERMAL STICKER
             document.getElementById("liveGeneratedTracking").innerText = autoTrackingNo;
             document.getElementById("stickerTracking").innerText = autoTrackingNo;
+
+            // STEP 5: INITIALIZE LEAFLET PINPOINTING MAP CANVAS
             initManifestMap();
+
+            // STEP 6: RENDER INITIAL LIVE THERMAL WAYBILL STICKER PREVIEW
             updateLiveSticker();
         });
 
-        let activeGeocodeScript = null;
-        let geocodeDebounceTimer = null;
+        let activeGeocodeScript = null;     // ACTIVE JSONP DOM SCRIPT ELEMENT
+        let geocodeDebounceTimer = null;    // DEBOUNCE TIMER TO PREVENT FLOODING NOMINATIM API
 
-        /**
-         * Real-Time Street & Purok Resolver via OpenStreetMap JSONP
-         */
+        // ============================================================================
+        // FUNCTION: HIGH-PRECISION REVERSE-GEOCODING VIA OPENSTREETMAP JSONP
+        // PURPOSE:  Converts GPS coordinates [lat, lng] into exact Batangas street names,
+        //           puroks, and barangays using Nominatim reverse geocoding.
+        // ============================================================================
         function reverseGeocodeWithStreet(lat, lng, callback) {
+            // STEP 1: GENERATE UNIQUE JSONP CALLBACK FUNCTION NAME
             const cbName = "_osm_rev_" + Math.floor(Math.random() * 1000000);
             
+            // CANCEL AND REMOVE ANY PREVIOUS PENDING GEOCODE REQUESTS
             if (activeGeocodeScript && activeGeocodeScript.parentNode) {
                 activeGeocodeScript.parentNode.removeChild(activeGeocodeScript);
             }
 
+            // STEP 2: ESTABLISH 3.5-SECOND TIMEOUT FALLBACK FOR UNSTABLE CONNECTIONS
             const timer = setTimeout(() => {
                 delete window[cbName];
                 if (script.parentNode) script.parentNode.removeChild(script);
                 callback(null);
             }, 3500);
 
+            // STEP 3: DEFINE GLOBAL JSONP HANDLER FUNCTION
             window[cbName] = function (data) {
                 clearTimeout(timer);
                 delete window[cbName];
@@ -488,6 +510,7 @@
                     return;
                 }
 
+                // STEP 4: PARSE STREET, PUROK, AND MUNICIPALITY ATTRIBUTES
                 const addr = data.address;
                 const road = addr.road || addr.pedestrian || addr.street || addr.amenity || "";
                 const purok = addr.neighbourhood || addr.suburb || addr.quarter || addr.village || addr.city_district || "";
@@ -495,6 +518,7 @@
                 const state = addr.state || "Batangas";
                 const fullCity = city.includes("Batangas") ? city : `${city}, ${state}`;
 
+                // STEP 5: FORMAT READABLE PHILIPPINE ADDRESS STRING (STREET + PUROK / BARANGAY)
                 let streetPurok = "";
                 if (road && purok) {
                     streetPurok = `${road}, ${purok.startsWith("Brgy.") ? purok : (purok.toLowerCase().includes("purok") || purok.toLowerCase().includes("sitio") ? purok : "Brgy. " + purok)}`;
@@ -506,6 +530,7 @@
                     streetPurok = "Pinned Waypoint";
                 }
 
+                // STEP 6: RETURN RESOLVED GEOGRAPHIC DETAILS TO CALLER
                 callback({
                     road: road,
                     purok: purok,
@@ -515,6 +540,7 @@
                 });
             };
 
+            // STEP 7: INJECT DYNAMIC SCRIPT ELEMENT TO EXECUTE CROSS-ORIGIN JSONP REQUEST
             const script = document.createElement("script");
             script.src = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&json_callback=${cbName}`;
             script.async = true;
@@ -522,6 +548,7 @@
             document.body.appendChild(script);
         }
 
+        // RESET MANUAL PIN OVERRIDES WHEN OPERATOR SELECTS A NEW CITY OR BARANGAY FROM DROPDOWN
         function onCityOrBarangayChange() {
             customPinnedCoords = null;
             updateLiveSticker();
@@ -805,12 +832,21 @@
             }, 300);
         }
 
+        // ============================================================================
+        // FUNCTION: SELECT ACTIVE PAYMENT METHOD (COD, DEBIT CARD, OR E-WALLET)
+        // PURPOSE:  Updates UI card selection states, toggles amount input labels,
+        //           and triggers live thermal waybill sticker re-rendering.
+        // ============================================================================
         function selectPaymentMethod(method) {
+            // STEP 1: STORE ACTIVE SELECTION STATE
             currentSelectedPayment = method;
+
+            // STEP 2: TOGGLE ACTIVE VISUAL SELECTION CLASSES ON PAYMENT TILES
             document.getElementById("pmCardCOD").classList.toggle("selected", method === "COD");
             document.getElementById("pmCardDebit").classList.toggle("selected", method === "Debit");
             document.getElementById("pmCardGCash").classList.toggle("selected", method === "GCash");
 
+            // STEP 3: UPDATE INPUT LABELS AND PLACEHOLDER TEXT ACCORDING TO PAYMENT TYPE
             const label = document.getElementById("amountFieldLabel");
             const amtInput = document.getElementById("inputAmount");
 
@@ -824,10 +860,19 @@
                 label.innerText = "E-Wallet Amount (GCash / Maya) *";
                 amtInput.placeholder = "₱850.00";
             }
+
+            // STEP 4: REFRESH LIVE THERMAL WAYBILL STICKER
             updateLiveSticker();
         }
 
+        // ============================================================================
+        // FUNCTION: RENDER LIVE THERMAL WAYBILL STICKER & ESTIMATE HUB DISTANCE
+        // PURPOSE:  Harvests form fields in real-time, masks customer phone numbers
+        //           for RA 10173 Data Privacy compliance, resolves routing sort codes,
+        //           and live-updates the Leaflet map and sticker preview.
+        // ============================================================================
         function updateLiveSticker() {
+            // STEP 1: READ CONSIGNMENT ATTRIBUTES (WITH FALLBACK SAMPLES)
             const name = document.getElementById("inputConsigneeName").value.trim() || "Maria Clara De Los Santos";
             const phone = document.getElementById("inputConsigneePhone").value.trim() || "0917-123-4567";
             const city = document.getElementById("inputCity").value || "Lipa City, Batangas";
@@ -838,12 +883,14 @@
             const category = document.getElementById("inputPackageCategory").value || "Electronics & Gadgets";
             const amount = document.getElementById("inputAmount").value.trim() || "₱1,250.00";
 
-            // Mask phone per RA 10173
+            // STEP 2: APPLY DATA PRIVACY ACT (RA 10173) MASKING ON PHONE NUMBER
+            // REPLACES MIDDLE DIGITS WITH ASTERISKS (E.G. 0917-***-4567)
             let maskedPhone = phone;
             if (phone.length >= 10) {
                 maskedPhone = phone.slice(0, 4) + "-***-" + phone.slice(-4);
             }
 
+            // STEP 3: BIND SANITIZED DATA INTO THERMAL STICKER DOM ELEMENTS
             document.getElementById("stickerName").innerText = name;
             document.getElementById("stickerPhone").innerText = maskedPhone + " (RA 10173 Masked)";
             document.getElementById("stickerCity").innerText = city;
@@ -853,7 +900,7 @@
             document.getElementById("stickerDesc").innerText = desc;
             document.getElementById("stickerCategory").innerText = "Category: " + category;
 
-            // Sort Code routing based on city
+            // STEP 4: ASSIGN LOGISTICS SORTATION ROUTE CODE BASED ON DESTINATION TOWN
             let sortCode = "LIP-04-A";
             if (city.includes("Tanauan")) sortCode = "TAN-02-B";
             else if (city.includes("Malvar")) sortCode = "MAL-01-A";
@@ -862,7 +909,7 @@
             else if (city.includes("Batangas City")) sortCode = "BAT-01-M";
             document.getElementById("stickerSortCode").innerText = sortCode;
 
-            // Update Hub Transit & Geolocation distance preview (UB Lipa Anchor)
+            // STEP 5: CALCULATE DISTANCE FROM CENTRAL UB LIPA HUB (HAVERSINE GEOMETRY)
             if (typeof getCityCoordinates === "function" && typeof getDistanceFromHub === "function") {
                 const coords = getCityCoordinates(city, barangay);
                 const dist = getDistanceFromHub(coords.lat, coords.lng);
@@ -877,7 +924,7 @@
                 if (mapDestEl) mapDestEl.innerText = destText;
                 if (mapDistEl) mapDistEl.innerText = `${dist} km`;
 
-                // Live Leaflet map update (if not custom pinned)
+                // LIVE LEAFLET MAP POSITION SYNC (IF OPERATOR HAS NOT MANUALLY PINNED CUSTOM SPOT)
                 if (!customPinnedCoords && manifestMap && destMarker && routePolyline && typeof UB_LIPA_HUB !== "undefined") {
                     const hubLat = UB_LIPA_HUB.lat;
                     const hubLng = UB_LIPA_HUB.lng;
@@ -896,7 +943,7 @@
                 }
             }
 
-            // Payment box styling
+            // STEP 6: FORMAT THERMAL STICKER PAYMENT BADGE (COLOR-CODED)
             const payBox = document.getElementById("stickerPayBox");
             const payLabel = document.getElementById("stickerPayLabel");
             const payAmt = document.getElementById("stickerPayAmount");
@@ -931,12 +978,19 @@
             }
         }
 
+        // ============================================================================
+        // FUNCTION: SUBMIT AND PERSIST COMPLETE WAYBILL CONSIGNMENT TO FIRESTORE
+        // PURPOSE:  Packages all input values, calculates distance, applies privacy
+        //           masking, and writes document to Cloud Firestore /parcels collection.
+        // ============================================================================
         async function handleFullManifestSubmit(e) {
+            // STEP 1: PREVENT DEFAULT FORM SUBMISSION AND LOCK BUTTON
             if (e) e.preventDefault();
             const btn = document.getElementById("btnSaveWaybill");
             btn.disabled = true;
             btn.innerText = "Writing Waybill to Cloud...";
 
+            // STEP 2: HARVEST ALL INPUT FIELD VALUES
             const name = document.getElementById("inputConsigneeName").value.trim();
             const phone = document.getElementById("inputConsigneePhone").value.trim();
             const city = document.getElementById("inputCity").value;
@@ -951,14 +1005,17 @@
             const fullAddress = `${apt}, ${barangay}, ${city}`;
             const combinedPackage = `${desc} (${category})`;
 
+            // STEP 3: MASK RECIPIENT PHONE NUMBER FOR RA 10173 COMPLIANCE
             let maskedPhone = phone;
             if (phone.length >= 10) {
                 maskedPhone = phone.slice(0, 4) + "-***-" + phone.slice(-4);
             }
 
+            // STEP 4: RESOLVE PRECISE GPS COORDINATES AND DISTANCE FROM HUB
             const coords = customPinnedCoords || ((typeof getCityCoordinates === "function") ? getCityCoordinates(city, barangay) : { lat: 13.9575, lng: 121.1633 });
             const dist = (customPinnedCoords && customPinnedCoords.distanceKm != null) ? customPinnedCoords.distanceKm : ((typeof getDistanceFromHub === "function") ? getDistanceFromHub(coords.lat, coords.lng) : 1.5);
 
+            // STEP 5: ASSEMBLE COMPLETE CONSIGNMENT RECORD OBJECT
             const parcelData = {
                 trackingNo: autoTrackingNo,
                 name: name,
@@ -978,7 +1035,7 @@
                 paymentRef: payRef || null
             };
 
-            // Save via app.js addParcelRecord
+            // STEP 6: PERSIST TO DATABASE (CLOUD FIRESTORE WITH LOCAL CACHE FALLBACK)
             if (typeof addParcelRecord === "function") {
                 await addParcelRecord(parcelData);
             } else {
@@ -987,6 +1044,7 @@
                 saveLocalParcels(list);
             }
 
+            // STEP 7: SHOW SUCCESS TOAST AND REDIRECT OPERATOR TO DISPATCH DESK
             showToast(`Waybill ${autoTrackingNo} Manifested & Synced Successfully!`);
 
             setTimeout(() => {
@@ -994,6 +1052,7 @@
             }, 1200);
         }
 
+        // RESET ALL FORM FIELDS AND GENERATE FRESH TRACKING CODE
         function resetEncoderForm() {
             document.getElementById("fullManifestForm").reset();
             autoTrackingNo = "TRK-" + Math.floor(1031 + Math.random() * 50);

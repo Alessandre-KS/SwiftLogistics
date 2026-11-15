@@ -534,41 +534,60 @@
             }
         }
 
+        // ============================================================================
+        // FUNCTION: REFRESH RUN-SHEET VIA MANUAL SYNC BUTTON
+        // PURPOSE:  Fetches latest parcel updates from Cloud Firestore and refreshes UI.
+        // ============================================================================
         async function refreshDriverParcels() {
             showToast("Syncing driver run-sheet with branch database...");
             await loadParcels();
             renderDriverRunSheet();
         }
 
+        // ============================================================================
+        // FUNCTION: FILTER PARCELS EXCLUSIVELY ASSIGNED TO THIS ACTIVE DRIVER
+        // PURPOSE:  Checks logged-in courier's name, UID, and email against consignment records.
+        // ============================================================================
         function getAssignedDriverParcels() {
+            // STEP 1: VERIFY ACTIVE DRIVER SESSION EXISTS
             if (!driverSession) return [];
             const dName = (driverSession.name || "").toLowerCase().trim();
             const dUid = (driverSession.uid || "").toLowerCase().trim();
             const dEmail = (driverSession.email || "").toLowerCase().trim();
 
+            // STEP 2: FILTER GLOBAL PARCEL LIST BY ASSIGNED DRIVER CREDENTIALS
             return parcelsList.filter(p => {
                 if (!p.assignedDriver && !p.assignedDriverId && !p.assignedDriverUid) return false;
                 const assigned = (p.assignedDriver || "").toLowerCase().trim();
                 const assignedId = (p.assignedDriverId || p.assignedDriverUid || "").toLowerCase().trim();
 
+                // MATCH BY DRIVER FULL NAME OR UNIQUE SYSTEM IDENTIFIER (UID / EMAIL)
                 return (assigned && (assigned.includes(dName) || dName.includes(assigned))) || 
                        (assignedId && (assignedId === dUid || assignedId === dEmail));
             });
         }
 
+        // ============================================================================
+        // FUNCTION: RENDER DRIVER RUN-SHEET, KPI CARDS & CORRIDOR MAP
+        // PURPOSE:  Calculates transit statistics, tallies pending vs delivered parcels,
+        //           computes COD cash to collect, and builds consignment card elements.
+        // ============================================================================
         function renderDriverRunSheet() {
+            // STEP 1: VERIFY RUNSHEET CONTAINER ELEMENT EXISTS IN DOM
             const container = document.getElementById("driverCardsContainer");
             if (!container) return;
 
+            // STEP 2: EXTRACT ALL SHIPMENTS ASSIGNED TO THIS COURIER
             const assignedParcels = getAssignedDriverParcels();
 
-            // Calculate KPIs
+            // STEP 3: TALLY OPERATIONAL METRICS (TOTAL, IN-TRANSIT, DELIVERED)
             const totalAssigned = assignedParcels.length;
             const pendingOut = assignedParcels.filter(p => (p.status || "").includes("Out for Delivery")).length;
             const delivered = assignedParcels.filter(p => (p.status || "").includes("Delivered")).length;
 
-            let totalCodPending = 0;
-            let totalCodCollected = 0;
+            // STEP 4: CALCULATE CASH-ON-DELIVERY (COD) FINANCIAL TOTALS
+            let totalCodPending = 0;    // CASH STILL TO COLLECT FROM RECIPIENTS (₱)
+            let totalCodCollected = 0;  // CASH ALREADY COLLECTED UPON SUCCESSFUL DELIVERY (₱)
             assignedParcels.forEach(p => {
                 const num = parseFloat((p.cod || "").replace(/[^0-9.]/g, "")) || 0;
                 if ((p.status || "").includes("Delivered")) {
@@ -578,19 +597,19 @@
                 }
             });
 
-            // Update KPI Box UI
+            // STEP 5: POPULATE 4 OPERATIONAL KPI DASHBOARD BOXES
             document.getElementById("kpiDriverTotal").innerText = totalAssigned;
             document.getElementById("kpiDriverPending").innerText = pendingOut;
             document.getElementById("kpiDriverDelivered").innerText = delivered;
             document.getElementById("kpiDriverCod").innerText = `₱${totalCodPending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             document.getElementById("kpiDriverCodSub").innerText = `Collected: ₱${totalCodCollected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-            // Tab counts
+            // STEP 6: UPDATE FILTER TAB COUNT BADGES
             document.getElementById("tabCountAll").innerText = totalAssigned;
             document.getElementById("tabCountOut").innerText = pendingOut;
             document.getElementById("tabCountDelivered").innerText = delivered;
 
-            // Calculate active delivery route stats (anchored to UB Lipa Central Hub)
+            // STEP 7: CALCULATE ESTIMATED DRIVING CORRIDOR ROUTE DISTANCE FROM UB LIPA HUB
             const activeDeliveries = assignedParcels.filter(p => (p.status || "").includes("Out for Delivery"));
             let totalRouteKm = 0;
             activeDeliveries.forEach(p => {
@@ -766,11 +785,20 @@
             renderDriverRunSheet();
         }
 
+        // ============================================================================
+        // FUNCTION: OPEN DELIVERY CONFIRMATION & PROOF OF DELIVERY (POD) MODAL
+        // PURPOSE:  Pre-populates consignment details, customer name, and COD collection
+        //           amount into the modal dialog for courier handoff confirmation.
+        // ============================================================================
         function openDeliveryProofModal(trackingNo) {
+            // STEP 1: LOCATE PARCEL RECORD IN RUNTIME ARRAY
             const parcel = parcelsList.find(p => p.trackingNo === trackingNo);
             if (!parcel) return;
 
+            // STEP 2: STORE TRACKING NUMBER IN PENDING VARIABLE FOR SUBMISSION
             pendingDeliverTracking = trackingNo;
+
+            // STEP 3: BIND RECIPIENT DATA INTO MODAL FIELDS
             document.getElementById("proofModalTrackingNo").innerText = parcel.trackingNo;
             document.getElementById("proofModalCustomerName").innerText = parcel.name;
             const fullProofAddr = (parcel.barangay ? parcel.barangay + ', ' : '') + (parcel.city || 'Lipa City, Batangas') + (parcel.addressDetails ? ' • ' + parcel.addressDetails : '');
@@ -778,6 +806,7 @@
             document.getElementById("proofModalCodDisplay").value = parcel.cod || "₱0.00";
             document.getElementById("proofModalReceivedBy").value = parcel.name;
 
+            // STEP 4: DISPLAY MODAL OVERLAY
             const m = document.getElementById("driverProofModal");
             if (m) {
                 m.style.display = "flex";
@@ -785,6 +814,7 @@
             }
         }
 
+        // CLOSE DELIVERY PROOF MODAL AND RESET PENDING STATE
         function closeDriverProofModal() {
             const m = document.getElementById("driverProofModal");
             if (m) {
@@ -794,7 +824,13 @@
             pendingDeliverTracking = null;
         }
 
+        // ============================================================================
+        // FUNCTION: SUBMIT DELIVERY CONFIRMATION & PERSIST TO FIRESTORE
+        // PURPOSE:  Transitions consignment status to "Delivered", timestamps handoff,
+        //           records COD cash collected, and updates Cloud Firestore /parcels.
+        // ============================================================================
         async function submitDeliveryProof() {
+            // STEP 1: VERIFY PENDING TRACKING NUMBER IS VALID
             if (!pendingDeliverTracking) return;
             const btn = document.getElementById("btnConfirmDeliveryProof");
             btn.disabled = true;
@@ -803,6 +839,7 @@
             const tracking = pendingDeliverTracking;
             const parcel = parcelsList.find(p => p.trackingNo === tracking);
 
+            // STEP 2: UPDATE STATUS IN CLOUD FIRESTORE & LOCAL DATABASE VIA APP.JS
             await updateParcelStatusRecord(
                 tracking, 
                 "Delivered", 
@@ -811,36 +848,47 @@
                 driverSession.uid
             );
 
+            // STEP 3: RESET BUTTON AND CLOSE MODAL DIALOG
             btn.disabled = false;
             btn.innerText = "Confirm & Log Delivery";
             closeDriverProofModal();
 
+            // STEP 4: DISPLAY CONFIRMATION TOAST AND RE-RENDER RUNSHEET
             showToast(`Consignment ${tracking} marked as Delivered! COD collected: ${parcel?.cod || '₱0.00'}`);
             renderDriverRunSheet();
+
+            // STEP 5: BROADCAST UPDATED REMAINING STOPS TO FLEET RADAR
             if (typeof window.broadcastDriverLocationNow === "function") window.broadcastDriverLocationNow();
         }
 
-        // ---------------------------------------------------------------------
-        // LIVE DRIVER GPS TELEMETRY BROADCASTER (FOR DISPATCH FLEET RADAR)
-        // ---------------------------------------------------------------------
+        // ============================================================================
+        // SECTION: LIVE DRIVER GPS TELEMETRY BROADCASTER (FOR DISPATCH FLEET RADAR)
+        // PURPOSE: Transmits courier's real-time coordinates to Cloud Firestore
+        //          /driver_locations collection so the Lipa City dispatcher can monitor
+        //          fleet movements on the Leaflet radar map.
+        // ============================================================================
         let driverBroadcastTimer = null;
         let driverWatchPositionId = null;
         let lastKnownCoords = null;
 
+        // INSTANT MANUAL BROADCAST TRIGGER
         window.broadcastDriverLocationNow = function() {
             if (lastKnownCoords && typeof lastKnownCoords.fn === "function") {
                 lastKnownCoords.fn();
             }
         };
 
+        // START CONTINUOUS GPS BROADCAST LOOP
         function startDriverLocationBroadcasting() {
+            // STEP 1: VERIFY ACTIVE DRIVER SESSION CREDENTIALS
             if (!driverSession || !driverSession.uid) return;
             const role = (driverSession.role || "").toLowerCase();
-            // Crucial: Only actual Couriers/Drivers broadcast GPS to Fleet Radar!
-            // Management (Branch Dispatcher / Owner) must NEVER broadcast as a courier on the radar!
+
+            // STEP 2: RBAC SANITY GUARD: ONLY ACTUAL COURIERS BROADCAST TO RADAR!
+            // MANAGEMENT (BRANCH DISPATCHERS AND OWNERS) MUST NEVER APPEAR AS COURIER BIKES ON RADAR!
             if (!role.includes("driver") && !role.includes("rider") && !role.includes("courier")) {
                 console.log("Management / Dispatcher session detected (" + driverSession.role + "). Courier GPS broadcast skipped.");
-                // If a management account was previously saved in driver_locations, clean it up
+                // CLEAN UP ANY STALE MANAGEMENT ENTRIES FROM DRIVER LOCATIONS COLLECTION
                 if (typeof isFirebaseOnline !== "undefined" && isFirebaseOnline && typeof db !== "undefined" && db) {
                     db.collection("driver_locations").doc(driverSession.uid).delete().catch(() => {});
                 }

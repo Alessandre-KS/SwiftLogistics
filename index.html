@@ -513,19 +513,28 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="app.js?v=4.5.0"></script>
     <script>
+        // ============================================================================
+        // SECTION 1: DISPATCH DESK TERMINAL INITIALIZATION (ON DOM CONTENT LOADED)
+        // PURPOSE: Authenticates operator session, enforces Role-Based Access Control,
+        //          arms TripwireJS intrusion sentry, synchronizes consignments from
+        //          Cloud Firestore, and renders the live Fleet Radar map.
+        // ============================================================================
         document.addEventListener("DOMContentLoaded", async () => {
+            // STEP 1: VERIFY ACTIVE OPERATOR SESSION (REDIRECT TO LOGIN IF NOT SIGNED IN)
             const session = getStaffSession();
             if (!session) {
                 window.location.href = "login.html";
                 return;
             }
 
-            // Role Separation: If logged-in user is a Driver/Rider, route directly to Driver Run-Sheet
+            // STEP 2: RBAC ENFORCEMENT - COURIERS ARE DIRECTED TO THEIR TRANSIT TERMINAL
+            // FIELD DRIVERS SHOULD NEVER VIEW ADMINISTRATIVE DISPATCH CONSOLES
             if (session.role && (session.role.toLowerCase().includes("driver") || session.role.toLowerCase().includes("rider"))) {
                 window.location.href = "driver.html";
                 return;
             }
 
+            // STEP 3: BIND OPERATOR IDENTITY INTO TOPBAR AND SIDEBAR PROFILE CARDS
             const nameEl = document.getElementById("navUserName");
             const avatarEl = document.getElementById("navUserAvatar");
             if (nameEl) nameEl.innerText = `${session.name} (${session.role})`;
@@ -535,12 +544,13 @@
                 avatarEl.innerText = initials || "ST";
             }
 
+            // STEP 4: DISPLAY OWNER PRIVILEGE NAVIGATION LINKS IF USER IS BOSSING JEFF
             if (session.role && (session.role.toLowerCase().includes("owner") || session.role.toLowerCase().includes("admin"))) {
                 const socLink = document.getElementById("ownerSocLink");
                 if (socLink) socLink.style.display = "flex";
             }
 
-            // Initialize TripwireJS Sentry
+            // STEP 5: ARM TRIPWIREJS LAYER-7 AUTOMATED CYBER-DEFENSE SENTRY
             if (typeof TripwireJS !== "undefined") {
                 TripwireJS.init({
                     protectedCollection: "parcels",
@@ -551,7 +561,10 @@
                 });
             }
 
+            // STEP 6: SYNCHRONIZE PARCEL RECORDS FROM CLOUD FIRESTORE
             await loadParcels();
+
+            // STEP 7: MOUNT FLEET RADAR LEAFLET MAP CANVAS
             initFleetRadarMap();
         });
     </script>

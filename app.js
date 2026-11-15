@@ -1427,18 +1427,29 @@ function closeBookParcelModal() {
     }
 }
 
-// HANDLE FORM SUBMISSION TO MANIFEST A NEW PARCEL RECORD
+// ============================================================================
+// FUNCTION: SUBMIT NEW CONSIGNMENT BOOKING FROM MODAL
+// PURPOSE:  Reads user inputs, geocodes destination, generates tracking number,
+//           and registers shipment in both local cache and Cloud Firestore.
+// ============================================================================
 async function handleBookParcelSubmit(e) {
+    // STEP 1: PREVENT DEFAULT FORM RELOAD
     e.preventDefault();
+
+    // STEP 2: HARVEST INPUT VALUES FROM MODAL FORM
     const name = document.getElementById("newRecipName")?.value.trim();
     const phone = document.getElementById("newRecipPhone")?.value.trim();
     const city = document.getElementById("newRecipCity")?.value.trim();
     const pkg = document.getElementById("newPackageDesc")?.value.trim();
     const cod = document.getElementById("newCodAmount")?.value.trim();
 
+    // STEP 3: SANITY CHECK (RECIPIENT NAME IS REQUIRED)
     if (!name) return;
 
+    // STEP 4: PERSIST NEW RECORD VIA ADDPARCELRECORD ENGINE
     const newRec = await addParcelRecord({ name, phone, city, package: pkg, cod });
+
+    // STEP 5: CLOSE MODAL, NOTIFY OPERATOR, AND RE-RENDER MANIFEST TABLE
     closeBookParcelModal();
     showToast(`Parcel ${newRec.trackingNo} registered for ${name}.`);
     renderManifestTable();
@@ -1446,9 +1457,16 @@ async function handleBookParcelSubmit(e) {
     e.target.reset();
 }
 
-// OPEN DISPATCH & STATUS MODAL (DYNAMICALLY POPULATES REGISTERED DRIVERS)
+// ============================================================================
+// FUNCTION: OPEN STATUS & DISPATCH MODAL (ASSIGN COURIER OR UPDATE TRANSIT STAGE)
+// PURPOSE:  Populates current shipment status and queries approved couriers from
+//           Cloud Firestore to populate the assignment dropdown.
+// ============================================================================
 async function openUpdateStatusModal(trackingNo) {
+    // STEP 1: STORE ACTIVE TRACKING NUMBER BEING EDITED
     editingTrackingNo = trackingNo;
+
+    // STEP 2: LOCATE PARCEL RECORD IN RUNTIME ARRAY
     const found = parcelsList.find(p => p.trackingNo === trackingNo);
     if (found) {
         document.getElementById("updateModalTrackingNo").innerText = found.trackingNo;
@@ -1458,7 +1476,7 @@ async function openUpdateStatusModal(trackingNo) {
         else if (targetStatus.includes("Out for Delivery")) targetStatus = "Out for Delivery";
         document.getElementById("updateStatusSelect").value = targetStatus;
 
-        // POPULATE COURIER DRIVER SELECT DROPDOWN DYNAMICALLY
+        // STEP 3: DYNAMICALLY POPULATE COURIER DRIVER SELECT DROPDOWN FROM FIRESTORE
         const driverSelect = document.getElementById("updateDriverSelect");
         if (driverSelect) {
             driverSelect.innerHTML = `<option value="">-- No Driver Assigned --</option>`;
@@ -1467,6 +1485,7 @@ async function openUpdateStatusModal(trackingNo) {
                 const opt = document.createElement("option");
                 opt.value = `${d.name}|${d.vehicleType || 'Motorcycle'}|${d.id || ''}`;
                 opt.innerText = `${getVehicleEmoji(d.vehicleType)} ${d.name} (${d.vehicleType || 'Motorcycle'})`;
+                // AUTO-SELECT CURRENTLY ASSIGNED DRIVER IF ALREADY SET
                 if (found.assignedDriver && found.assignedDriver.toLowerCase() === d.name.toLowerCase()) {
                     opt.selected = true;
                 }
@@ -1474,6 +1493,8 @@ async function openUpdateStatusModal(trackingNo) {
             });
         }
     }
+
+    // STEP 4: DISPLAY STATUS UPDATE MODAL
     const m = document.getElementById("updateStatusModal");
     if (m) {
         m.style.display = "flex";
@@ -1481,7 +1502,7 @@ async function openUpdateStatusModal(trackingNo) {
     }
 }
 
-// CLOSE DISPATCH & STATUS MODAL
+// CLOSE DISPATCH & STATUS UPDATE MODAL
 function closeUpdateStatusModal() {
     const m = document.getElementById("updateStatusModal");
     if (m) {
@@ -1490,9 +1511,16 @@ function closeUpdateStatusModal() {
     }
 }
 
-// CONFIRM STATUS UPDATE (ENFORCES BUSINESS RULE: NO "OUT FOR DELIVERY" WITHOUT DRIVER)
+// ============================================================================
+// FUNCTION: CONFIRM STATUS TRANSITION & ASSIGN FIELD COURIER
+// PURPOSE:  Enforces core business rule: A parcel CANNOT be "Out for Delivery"
+//           without an assigned courier. Writes update to Cloud Firestore.
+// ============================================================================
 async function confirmStatusUpdate() {
+    // STEP 1: VERIFY VALID TRACKING NUMBER IS SELECTED
     if (!editingTrackingNo) return;
+
+    // STEP 2: READ SELECTED STATUS AND DRIVER ASSIGNMENT
     let newStatus = document.getElementById("updateStatusSelect").value;
     const driverSelect = document.getElementById("updateDriverSelect");
     let assignedDriver = "";
@@ -1505,13 +1533,17 @@ async function confirmStatusUpdate() {
         assignedDriverId = parts[2] || "";
     }
 
-    // BUSINESS RULE: A PARCEL CANNOT BE "OUT FOR DELIVERY" IF NO COURIER IS SELECTED
+    // STEP 3: ENFORCE CORE BUSINESS RULE
+    // IF STATUS IS "OUT FOR DELIVERY" BUT NO DRIVER IS SELECTED, REVERT TO "WAITING TO BE ASSIGNED"
     if (newStatus.includes("Out for Delivery") && !assignedDriver) {
         newStatus = "Waiting to be Assigned to Driver";
         showToast("No courier selected. Status set to 'Waiting to be Assigned to Driver'.", "info");
     }
 
+    // STEP 4: PERSIST UPDATED STATUS AND DRIVER TO FIRESTORE AND LOCAL STORAGE
     await updateParcelStatusRecord(editingTrackingNo, newStatus, assignedDriver, driverVehicle, assignedDriverId);
+
+    // STEP 5: CLOSE MODAL, NOTIFY OPERATOR, AND RE-RENDER MANIFEST TABLE
     closeUpdateStatusModal();
     const driverNotice = assignedDriver ? ` and assigned to ${assignedDriver} (${driverVehicle})` : "";
     showToast(`Status updated to "${newStatus}"${driverNotice}.`);
