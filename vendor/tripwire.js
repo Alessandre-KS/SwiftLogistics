@@ -349,7 +349,7 @@
                 </div>
 
                 <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                    <button id="btnResetTripwireDemo" style="background:#DC2626; color:#FFFFFF; border:none; font-weight:600; padding:9px 18px; border-radius:6px; cursor:pointer; font-size:12.5px;">
+                    <button id="btnResetTripwireSession" style="background:#DC2626; color:#FFFFFF; border:none; font-weight:600; padding:9px 18px; border-radius:6px; cursor:pointer; font-size:12.5px;">
                         Re-arm Terminal Session
                     </button>
                     <button onclick="window.location.href='login.html'" style="background:#FFFFFF; border:1px solid #CBD5E1; color:#1E293B; font-weight:600; padding:9px 16px; border-radius:6px; cursor:pointer; font-size:12.5px;">
@@ -368,8 +368,8 @@
         // REVEAL MODAL ON SCREEN
         overlay.style.display = "flex";
 
-        // ATTACH EVENT LISTENER TO RE-ARM DEMO BUTTON
-        const resetBtn = document.getElementById("btnResetTripwireDemo");
+        // ATTACH EVENT LISTENER TO RE-ARM SESSION BUTTON
+        const resetBtn = document.getElementById("btnResetTripwireSession");
         if (resetBtn) {
             resetBtn.onclick = function () {
                 resetSession();

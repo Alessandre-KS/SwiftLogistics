@@ -1267,26 +1267,6 @@ body.courier-body {
     transition: width 1s linear;
 }
 
-/* Live Authenticator Simulator / Quick Fill Box */
-.totp-demo-sync-box {
-    background: #F8FAFC;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: 10px 14px;
-    margin: 14px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.totp-demo-code-val {
-    font-family: var(--font-mono);
-    font-size: 14px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    color: var(--courier-orange);
-}
-
 .totp-actions-row {
     display: flex;
     gap: 8px;

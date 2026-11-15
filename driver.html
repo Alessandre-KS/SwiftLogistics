@@ -596,12 +596,9 @@
                         <h3 style="font-size: 16px; font-weight: 800; color: var(--text-title); margin-bottom: 6px;">
                             No Consignments Assigned to Your Run-Sheet Yet
                         </h3>
-                        <p style="font-size: 12.5px; color: var(--text-muted); max-width: 460px; margin: 0 auto 16px auto; line-height: 1.5;">
+                        <p style="font-size: 12.5px; color: var(--text-muted); max-width: 460px; margin: 0 auto; line-height: 1.5;">
                             Consignments are assigned by the Branch Dispatcher during sorting at the Lipa City Hub.
                         </p>
-                        <button type="button" class="btn-courier-primary" onclick="demoAssignNextParcel()" style="margin: 0 auto;">
-                            ⚡ Demo: Self-Assign 1 Available Out-for-Delivery Parcel
-                        </button>
                     </div>
                 `;
                 return;
@@ -771,27 +768,6 @@
             showToast(`Consignment ${tracking} marked as Delivered! COD collected: ${parcel?.cod || '₱0.00'}`);
             renderDriverRunSheet();
             if (typeof window.broadcastDriverLocationNow === "function") window.broadcastDriverLocationNow();
-        }
-
-        async function demoAssignNextParcel() {
-            // Find first parcel with status "Waiting to be Assigned to Driver" or "Hub"
-            const available = parcelsList.find(p => (p.status || "").includes("Waiting")) ||
-                              parcelsList.find(p => (p.status || "").includes("Hub"));
-
-            if (available) {
-                await updateParcelStatusRecord(
-                    available.trackingNo, 
-                    "Out for Delivery", 
-                    driverSession.name, 
-                    driverSession.vehicleType || "Motorcycle (Express 2-Wheeler)", 
-                    driverSession.uid
-                );
-                showToast(`Assigned ${available.trackingNo} (${available.name}) to your route!`);
-                renderDriverRunSheet();
-                if (typeof window.broadcastDriverLocationNow === "function") window.broadcastDriverLocationNow();
-            } else {
-                showToast("All current branch shipments have already been assigned.");
-            }
         }
 
         // ---------------------------------------------------------------------
