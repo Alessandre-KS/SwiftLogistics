@@ -607,8 +607,80 @@ function scrollToStaff() {
     if (el) el.scrollIntoView({ behavior: "smooth" });
 }
 
-// DISPLAY EMPLOYEE 2FA QR CODE MODAL FOR AUTHENTICATOR ENROLLMENT
+// PENDING TARGET EMPLOYEE FOR PASSKEY-GATED 2FA QR CODE INSPECTION
+let pendingQrStaffId = null;
+
+// OPEN PASSKEY VERIFICATION MODAL BEFORE REVEALING 2FA QR CODE
 function viewEmployeeQrModal(staffId) {
+    const staff = staffList.find(s => s.id === staffId);
+    if (!staff) return;
+
+    pendingQrStaffId = staffId;
+
+    const avatarEl = document.getElementById("qrTargetAvatar");
+    const nameEl = document.getElementById("qrTargetName");
+    const roleEl = document.getElementById("qrTargetRole");
+    const passInput = document.getElementById("qrPasskeyInput");
+    const errBanner = document.getElementById("qrPasskeyErrorBanner");
+
+    const initials = (staff.name || "ST").split(" ").map(n => n[0]).join("");
+    if (avatarEl) avatarEl.innerText = initials || "ST";
+    if (nameEl) nameEl.innerText = staff.name;
+    if (roleEl) roleEl.innerText = staff.role + (staff.vehicleType ? ` (${staff.vehicleType})` : "");
+
+    if (passInput) {
+        passInput.value = "";
+        passInput.style.borderColor = "rgba(2, 132, 199, 0.5)";
+    }
+    if (errBanner) {
+        errBanner.style.display = "none";
+        errBanner.innerText = "";
+    }
+
+    openModal("qrPasskeyModal");
+    setTimeout(() => {
+        if (passInput) passInput.focus();
+    }, 100);
+}
+
+// CLOSE PASSKEY VERIFICATION MODAL
+function closeQrPasskeyModal() {
+    closeModal("qrPasskeyModal");
+    pendingQrStaffId = null;
+}
+
+// VERIFY ADMINISTRATOR PASSKEY AND REVEAL 2FA QR CODE MODAL
+function handleVerifyQrPasskey(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!pendingQrStaffId) return;
+
+    const passInput = document.getElementById("qrPasskeyInput");
+    const errBanner = document.getElementById("qrPasskeyErrorBanner");
+    const entered = (passInput ? passInput.value : "").trim();
+
+    // VALIDATE PASSKEY (ADMIN PASSWORD "password123")
+    if (entered !== "password123") {
+        if (errBanner) {
+            errBanner.innerText = "❌ Invalid Administrator Passkey. Access to 2FA secret denied.";
+            errBanner.style.display = "block";
+        }
+        if (passInput) {
+            passInput.style.borderColor = "#EF4444";
+            passInput.focus();
+        }
+        return;
+    }
+
+    // PASSKEY VERIFIED! CLOSE PASSKEY PROMPT AND REVEAL QR CODE
+    const targetStaffId = pendingQrStaffId;
+    closeModal("qrPasskeyModal");
+    pendingQrStaffId = null;
+
+    revealEmployeeQrModal(targetStaffId);
+}
+
+// RENDER UNLOCKED GOOGLE AUTHENTICATOR QR CODE MODAL
+function revealEmployeeQrModal(staffId) {
     const staff = staffList.find(s => s.id === staffId);
     if (!staff) return;
 
@@ -637,6 +709,8 @@ function viewEmployeeQrModal(staffId) {
     }
 
     openModal("verifiedOnboardingModal");
+    logSecurityEvent("2FA_ACCESS", staff.name, staff.id, "Google Authenticator QR code unlocked with administrative passkey");
+    showToast(`2FA Secret Unlocked: Viewing credentials for ${staff.name}`);
 }
 
 // ============================================================================
