@@ -213,8 +213,8 @@
                         <strong>Delivery Waypoints & Stop Itinerary</strong>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button type="button" id="btnToggleDriverOptimize" class="btn-toggle-optimize" onclick="toggleCourierRouteOptimization()" title="Toggle between AI-optimized sequence and default manifest order">
-                            ⚡ AI Optimized
+                        <button type="button" id="btnToggleDriverOptimize" class="btn-toggle-optimize" onclick="toggleCourierRouteOptimization()" title="Toggle between optimized sequence and default manifest order">
+                            ⚡ Optimized Route
                         </button>
                         <span id="waypointStopsBadge" class="waypoint-badge">0 Stops from UB Lipa</span>
                     </div>
@@ -773,7 +773,7 @@
             const btn = document.getElementById("btnToggleDriverOptimize");
             if (btn) {
                 btn.classList.toggle("inactive", !courierRouteOptimized);
-                btn.innerHTML = courierRouteOptimized ? "⚡ AI Optimized" : "📋 Manifest Order";
+                btn.innerHTML = courierRouteOptimized ? "⚡ Optimized Route" : "📋 Manifest Order";
             }
             renderDriverRunSheet();
             if (typeof showToast === "function") {
@@ -938,7 +938,7 @@
                                     Branch #04 Lipa
                                 </span>
                                 ${isBestStop ? `
-                                    <span class="opt-badge-pill" title="AI Route Engine recommends delivering this package first">
+                                    <span class="opt-badge-pill" title="Route optimization recommends delivering this package first">
                                         ⚡ Recommended Stop #1
                                     </span>
                                 ` : ''}
@@ -1390,7 +1390,7 @@
             if (courierRouteOptimized && optRes && optRes.isReordered) {
                 optBanner = `
                     <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 7px 10px; margin-bottom: 8px; font-size: 11px; color: #15803D; font-weight: 700; display: flex; align-items: center; justify-content: space-between;">
-                        <span>✨ AI Route Optimized: Visiting Stop #1 (${activeDeliveries[0].name.split(' ')[0]}) first saves ~${optRes.savedDistanceKm} km!</span>
+                        <span>✨ Route Optimized: Visiting Stop #1 (${activeDeliveries[0].name.split(' ')[0]}) first saves ~${optRes.savedDistanceKm} km!</span>
                         <span style="font-size: 9.5px; background: #DCFCE7; padding: 2px 6px; border-radius: 4px;">Shortest Path</span>
                     </div>
                 `;

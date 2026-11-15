@@ -196,7 +196,7 @@ async function fetchRoadRoute(waypoints) {
 }
 
 // ============================================================================
-// AI ROUTE OPTIMIZATION ENGINE (TRAVELING SALESPERSON / NEAREST-NEIGHBOR + 2-OPT)
+// ROUTE OPTIMIZATION ENGINE (TRAVELING SALESPERSON / NEAREST-NEIGHBOR + 2-OPT)
 // PURPOSE: Computes the most fuel-efficient delivery sequence between an origin
 //          and multiple customer stops, ensuring couriers visit closer stops first
 //          (e.g., Customer 2 before Customer 1) and eliminating wasteful zigzagging.

@@ -640,9 +640,9 @@
         let activeRadarRouteGlow = null;      // ACTIVE ROUTE GLOW UNDERLAY POLYLINE
         let activeRadarStopMarkers = [];      // NUMBERED DELIVERY STOP MARKERS PLOTTED ON MAP
         let activeSelectedDriverId = null;    // CURRENTLY FOCUSED DRIVER ID FOR ACTIVE ROUTE
-        let radarRouteUseOptimization = true; // TOGGLE FOR AI ROUTE OPTIMIZATION (SHORTEST PATH)
+        let radarRouteUseOptimization = true; // TOGGLE FOR ROUTE OPTIMIZATION (SHORTEST PATH)
 
-        // TOGGLE BETWEEN AI-OPTIMIZED STOP SEQUENCE AND ORIGINAL MANIFEST ORDER
+        // TOGGLE BETWEEN OPTIMIZED STOP SEQUENCE AND ORIGINAL MANIFEST ORDER
         window.toggleRadarRouteOptimization = function(driverId) {
             radarRouteUseOptimization = !radarRouteUseOptimization;
             if (driverId) {
@@ -742,7 +742,7 @@
                 !p.status.includes("Returned")
             );
 
-            // RUN AI ROUTE OPTIMIZATION ENGINE (SHORTEST PATH BETWEEN MULTIPLE CUSTOMERS)
+            // RUN ROUTE OPTIMIZATION ENGINE (SHORTEST PATH BETWEEN MULTIPLE CUSTOMERS)
             let optRes = null;
             if (typeof optimizeDeliveryRoute === "function" && activeStops.length > 1) {
                 optRes = optimizeDeliveryRoute({ lat: d.lat, lng: d.lng }, activeStops);
@@ -816,7 +816,7 @@
 
                 stopMarker.bindPopup(`
                     <div style="font-size: 11px; font-weight: 800; color: #1E40AF; text-transform: uppercase;">
-                        📍 Route Stop #${index} ${isOptimizedFirst ? '(⚡ AI Best First Stop)' : (isNext ? '(Next Delivery 🚀)' : '')}
+                        📍 Route Stop #${index} ${isOptimizedFirst ? '(⚡ Best First Stop)' : (isNext ? '(Next Delivery 🚀)' : '')}
                     </div>
                     <div style="font-size: 12.5px; font-weight: 800; color: #0F172A; margin: 3px 0 2px 0;">
                         ${parcel.trackingNo} &bull; ${parcel.name}
@@ -882,7 +882,7 @@
                 const nextDest = activeStops[0]?.barangay ? `${activeStops[0].barangay}, ${activeStops[0].city}` : (activeStops[0]?.city || "");
                 const optNotice = (radarRouteUseOptimization && optRes)
                     ? (optRes.isReordered 
-                        ? `<span style="background: #064E3B; color: #A7F3D0; border: 1px solid #059669; padding: 2px 7px; border-radius: 10px; font-weight: 800; font-size: 10.5px;">✨ AI-Optimized (Saves ~${optRes.savedDistanceKm} km / ${optRes.savingsPercent}%)</span>` 
+                        ? `<span style="background: #064E3B; color: #A7F3D0; border: 1px solid #059669; padding: 2px 7px; border-radius: 10px; font-weight: 800; font-size: 10.5px;">✨ Route Optimized (Saves ~${optRes.savedDistanceKm} km / ${optRes.savingsPercent}%)</span>` 
                         : `<span style="background: #064E3B; color: #A7F3D0; border: 1px solid #059669; padding: 2px 7px; border-radius: 10px; font-weight: 800; font-size: 10.5px;">✨ Optimal Sequence (~${optRes.optimizedDistanceKm} km)</span>`)
                     : `<span style="background: #334155; color: #E2E8F0; padding: 2px 7px; border-radius: 10px; font-weight: 700; font-size: 10.5px;">📋 Manifest Order</span>`;
 
@@ -907,7 +907,7 @@
                 }
                 const optBtn = document.getElementById("btnToggleRadarOpt");
                 if (optBtn) {
-                    optBtn.innerHTML = radarRouteUseOptimization ? "📋 Show Original Order" : "⚡ Show AI-Optimized";
+                    optBtn.innerHTML = radarRouteUseOptimization ? "📋 Show Original Order" : "⚡ Show Optimized";
                     optBtn.onclick = () => window.toggleRadarRouteOptimization(driverId);
                 }
             }
@@ -1061,7 +1061,7 @@
                     !p.status.includes("Returned")
                 );
 
-                // RUN AI ROUTE OPTIMIZATION ENGINE
+                // RUN ROUTE OPTIMIZATION ENGINE
                 let optRes = null;
                 if (typeof optimizeDeliveryRoute === "function" && activeStops.length > 1) {
                     optRes = optimizeDeliveryRoute({ lat: d.lat, lng: d.lng }, activeStops);
@@ -1175,7 +1175,7 @@
                         <div style="margin-top: 7px; border-top: 1px solid #E2E8F0; padding-top: 5px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
                                 <span style="font-size: 9.5px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
-                                    🗺️ DELIVERY ROUTE STOPS (${activeStops.length}) ${optRes?.isReordered && radarRouteUseOptimization ? `<span style="font-size: 9px; color: #059669; font-weight: 800;">(⚡ AI-Optimized)</span>` : ''}
+                                    🗺️ DELIVERY ROUTE STOPS (${activeStops.length}) ${optRes?.isReordered && radarRouteUseOptimization ? `<span style="font-size: 9px; color: #059669; font-weight: 800;">(⚡ Optimized)</span>` : ''}
                                 </span>
                                 <button type="button" onclick="event.stopPropagation(); window.drawDriverRouteOnRadar('${id}');" style="font-size: 9.5px; font-weight: 700; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; padding: 1px 6px; border-radius: 4px; cursor: pointer;">
                                     Plot Route 🛣️
