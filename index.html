@@ -142,17 +142,32 @@
                     </div>
                 </div>
 
-                <div class="topbar-actions">
+                <div class="topbar-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <!-- HIDDEN OR COMPACT STAFF STATUS BADGE FOR COMPATIBILITY -->
                     <div class="prod-status-badge badge-armed" id="staffStatusBadge" style="display: none;">
                         <span class="pulse-dot"></span>
                         <span>STAFF SESSION: ACTIVE</span>
                     </div>
 
-                    <a href="manifest.html" class="btn-courier-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    <button type="button" class="btn-courier-primary" onclick="openBookParcelModal()" style="display: inline-flex; align-items: center; gap: 6px;">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        Manifest New Waybill
-                    </a>
+                        Manifest New Shipment
+                    </button>
+
+                    <button type="button" class="btn-courier-secondary" onclick="openUserOrderTrackingModal()" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <span>📋</span>
+                        <span>My Orders & Tracking</span>
+                    </button>
+
+                    <button type="button" class="btn-courier-outline btn-courier-sm" onclick="openTransitTerminalModal()" style="display: inline-flex; align-items: center; gap: 5px;">
+                        <span>🏢</span>
+                        <span>Transit Terminals</span>
+                    </button>
+
+                    <button type="button" class="btn-courier-outline btn-courier-sm" onclick="openTermsModal(event)" style="display: inline-flex; align-items: center; gap: 5px;">
+                        <span>📜</span>
+                        <span>Terms & Conditions</span>
+                    </button>
                 </div>
             </header>
 
@@ -443,45 +458,362 @@
         </main>
     </div>
 
-    <!-- MODAL: BOOK NEW PARCEL -->
-    <div id="bookParcelModal" class="modal-overlay hidden" style="display: none;">
-        <div class="modal-content-card">
-            <div class="modal-header-bar">
-                <h3>Manifest New Shipment</h3>
-                <button class="btn-courier-sm btn-courier-outline" onclick="closeBookParcelModal()">✕</button>
+    <!-- ====================================================================
+         MODAL 1: MANIFEST NEW SHIPMENT & ORDER CHECKOUT
+         FEATURES: User Data Auto-Fill, Dynamic Data Transfer, Capacity Limits,
+                   Fragile Surcharge, Estimated Delivery Date (EDD), T&C Agreement
+         ==================================================================== -->
+    <div id="bookParcelModal" class="modal-overlay hidden" style="display: none;" onclick="if(event.target===this) closeBookParcelModal();">
+        <div class="modal-content-card" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header-bar" style="position: sticky; top: 0; background: #FFFFFF; z-index: 10;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-title);">Manifest New Shipment Waybill</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted);">Intake & express dispatch from Lipa Central Hub #04</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-courier-sm btn-courier-outline" onclick="autoFillUserProfileInBookingForm()" title="Auto-fill sender credentials from active session">
+                        ⚡ Auto-Fill Profile
+                    </button>
+                    <button class="btn-courier-sm btn-courier-outline" onclick="closeBookParcelModal()">&times;</button>
+                </div>
             </div>
+
             <div class="modal-body-pad">
                 <form id="bookParcelForm" onsubmit="handleBookParcelSubmit(event)">
-                    <div class="form-group-row">
-                        <label class="form-label-custom">Recipient Consignee Name</label>
-                        <input type="text" id="newRecipName" class="form-input-custom" placeholder="e.g. Juan Dela Cruz" required>
+
+                    <!-- 1. SENDER & DISPATCH ACCOUNT (AUTO-FILLED & TRANSFERRED DYNAMICALLY) -->
+                    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 0.5px;">
+                                🔒 Dispatching Sender Account (Dynamic Transfer)
+                            </span>
+                            <span style="font-size: 10px; font-weight: 700; background: #EFF6FF; color: #1D4ED8; padding: 1px 6px; border-radius: 4px; border: 1px solid #BFDBFE;">
+                                Authenticated
+                            </span>
+                        </div>
+                        <div id="senderProfileBadge" style="font-size: 11.5px; color: #1E293B; font-weight: 600;">
+                            🔒 Authenticated Session: <strong>Bossing Jeff</strong> (jeffrey.delacruz@ub.edu.ph) &bull; Branch #04 Lipa Hub
+                        </div>
+                        <input type="hidden" id="newSenderName" value="Bossing Jeff">
+                        <input type="hidden" id="newSenderEmail" value="jeffrey.delacruz@ub.edu.ph">
+                        <input type="hidden" id="newSenderPhone" value="0917-555-0199">
+                        <input type="hidden" id="newSenderHub" value="Branch #04 Lipa Central Hub">
                     </div>
 
-                    <div class="form-group-row">
-                        <label class="form-label-custom">Contact Mobile Number</label>
-                        <input type="text" id="newRecipPhone" class="form-input-custom" placeholder="0917-123-4567" required>
+                    <!-- 2. RECIPIENT INFORMATION -->
+                    <div style="margin-bottom: 14px;">
+                        <div style="font-size: 11.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.4px;">
+                            👤 Recipient & Destination Details
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group-row" style="margin: 0;">
+                                <label class="form-label-custom">Recipient Full Name *</label>
+                                <input type="text" id="newRecipName" class="form-input-custom" placeholder="e.g. Juan Dela Cruz" required>
+                            </div>
+                            <div class="form-group-row" style="margin: 0;">
+                                <label class="form-label-custom">Contact Mobile Number *</label>
+                                <input type="text" id="newRecipPhone" class="form-input-custom" placeholder="0917-123-4567" required>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                            <div class="form-group-row" style="margin: 0;">
+                                <label class="form-label-custom">City / Municipality *</label>
+                                <input type="text" id="newRecipCity" class="form-input-custom" value="Lipa City, Batangas" onchange="updateBookingCalculations()" required>
+                            </div>
+                            <div class="form-group-row" style="margin: 0;">
+                                <label class="form-label-custom">Barangay / District *</label>
+                                <input type="text" id="newRecipBarangay" class="form-input-custom" placeholder="e.g. Brgy. Inosloban" onchange="updateBookingCalculations()" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group-row" style="margin-top: 10px;">
+                            <label class="form-label-custom">Street / Subdivision / House Details</label>
+                            <input type="text" id="newRecipAddress" class="form-input-custom" placeholder="e.g. Block 4 Lot 12, Golden Hills Subdivision">
+                        </div>
+
+                        <div class="form-group-row" style="margin-top: 10px;">
+                            <label class="form-label-custom">Wayfinding Landmark / Gate Description</label>
+                            <input type="text" id="newRecipLandmarks" class="form-input-custom" placeholder="e.g. Near Inosloban Elementary School / Blue Gate">
+                        </div>
+
+                        <!-- QUICK FILL DESTINATION PRESETS -->
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
+                            <span style="font-size: 10.5px; color: var(--text-muted); font-weight: 600;">Quick Presets:</span>
+                            <button type="button" class="btn-courier-sm btn-courier-outline" onclick="quickFillBookingPreset('Brgy. Inosloban', 'Near Inosloban Elementary School / Blue Gate', 'Mechanical Keyboard & Electronics', '₱1,250.00')" style="padding: 2px 7px; font-size: 10.5px;">
+                                Inosloban
+                            </button>
+                            <button type="button" class="btn-courier-sm btn-courier-outline" onclick="quickFillBookingPreset('Brgy. Marawoy', 'Behind SM City Lipa / Puregold', 'CITEC Academic Supplies', '₱850.00')" style="padding: 2px 7px; font-size: 10.5px;">
+                                Marawoy (SM)
+                            </button>
+                            <button type="button" class="btn-courier-sm btn-courier-outline" onclick="quickFillBookingPreset('Brgy. Tambo', 'Across Lipa Medix Medical Center', 'Computer RAM & NVMe SSD', '₱3,400.00')" style="padding: 2px 7px; font-size: 10.5px;">
+                                Tambo (Medix)
+                            </button>
+                            <button type="button" class="btn-courier-sm btn-courier-outline" onclick="quickFillBookingPreset('Brgy. Sabang', 'Near Lipa Cathedral / Plaza', 'Coffee Beans & Roasting Kit', '₱620.00')" style="padding: 2px 7px; font-size: 10.5px;">
+                                Sabang (Plaza)
+                            </button>
+                            <button type="button" class="btn-courier-sm btn-courier-outline" onclick="quickFillBookingPreset('SM City Lipa Complex', 'Lipa Grand Transport Terminal Bay 4', 'Inter-Terminal Courier Dispatch', '₱1,500.00')" style="padding: 2px 7px; font-size: 10.5px;">
+                                Lipa Grand Terminal
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="form-group-row">
-                        <label class="form-label-custom">Destination City / Municipality</label>
-                        <input type="text" id="newRecipCity" class="form-input-custom" placeholder="e.g. Lipa City, Batangas" value="Lipa City, Batangas" required>
+                    <!-- 3. CARGO SPECIFICATIONS & CAPACITY LIMITS -->
+                    <div style="margin-bottom: 14px; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 11.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.4px;">
+                                📦 Package Cargo & Capacity Limits
+                            </span>
+                            <span id="capacityStatusBadge" class="capacity-badge-pill capacity-ok">
+                                🛵 Motorcycle Courier Capacity OK (2.0 kg / 25 kg max)
+                            </span>
+                        </div>
+
+                        <div class="form-group-row">
+                            <label class="form-label-custom">Package Contents Description *</label>
+                            <input type="text" id="newPackageDesc" class="form-input-custom" placeholder="e.g. Electronics, Medical Supplies, Uniforms..." required>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                            <div class="form-group-row" style="margin: 0;">
+                                <label class="form-label-custom">Weight in kg (Max 50kg) *</label>
+                                <input type="number" id="newWeightKg" class="form-input-custom font-mono" value="2.0" min="0.1" max="50" step="0.5" oninput="updateBookingCalculations()" required>
+                            </div>
+                            <div class="form-group-row" style="margin: 0;">
+                                <label class="form-label-custom">Item Pieces (Max 15) *</label>
+                                <input type="number" id="newItemCount" class="form-input-custom font-mono" value="1" min="1" max="15" oninput="updateBookingCalculations()" required>
+                            </div>
+                            <div class="form-group-row" style="margin: 0;">
+                                <label class="form-label-custom">Cash on Delivery (COD) *</label>
+                                <input type="text" id="newCodAmount" class="form-input-custom font-mono" placeholder="₱0.00" value="₱850.00" required>
+                            </div>
+                        </div>
+
+                        <div id="capacityNoticeBox" class="capacity-meter-box" style="display: none; font-size: 11.5px; color: #991B1B; background: #FEF2F2; border-color: #FECACA;">
+                        </div>
                     </div>
 
-                    <div class="form-group-row">
-                        <label class="form-label-custom">Package Contents Description</label>
-                        <input type="text" id="newPackageDesc" class="form-input-custom" placeholder="e.g. Electronics & Computer Parts" required>
+                    <!-- 4. FRAGILE HANDLING SURCHARGE & TARIFF -->
+                    <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700; color: #92400E;">
+                            <input type="checkbox" id="newIsFragile" onchange="updateBookingCalculations()" style="width: 17px; height: 17px; accent-color: #EA580C; cursor: pointer;">
+                            <span>⚠️ Contains Breakable / Fragile Items (+₱75.00 Special Handling Surcharge)</span>
+                        </label>
+                        <div id="fragileHandlingNotice" class="fragile-notice-box" style="display: none;">
+                            <span>🛡️</span>
+                            <span><strong>Fragile Protection Protocol:</strong> Package will be flagged for bubble wrap, dual-walled shock insulation, and top-rack courier vehicle stowage.</span>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #FCD34D; font-size: 11.5px;">
+                            <span>Base Freight: <strong id="calcBaseShippingFee">₱120.00</strong></span>
+                            <span>Fragile Fee: <strong id="calcFragileSurcharge" style="color: #B45309;">₱0.00</strong></span>
+                            <span>Total Freight Tariff: <strong id="calcTotalFreightFee" style="color: #EA580C; font-size: 13.5px;">₱120.00</strong></span>
+                        </div>
                     </div>
 
-                    <div class="form-group-row">
-                        <label class="form-label-custom">Cash on Delivery (COD) Amount</label>
-                        <input type="text" id="newCodAmount" class="form-input-custom" placeholder="e.g. ₱1,500.00 or ₱0.00" value="₱850.00" required>
+                    <!-- 5. ESTIMATED DELIVERY DATE (EDD) PREVIEW -->
+                    <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <div style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: #166534; letter-spacing: 0.5px;">
+                                📅 Guaranteed Delivery SLA
+                            </div>
+                            <div style="font-size: 13.5px; font-weight: 800; color: #0F172A; margin-top: 2px;">
+                                <span id="calcEstimatedDeliveryDate">Wed, Nov 18, 2026</span>
+                            </div>
+                        </div>
+                        <span id="calcEstimatedDeliverySla" style="font-size: 11px; font-weight: 700; background: #DCFCE7; color: #15803D; padding: 4px 9px; border-radius: 6px; border: 1px solid #86EFAC;">
+                            Next-Day Delivery (24-Hour Express Guarantee)
+                        </span>
                     </div>
 
-                    <div class="modal-footer-bar">
+                    <!-- 6. TERMS & CONDITIONS AGREEMENT -->
+                    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px;">
+                        <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 12px; color: #334155; line-height: 1.45;">
+                            <input type="checkbox" id="newAgreeTerms" checked style="width: 17px; height: 17px; accent-color: #EA580C; cursor: pointer; margin-top: 2px;">
+                            <span>
+                                I have read and agree to the <strong>SwiftLogistics Consignment Terms & Conditions</strong> covering Standard Freight, Cash on Delivery (COD) remittances, Fragile Handling, Capacity limits, and maximum 3 delivery attempts.
+                                <a href="#" onclick="openTermsModal(event)" style="color: #2563EB; font-weight: 700; text-decoration: underline; margin-left: 4px;">
+                                    [Read Full Terms & Conditions]
+                                </a>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- MODAL FOOTER -->
+                    <div class="modal-footer-bar" style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-subtle); padding-top: 14px;">
                         <button type="button" class="btn-courier-sm btn-courier-outline" onclick="closeBookParcelModal()">Cancel</button>
-                        <button type="submit" class="btn-courier-primary">Save & Generate Waybill</button>
+                        <button type="submit" id="btnSubmitBookParcel" class="btn-courier-primary">Save & Generate Waybill</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL 2: USER ORDER TRACKING & SUMMARY
+         FEATURES: Complete user order history, status progress, fee summary,
+                   direct delivery verification QR code launcher
+         ==================================================================== -->
+    <div id="userOrderTrackingModal" class="modal-overlay hidden" style="display: none;" onclick="if(event.target===this) closeUserOrderTrackingModal();">
+        <div class="modal-content-card" style="max-width: 780px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header-bar" style="position: sticky; top: 0; background: #FFFFFF; z-index: 10;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-title);">My Orders & Consignment Tracking</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted);" id="userOrderTotalCount">0 Consignments</p>
+                </div>
+                <button class="btn-courier-sm btn-courier-outline" onclick="closeUserOrderTrackingModal()">&times;</button>
+            </div>
+
+            <div class="modal-body-pad">
+                <!-- TELEMETRY KPI SUMMARY -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;">
+                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 10px 12px;">
+                        <span style="font-size: 10.5px; font-weight: 700; color: #1E40AF; text-transform: uppercase;">Out for Delivery</span>
+                        <div style="font-size: 20px; font-weight: 800; color: #1D4ED8; margin-top: 2px;" id="userOrderKpiOut">0</div>
+                    </div>
+                    <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 10px 12px;">
+                        <span style="font-size: 10.5px; font-weight: 700; color: #065F46; text-transform: uppercase;">Delivered & Signed</span>
+                        <div style="font-size: 20px; font-weight: 800; color: #047857; margin-top: 2px;" id="userOrderKpiDel">0</div>
+                    </div>
+                    <div style="background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 8px; padding: 10px 12px;">
+                        <span style="font-size: 10.5px; font-weight: 700; color: #9A3412; text-transform: uppercase;">Total COD Value</span>
+                        <div style="font-size: 20px; font-weight: 800; color: #C2410C; margin-top: 2px;" id="userOrderKpiCod">₱0.00</div>
+                    </div>
+                </div>
+
+                <!-- ORDERS LIST -->
+                <div class="order-tracking-table-wrap" id="userOrderTrackingList">
+                    <!-- Populated dynamically via renderUserOrderTracking() -->
+                </div>
+
+                <div class="modal-footer-bar" style="margin-top: 14px; display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn-courier-secondary" onclick="closeUserOrderTrackingModal()">Close Tracking</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL 3: DELIVERY VERIFICATION QR CODE PASS
+         FEATURES: Scannable QR code, security verification token, waybill pass
+         ==================================================================== -->
+    <div id="deliveryQrModal" class="modal-overlay hidden" style="display: none;" onclick="if(event.target===this) closeDeliveryQrModal();">
+        <div class="modal-content-card qr-modal-card" style="max-width: 440px;">
+            <div class="modal-header-bar">
+                <div style="text-align: left;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-title);">Delivery Verification Pass</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted);">Present to courier upon doorstep arrival</p>
+                </div>
+                <button class="btn-courier-sm btn-courier-outline" onclick="closeDeliveryQrModal()">&times;</button>
+            </div>
+
+            <div class="modal-body-pad" style="text-align: center;">
+                <div style="font-size: 12px; font-weight: 800; color: var(--courier-orange); font-family: monospace;" id="qrModalTrackingNo">
+                    TRK-0000
+                </div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text-title); margin-top: 2px;" id="qrModalCustomerName">
+                    Customer Name
+                </div>
+
+                <!-- SCANNABLE QR CODE FRAME -->
+                <div class="qr-code-img-frame">
+                    <img id="qrModalImage" src="" alt="Delivery Verification QR" style="width: 200px; height: 200px; display: block; margin: 0 auto;">
+                </div>
+
+                <!-- 6-CHARACTER VERIFICATION PASS TOKEN -->
+                <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px;">
+                    Doorstep Verification Token
+                </div>
+                <div class="qr-token-pill" id="qrModalTokenCode">
+                    SL-0000-XXXX
+                </div>
+
+                <div style="display: flex; justify-content: space-around; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 12px;">
+                    <div>
+                        <span style="color: var(--text-muted);">Amount Due:</span>
+                        <strong id="qrModalCodAmount" style="color: #EA580C; margin-left: 4px;">₱0.00</strong>
+                    </div>
+                    <div>
+                        <strong id="qrModalEddText" style="color: #047857;">Est: Tomorrow</strong>
+                    </div>
+                </div>
+
+                <p style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin-top: 12px;">
+                    The courier will scan this QR code or input the verification token into their mobile terminal to log proof of delivery (POD).
+                </p>
+
+                <div class="modal-footer-bar" style="margin-top: 14px; display: flex; justify-content: center; gap: 8px;">
+                    <button type="button" class="btn-courier-primary" onclick="window.print()">🖨️ Print / Save Pass</button>
+                    <button type="button" class="btn-courier-outline" onclick="closeDeliveryQrModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL 4: SWIFTLOGISTICS TERMS AND CONDITIONS
+         FEATURES: Complete terms covering Standard, COD, Fragile, Capacity,
+                   Delivery Attempts (max 3), and Claim Policies
+         ==================================================================== -->
+    <div id="termsAndConditionsModal" class="modal-overlay hidden" style="display: none;" onclick="if(event.target===this) closeTermsModal();">
+        <div class="modal-content-card" style="max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header-bar">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-title);">SwiftLogistics Terms & Conditions</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted);">Standard Freight & Consignment Transit Policies</p>
+                </div>
+                <button class="btn-courier-sm btn-courier-outline" onclick="closeTermsModal()">&times;</button>
+            </div>
+
+            <div class="modal-body-pad" style="overflow-y: auto; font-size: 12.5px; color: #334155; line-height: 1.6; padding-right: 14px;">
+                <h4 style="font-size: 13.5px; font-weight: 800; color: #0F172A; margin: 10px 0 4px 0;">1. Scope of Courier Services & Service Levels</h4>
+                <p>SwiftLogistics provides intra-city express dispatch from Lipa Central Hub #04 and regional line-haul distribution across Batangas and Region IV-A. Local intra-city deliveries booked before 2:00 PM qualify for Same-Day Express dispatch; bookings made after 2:00 PM are guaranteed for Next-Day morning transit.</p>
+
+                <h4 style="font-size: 13.5px; font-weight: 800; color: #0F172A; margin: 14px 0 4px 0;">2. Cash on Delivery (COD) Remittances</h4>
+                <p>For COD consignments, the recipient must tender exact currency upon parcel handover. Collected funds are cleared and digitally remitted to merchant accounts within twenty-four (24) banking hours. A physical or digital receipt with unique POD token verification is required upon handover.</p>
+
+                <h4 style="font-size: 13.5px; font-weight: 800; color: #0F172A; margin: 14px 0 4px 0;">3. Fragile & Breakable Item Special Handling</h4>
+                <p>Consignments containing glassware, ceramics, liquid containers, delicate electronics, or precision instruments must be declared as Fragile. A non-refundable ₱75.00 Special Handling Surcharge applies. Senders must ensure dual-walled corrugated outer boxing and shock-absorbent cushioning.</p>
+
+                <h4 style="font-size: 13.5px; font-weight: 800; color: #0F172A; margin: 14px 0 4px 0;">4. Weight & Cargo Capacity Limits</h4>
+                <p>Standard motorcycle courier dispatch enforces a strict maximum weight limit of 25.0 kg and 10 items. Shipments between 25.1 kg and 50.0 kg (or up to 15 items) are automatically upgraded to Cargo Van / Light Truck dispatch. Any single consignment exceeding 50.0 kg must be split into multiple separate waybills.</p>
+
+                <h4 style="font-size: 13.5px; font-weight: 800; color: #0F172A; margin: 14px 0 4px 0;">5. Delivery Attempt Limits & Return to Hub</h4>
+                <p>SwiftLogistics couriers execute a maximum of three (3) legitimate delivery attempts. If delivery fails on all three attempts due to customer unavailability, incorrect destination, or gate refusal, the consignment is returned to Lipa Central Hub for sender reclaim.</p>
+
+                <h4 style="font-size: 13.5px; font-weight: 800; color: #0F172A; margin: 14px 0 4px 0;">6. Claims & Loss Liability</h4>
+                <p>Claims for damaged or missing contents must be filed within forty-eight (48) hours of delivery completion with photographic evidence and the active Delivery Verification Token.</p>
+            </div>
+
+            <div class="modal-footer-bar" style="border-top: 1px solid var(--border-subtle); padding: 12px 18px; display: flex; justify-content: flex-end;">
+                <button type="button" class="btn-courier-primary" onclick="closeTermsModal()">Accept & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL 5: REGIONAL TRANSIT TERMINALS & NAVIGATION
+         FEATURES: Transport terminal directory, distances, driving times,
+                   and instant Leaflet Fleet Radar route corridor plotting
+         ==================================================================== -->
+    <div id="transitTerminalModal" class="modal-overlay hidden" style="display: none;" onclick="if(event.target===this) closeTransitTerminalModal();">
+        <div class="modal-content-card" style="max-width: 820px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header-bar" style="position: sticky; top: 0; background: #FFFFFF; z-index: 10;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-title);">Regional Transit Terminals & Inter-Hub Routing</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted);">Major Batangas logistics hubs connected to UB Lipa Central Hub #04</p>
+                </div>
+                <button class="btn-courier-sm btn-courier-outline" onclick="closeTransitTerminalModal()">&times;</button>
+            </div>
+
+            <div class="modal-body-pad">
+                <div class="transit-grid" id="transitTerminalsGrid">
+                    <!-- Populated dynamically via renderTransitTerminalsList() -->
+                </div>
+
+                <div class="modal-footer-bar" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn-courier-secondary" onclick="closeTransitTerminalModal()">Close Terminal Hub</button>
+                </div>
             </div>
         </div>
     </div>
@@ -600,6 +932,18 @@
 
             // STEP 7: MOUNT FLEET RADAR LEAFLET MAP CANVAS
             initFleetRadarMap();
+
+            // STEP 8: ESCAPE KEY CLOSES ANY ACTIVE MODAL OVERLAY (SINGLE-PAGE MODAL ARCHITECTURE)
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    if (typeof closeBookParcelModal === "function") closeBookParcelModal();
+                    if (typeof closeUserOrderTrackingModal === "function") closeUserOrderTrackingModal();
+                    if (typeof closeDeliveryQrModal === "function") closeDeliveryQrModal();
+                    if (typeof closeTermsModal === "function") closeTermsModal();
+                    if (typeof closeTransitTerminalModal === "function") closeTransitTerminalModal();
+                    if (typeof closeUpdateStatusModal === "function") closeUpdateStatusModal();
+                }
+            });
         });
     </script>
 
@@ -1020,6 +1364,9 @@
                     </button>
                     <button type="button" class="btn-radar-driver" onclick="focusFleetRadarHub()">
                         🏢 Central Hub
+                    </button>
+                    <button type="button" class="btn-radar-driver" onclick="openTransitTerminalModal()" title="View regional transit terminals and routing">
+                        🏢 Transit Terminals
                     </button>
                 `;
 

@@ -110,6 +110,14 @@
                         </span>
                     </div>
 
+                    <!-- LOCKOUT & ATTEMPTS BANNER -->
+                    <div id="totpLockoutBanner" style="display: none; background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; font-weight: 700; text-align: center;">
+                        <span id="totpLockoutTimerText">⛔ Security Lockout: 3 invalid attempts. Terminal locked for 30s.</span>
+                    </div>
+                    <div id="totpAttemptsNotice" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-bottom: 8px;">
+                        Enter 6-digit OTP from your Authenticator app. (Max 3 attempts before temporary lockout)
+                    </div>
+
                     <!-- 6 INDIVIDUAL TOTP DIGIT BOXES -->
                     <div class="totp-input-grid">
                         <input type="text" id="otpDigit1" class="totp-digit-box" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code" autofocus>
@@ -352,6 +360,7 @@
 
             setupOtpInputs();                                                           // ATTACH INPUT AND AUTO-FOCUS LISTENERS
             startTotpTicker();                                                          // START 30-SECOND HARDWARE TICKER
+            checkOtpLockoutState();                                                     // ENFORCE PERSISTENT LOCKOUT RESTRICTIONS
         }
 
         // ============================================================================
@@ -494,8 +503,85 @@
         // PURPOSE:  Validates code using Web Crypto HMAC-SHA1. Upon success, stores
         //           MFA-verified session and redirects user to their appropriate role terminal.
         // ============================================================================
-        let failedAttempts = 0;
+        // ============================================================================
+        // OTP ATTEMPT LIMITING & SECURITY LOCKOUT CONTROLLER
+        // PURPOSE:  Tracks failed OTP attempts in localStorage, enforcing strict
+        //           rate-limiting (max 3 invalid attempts) and a 30-second lockout.
+        // ============================================================================
+        let otpLockoutInterval = null;
+
+        function checkOtpLockoutState() {
+            const lockoutUntil = parseInt(localStorage.getItem("swift_otp_lockout_until") || "0", 10);
+            const now = Date.now();
+            const banner = document.getElementById("totpLockoutBanner");
+            const timerText = document.getElementById("totpLockoutTimerText");
+            const btn = document.getElementById("btnVerifyTotp");
+            const inputs = document.querySelectorAll(".totp-digit-box");
+
+            if (lockoutUntil > now) {
+                // ACTIVE LOCKOUT IN PROGRESS
+                const remainingSecs = Math.ceil((lockoutUntil - now) / 1000);
+                if (banner) banner.style.display = "block";
+                if (timerText) timerText.innerText = `⛔ Security Lockout: 3 invalid attempts. Terminal locked for ${remainingSecs}s.`;
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerText = `Terminal Locked (${remainingSecs}s)`;
+                }
+                inputs.forEach(el => {
+                    el.disabled = true;
+                    el.style.opacity = "0.45";
+                    el.style.background = "#FEF2F2";
+                });
+
+                if (otpLockoutInterval) clearInterval(otpLockoutInterval);
+                otpLockoutInterval = setInterval(() => {
+                    const currentRemaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+                    if (currentRemaining <= 0) {
+                        clearInterval(otpLockoutInterval);
+                        otpLockoutInterval = null;
+                        localStorage.removeItem("swift_otp_lockout_until");
+                        localStorage.removeItem("swift_otp_failed_attempts");
+                        if (banner) banner.style.display = "none";
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerText = "Verify & Launch Terminal";
+                        }
+                        inputs.forEach(el => {
+                            el.disabled = false;
+                            el.style.opacity = "1";
+                            el.style.background = "";
+                        });
+                        showAlert("Security lockout lifted. You may now enter your 6-digit TOTP code.");
+                        const firstInput = document.getElementById("otpDigit1");
+                        if (firstInput) firstInput.focus();
+                    } else {
+                        if (timerText) timerText.innerText = `⛔ Security Lockout: 3 invalid attempts. Terminal locked for ${currentRemaining}s.`;
+                        if (btn) btn.innerText = `Terminal Locked (${currentRemaining}s)`;
+                    }
+                }, 1000);
+                return true;
+            } else {
+                if (banner) banner.style.display = "none";
+                if (btn && btn.innerText.includes("Locked")) {
+                    btn.disabled = false;
+                    btn.innerText = "Verify & Launch Terminal";
+                }
+                inputs.forEach(el => {
+                    el.disabled = false;
+                    el.style.opacity = "1";
+                    el.style.background = "";
+                });
+                return false;
+            }
+        }
+
         async function handleTotpVerification() {
+            // STEP 0: CHECK IF ACTIVE LOCKOUT PREVENTS VERIFICATION
+            if (checkOtpLockoutState()) {
+                showAlert("Security Lockout active: Please wait for the lockout countdown to expire before retrying.");
+                return;
+            }
+
             // STEP 1: READ CONCATENATED 6-DIGIT STRING
             const enteredCode = getEnteredOtp();
             if (enteredCode.length !== 6) {
@@ -513,7 +599,10 @@
 
             // STEP 4: EVALUATE CRYPTOGRAPHIC RESULT
             if (isValid) {
-                // AUTHENTICATION PASSED -> UPDATE UI TO SUCCESS STATE
+                // AUTHENTICATION PASSED -> CLEAR ATTEMPTS COUNTERS
+                localStorage.removeItem("swift_otp_failed_attempts");
+                localStorage.removeItem("swift_otp_lockout_until");
+
                 btn.style.background = "#059669";
                 btn.innerText = "✓ TOTP Verified! Launching Terminal...";
                 
@@ -526,8 +615,6 @@
                 }
 
                 // STEP 6: ROLE-BASED AUTOMATIC REDIRECT
-                // - FIELD COURIERS (DRIVERS/RIDERS) ARE DIRECTED TO THE DRIVER RUN-SHEET (driver.html)
-                // - DISPATCH MANAGERS AND ADMINISTRATORS ARE DIRECTED TO THE MAIN HUB (index.html)
                 setTimeout(() => {
                     const isDriver = pendingUser && pendingUser.role && (
                         pendingUser.role.toLowerCase().includes("driver") || 
@@ -536,24 +623,25 @@
                     window.location.href = isDriver ? "driver.html" : "index.html";
                 }, 400);
             } else {
-                // AUTHENTICATION FAILED -> INCREMENT RATE LIMIT COUNTER
-                failedAttempts++;
+                // AUTHENTICATION FAILED -> INCREMENT PERSISTENT RATE LIMIT COUNTER
+                let currentAttempts = parseInt(localStorage.getItem("swift_otp_failed_attempts") || "0", 10) + 1;
+                localStorage.setItem("swift_otp_failed_attempts", currentAttempts);
+                
                 btn.disabled = false;
                 btn.innerText = "Verify & Launch Terminal";
                 
-                // CLEAR BOXES AND ALERT OPERATOR OF MISMATCH
+                // CLEAR BOXES
                 clearOtpBoxes();
-                showAlert(`Invalid 6-digit TOTP code. Please check your Authenticator app (Attempt ${failedAttempts}/3).`);
 
-                // STEP 7: RATE LIMITING COOLDOWN (LOCKOUT FOR 15 SECONDS AFTER 3 FAILED ATTEMPTS)
-                if (failedAttempts >= 3) {
-                    showAlert("Security Warning: 3 invalid TOTP attempts detected. Terminal locked for 15 seconds.");
-                    btn.disabled = true;
-                    setTimeout(() => {
-                        failedAttempts = 0;
-                        btn.disabled = false;
-                        showAlert("You may now re-try your 6-digit TOTP code.");
-                    }, 15000);
+                // EVALUATE LOCKOUT THRESHOLD (MAX 3 ATTEMPTS)
+                if (currentAttempts >= 3) {
+                    const lockoutExpiry = Date.now() + 30000; // 30-SECOND LOCKOUT
+                    localStorage.setItem("swift_otp_lockout_until", lockoutExpiry);
+                    checkOtpLockoutState();
+                    showAlert("Security Warning: 3 invalid TOTP attempts detected. Terminal locked for 30 seconds.");
+                } else {
+                    const remaining = 3 - currentAttempts;
+                    showAlert(`Invalid 6-digit TOTP code (Attempt ${currentAttempts}/3). ${remaining} attempt(s) remaining before temporary lockout.`);
                 }
             }
         }

@@ -398,6 +398,136 @@ async function getRegisteredDrivers() {
     return drivers;
 }
 
+// ============================================================================
+// ESTIMATED DELIVERY DATE (EDD) CALCULATOR
+// PURPOSE: Computes guaranteed service level delivery date based on order
+//          creation timestamp, destination locality, and express dispatch cut-off.
+// ============================================================================
+function calculateEstimatedDeliveryDate(baseDate = new Date(), city = "", barangay = "", isExpress = true) {
+    const d = (baseDate instanceof Date) ? new Date(baseDate) : new Date(baseDate || Date.now());
+    const hour = d.getHours();
+    const cityStr = (city || "").toLowerCase();
+    const isLipa = cityStr.includes("lipa");
+
+    let daysToAdd = 1;
+    let slaText = "Next-Day Delivery (24-Hour Express Guarantee)";
+
+    if (isLipa) {
+        if (hour < 14) {
+            // Booked before 2:00 PM local cut-off -> Same-Day Delivery
+            daysToAdd = 0;
+            slaText = "Same-Day Express Dispatch (By 6:00 PM Today)";
+        } else {
+            daysToAdd = 1;
+            slaText = "Next-Day Morning Dispatch (By 12:00 PM Tomorrow)";
+        }
+    } else if (cityStr.includes("batangas") || cityStr.includes("tanauan") || cityStr.includes("santo tomas") || cityStr.includes("malvar")) {
+        daysToAdd = 1;
+        slaText = "Batangas Provincial Express (Within 24 Hours)";
+    } else {
+        daysToAdd = 2;
+        slaText = "Regional Inter-Hub Transit (1-2 Business Days)";
+    }
+
+    const targetDate = new Date(d);
+    targetDate.setDate(targetDate.getDate() + daysToAdd);
+
+    // Skip Sunday if target falls on rest day
+    if (targetDate.getDay() === 0) {
+        targetDate.setDate(targetDate.getDate() + 1);
+    }
+
+    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    const formattedDate = targetDate.toLocaleDateString('en-US', options);
+    const isoDate = targetDate.toISOString().split('T')[0];
+
+    return {
+        formattedDate,
+        isoDate,
+        daysToAdd,
+        slaText
+    };
+}
+
+// ============================================================================
+// DELIVERY VERIFICATION CODE / TOKEN GENERATOR
+// PURPOSE: Creates unique 4-to-6 alphanumeric security verification token
+//          embedded in the recipient's Delivery Verification QR Pass.
+// ============================================================================
+function generateDeliveryVerificationCode(trackingNo = "") {
+    const rawNum = (trackingNo || "").replace(/[^0-9]/g, "").slice(-4) || "8821";
+    const randChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `SL-${rawNum}-${randChars}`;
+}
+
+// ============================================================================
+// REGIONAL TRANSIT TERMINALS & LOGISTICS CONNECTIONS DIRECTORY
+// PURPOSE: Primary inter-modal transport terminals and sorting hubs in Batangas
+//          and CALABARZON connected to UB Lipa Central Logistics Hub #04.
+// ============================================================================
+const TRANSIT_TERMINALS = [
+    {
+        id: "term_lipa_grand",
+        name: "Lipa Grand Transport Terminal",
+        category: "Provincial Bus & UV Express Interchange",
+        location: "SM City Lipa Complex, Brgy. Marawoy, Lipa City",
+        lat: 13.9482,
+        lng: 121.1634,
+        distanceKm: 3.2,
+        estDriveTime: "8 mins",
+        operatingHours: "24/7 Operations",
+        description: "Primary passenger and express freight interchange connecting Lipa City to Metro Manila, Batangas City, and Southern Tagalog regional routes."
+    },
+    {
+        id: "term_batangas_port",
+        name: "Batangas City Port Transit Terminal",
+        category: "Maritime Ro-Ro & Inter-Island Freight Hub",
+        location: "Santa Clara, Batangas City",
+        lat: 13.7548,
+        lng: 121.0475,
+        distanceKm: 28.4,
+        estDriveTime: "35 mins",
+        operatingHours: "04:00 AM - 11:00 PM",
+        description: "Main sea-freight gateway for Mindoro, Romblon, Panay, and Visayas roll-on/roll-off maritime distribution."
+    },
+    {
+        id: "term_tanauan_central",
+        name: "Tanauan Central Transport Terminal",
+        category: "North Batangas Express Hub",
+        location: "J.P. Laurel Hwy, Poblacion, Tanauan City",
+        lat: 14.0838,
+        lng: 121.1504,
+        distanceKm: 15.6,
+        estDriveTime: "22 mins",
+        operatingHours: "05:00 AM - 10:00 PM",
+        description: "Consolidation facility connecting industrial parks (FPIP) and Northern Batangas agricultural commerce."
+    },
+    {
+        id: "term_santo_tomas",
+        name: "Santo Tomas SLEX Gateway Hub",
+        category: "Expressway Cargo & Logistics Interchange",
+        location: "Maharlika Hwy / SLEX Toll Exit, Santo Tomas, Batangas",
+        lat: 14.1102,
+        lng: 121.1448,
+        distanceKm: 22.1,
+        estDriveTime: "28 mins",
+        operatingHours: "24/7 Operations",
+        description: "Strategic tollway gateway facilitating rapid line-haul transfer between Batangas manufacturing zones and Metro Manila."
+    },
+    {
+        id: "term_calamba_sort",
+        name: "Calamba Regional Sorting Facility",
+        category: "Mega-Regional Sorting & Transit Hub",
+        location: "Turbina, Calamba City, Laguna",
+        lat: 14.1856,
+        lng: 121.1415,
+        distanceKm: 34.0,
+        estDriveTime: "42 mins",
+        operatingHours: "24/7 Operations",
+        description: "High-capacity automated sorting center handling cross-docking for Region IV-A (CALABARZON) freight networks."
+    }
+];
+
 // LOCAL CACHE STORE FOR DRIVER GPS COORDINATES
 const DEFAULT_DRIVER_LOCATIONS = {
     "usr_maewsenpai": {
@@ -1064,6 +1194,25 @@ async function addParcelRecord(parcelData) {
         : getCityCoordinates(parcelData.city, parcelData.barangay);             // FALLBACK TO BARANGAY / CITY PRESET COORDINATES
     const dist = getDistanceFromHub(coords.lat, coords.lng);                    // TRANSIT DISTANCE FROM UB LIPA CENTRAL HUB IN KM
 
+    // EVALUATE FRAGILE CARGO HANDLING & SURCHARGE
+    const isFragile = parcelData.isFragile === true;
+    const fragileFee = isFragile ? (parcelData.fragileSurcharge != null ? Number(parcelData.fragileSurcharge) : 75.00) : 0;
+    const baseFee = parcelData.baseShippingFee != null ? Number(parcelData.baseShippingFee) : 120.00;
+    const totalFreight = baseFee + fragileFee;
+
+    // EVALUATE WEIGHT AND CAPACITY ALLOCATION
+    const weight = parseFloat(parcelData.weightKg || 2.0);
+    const items = parseInt(parcelData.itemCount || 1, 10);
+    const vehicleReq = parcelData.vehicleRequirement || (weight > 25 ? "Cargo Van / Light Truck" : "Motorcycle (Express 2-Wheeler)");
+
+    // EVALUATE ESTIMATED DELIVERY DATE (EDD)
+    const eddCalc = calculateEstimatedDeliveryDate(new Date(), parcelData.city, parcelData.barangay);
+    const edd = parcelData.estimatedDeliveryDate || eddCalc.formattedDate;
+    const eddSla = parcelData.estimatedDeliverySla || eddCalc.slaText;
+
+    // GENERATE DELIVERY VERIFICATION CODE / PASS TOKEN
+    const vCode = parcelData.verificationCode || generateDeliveryVerificationCode(newTracking);
+
     // VARIABLES FOR COMPLETE SHIPMENT RECORD ATTRIBUTES
     const newRecord = {
         trackingNo: newTracking,                                                // CONSIGNMENT TRACKING NUMBER
@@ -1083,7 +1232,26 @@ async function addParcelRecord(parcelData) {
         package: parcelData.package || "General Merchandise Parcel",            // CARGO MANIFEST ITEM DESCRIPTION
         paymentMethod: parcelData.paymentMethod || "COD",                       // PAYMENT SETTLEMENT METHOD
         paymentStatus: parcelData.paymentStatus || "pending_collection",        // FINANCIAL CLEARANCE STATUS
-        cod: parcelData.cod || "₱0.00"                                          // CASH TO COLLECT FROM RECIPIENT IN PESOS
+        cod: parcelData.cod || "₱0.00",                                         // CASH TO COLLECT FROM RECIPIENT IN PESOS
+        isFragile: isFragile,                                                   // SPECIAL HANDLING BREAKABLE CARGO FLAG
+        fragileSurcharge: fragileFee,                                           // ₱75.00 SPECIAL HANDLING SURCHARGE
+        baseShippingFee: baseFee,                                               // BASE FREIGHT DISPATCH TARIFF
+        totalFreightFee: totalFreight,                                          // COMPOSITE FREIGHT TARIFF
+        weightKg: weight,                                                       // CONSIGNMENT WEIGHT IN KILOGRAMS
+        itemCount: items,                                                       // NUMBER OF PIECES IN PACKAGE
+        vehicleRequirement: vehicleReq,                                         // VEHICLE ALLOCATION CLASS (MOTORCYCLE OR VAN)
+        estimatedDeliveryDate: edd,                                             // ESTIMATED DELIVERY DATE (EDD)
+        estimatedDeliverySla: eddSla,                                           // SERVICE LEVEL SLA COMMITMENT
+        verificationCode: vCode,                                                // SCANNABLE POD DELIVERY VERIFICATION TOKEN
+        bookedByUid: parcelData.bookedByUid || "",                              // LOGGED-IN OPERATOR ACCOUNT IDENTIFIER
+        bookedByName: parcelData.bookedByName || "",                            // OPERATOR USERNAME
+        bookedByEmail: parcelData.bookedByEmail || "",                          // OPERATOR AUTHENTICATED EMAIL
+        senderName: parcelData.senderName || parcelData.bookedByName || "SwiftLogistics Hub Dispatch", // SENDER ORIGIN ACCOUNT
+        senderEmail: parcelData.senderEmail || parcelData.bookedByEmail || "hub.lipa@swiftlogistics.ph", // SENDER CONTACT EMAIL
+        senderPhone: parcelData.senderPhone || "0917-555-0199",                 // SENDER CONTACT TELEPHONE
+        originHub: parcelData.originHub || "Branch #04 Lipa Central Hub",       // ORIGIN PROCESSING DISPATCH FACILITY
+        termsAccepted: parcelData.termsAccepted !== false,                      // ACCEPTANCE OF STANDARD FREIGHT TERMS
+        createdAt: parcelData.createdAt || new Date().toISOString()             // BOOKING MANIFEST CREATION TIMESTAMP
     };
 
     // PREPEND NEW RECORD TO TOP OF RUNTIME ARRAY
@@ -1654,6 +1822,11 @@ function renderManifestTable() {
             locationDisplay = `<div><strong>${p.city}</strong><div style="font-size:10.5px; color:var(--text-muted); line-height:1.2; margin-top:2px;">${p.addressDetails}</div></div>`;
         }
 
+        // FORMATTED ITEM DETAILS WITH FRAGILE SURCHARGE, WEIGHT & EDD
+        const fragileTag = p.isFragile ? `<span class="fragile-badge-pill" style="margin-left:4px;">⚠️ Fragile (+₱75)</span>` : '';
+        const weightTag = `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">📦 ${p.weightKg || 2.0} kg &bull; ${p.itemCount || 1} pc(s)</div>`;
+        const eddTag = `<div style="font-size:10px; color:#059669; font-weight:700; margin-top:2px;">📅 Est: ${p.estimatedDeliveryDate || 'Tomorrow'}</div>`;
+
         tr.innerHTML = `
             <td style="width: 34px; text-align: center;">
                 <input type="checkbox" class="parcel-checkbox" value="${p.trackingNo}" onchange="updateBatchDispatchBar()" style="cursor: pointer;">
@@ -1662,7 +1835,11 @@ function renderManifestTable() {
             <td style="font-weight:600; color:var(--text-title);">${p.name}</td>
             <td class="font-mono" style="color:var(--text-muted); font-size:11.5px;">${p.phone}</td>
             <td>${locationDisplay}</td>
-            <td style="color:var(--text-muted); font-size:12px;">${p.package}</td>
+            <td>
+                <div>${p.package} ${fragileTag}</div>
+                ${weightTag}
+                ${eddTag}
+            </td>
             <td>${payBadge}</td>
             <td>
                 <span style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:20px; display:inline-block; ${badgeColor}">
@@ -1679,6 +1856,7 @@ function renderManifestTable() {
             <td style="text-align:right;">
                 <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px;" onclick="quickLookup('${p.trackingNo}', true)">Track</button>
                 <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px; margin-left:4px;" onclick="openUpdateStatusModal('${p.trackingNo}')">Dispatch</button>
+                <button class="btn btn-sm btn-outline" style="padding:3px 8px; font-size:11.5px; margin-left:4px;" onclick="openDeliveryQrModal('${p.trackingNo}')" title="Delivery Verification QR Pass">📱 QR</button>
                 ${p.status.includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId) ? `
                     <button class="btn-table-track" style="margin-left:4px;" onclick="focusDriverLocationByParcel('${p.trackingNo}')" title="Locate courier live GPS on Fleet Radar">📍 Driver GPS</button>
                 ` : ''}
@@ -1833,13 +2011,140 @@ function handleTableFilter() {
 // SECTION 9: DISPATCH & STATUS UPDATE MODAL CONTROLS
 // ============================================================================
 
+// ============================================================================
+// SECTION 9: DISPATCH, BOOKING & SINGLE-PAGE MODAL CONTROLS
+// ============================================================================
+
+// AUTO-FILL LOGGED-IN USER PROFILE DETAILS INTO BOOKING FORM
+function autoFillUserProfileInBookingForm() {
+    const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
+    const nameInput = document.getElementById("newSenderName");
+    const emailInput = document.getElementById("newSenderEmail");
+    const phoneInput = document.getElementById("newSenderPhone");
+    const hubInput = document.getElementById("newSenderHub");
+    const badgeEl = document.getElementById("senderProfileBadge");
+
+    const senderName = session?.name || "Bossing Jeff";
+    const senderEmail = session?.email || "jeffrey.delacruz@ub.edu.ph";
+    const senderPhone = session?.phone || "0917-555-0199";
+    const originHub = "Branch #04 Lipa Central Hub";
+
+    if (nameInput) nameInput.value = senderName;
+    if (emailInput) emailInput.value = senderEmail;
+    if (phoneInput) phoneInput.value = senderPhone;
+    if (hubInput) hubInput.value = originHub;
+
+    if (badgeEl) {
+        badgeEl.innerHTML = `🔒 Authenticated Session: <strong>${senderName}</strong> (${senderEmail}) &bull; ${originHub}`;
+    }
+
+    if (typeof showToast === "function") {
+        showToast(`User profile auto-filled: ${senderName} (${originHub})`);
+    }
+}
+
+// QUICK-FILL DESTINATION PRESETS FOR RAPID BOOKING
+function quickFillBookingPreset(barangay, landmarks, defaultPkg = "Electronics & Supplies", defaultCod = "₱1,250.00") {
+    const bgyInput = document.getElementById("newRecipBarangay");
+    const cityInput = document.getElementById("newRecipCity");
+    const landInput = document.getElementById("newRecipLandmarks");
+    const pkgInput = document.getElementById("newPackageDesc");
+    const codInput = document.getElementById("newCodAmount");
+
+    if (cityInput) cityInput.value = "Lipa City, Batangas";
+    if (bgyInput) bgyInput.value = barangay;
+    if (landInput) landInput.value = landmarks;
+    if (pkgInput && !pkgInput.value) pkgInput.value = defaultPkg;
+    if (codInput && !codInput.value) codInput.value = defaultCod;
+
+    updateBookingCalculations();
+}
+
+// DYNAMIC RE-CALCULATION OF FREIGHT FEES, CAPACITY LIMITS & EDD
+function updateBookingCalculations() {
+    const weightEl = document.getElementById("newWeightKg");
+    const itemsEl = document.getElementById("newItemCount");
+    const fragileEl = document.getElementById("newIsFragile");
+    const cityEl = document.getElementById("newRecipCity");
+    const bgyEl = document.getElementById("newRecipBarangay");
+
+    const weight = parseFloat(weightEl?.value || 2.0);
+    const items = parseInt(itemsEl?.value || 1, 10);
+    const isFragile = fragileEl?.checked === true;
+    const city = cityEl?.value || "Lipa City, Batangas";
+    const bgy = bgyEl?.value || "";
+
+    // 1. TARIFF CALCULATION (BASE FREIGHT + FRAGILE SURCHARGE)
+    const baseFee = 120.00;
+    const fragileSurcharge = isFragile ? 75.00 : 0.00;
+    const totalFreight = baseFee + fragileSurcharge;
+
+    const baseEl = document.getElementById("calcBaseShippingFee");
+    const fragileFeeEl = document.getElementById("calcFragileSurcharge");
+    const totalFreightEl = document.getElementById("calcTotalFreightFee");
+    const fragileNotice = document.getElementById("fragileHandlingNotice");
+
+    if (baseEl) baseEl.innerText = `₱${baseFee.toFixed(2)}`;
+    if (fragileFeeEl) fragileFeeEl.innerText = isFragile ? `+₱${fragileSurcharge.toFixed(2)}` : `₱0.00`;
+    if (totalFreightEl) totalFreightEl.innerText = `₱${totalFreight.toFixed(2)}`;
+    if (fragileNotice) fragileNotice.style.display = isFragile ? "flex" : "none";
+
+    // 2. CAPACITY LIMITS ENFORCEMENT (MAX 50 KG, MOTORCYCLE MAX 25 KG)
+    const meterBadge = document.getElementById("capacityStatusBadge");
+    const meterNotice = document.getElementById("capacityNoticeBox");
+    const submitBtn = document.getElementById("btnSubmitBookParcel");
+
+    if (weight > 50 || items > 15) {
+        if (meterBadge) {
+            meterBadge.className = "capacity-badge-pill capacity-error";
+            meterBadge.innerText = `⛔ Exceeds Max Capacity Limit (${weight} kg / 50 kg max)`;
+        }
+        if (meterNotice) {
+            meterNotice.style.display = "block";
+            meterNotice.innerHTML = `<strong>⛔ Capacity Limit Exceeded:</strong> Single booking maximum weight is 50 kg (max 15 items). Please reduce parcel contents or split into separate consignments.`;
+        }
+        if (submitBtn) submitBtn.disabled = true;
+    } else if (weight > 25) {
+        if (meterBadge) {
+            meterBadge.className = "capacity-badge-pill capacity-heavy";
+            meterBadge.innerText = `🚚 Cargo Van / Light Truck Required (${weight} kg)`;
+        }
+        if (meterNotice) {
+            meterNotice.style.display = "block";
+            meterNotice.innerHTML = `<strong>🚚 Heavy Cargo Notice:</strong> Weight (${weight} kg) exceeds 25 kg motorcycle limit. Vehicle class automatically upgraded to Cargo Van / Light Truck.`;
+        }
+        if (submitBtn) submitBtn.disabled = false;
+    } else {
+        if (meterBadge) {
+            meterBadge.className = "capacity-badge-pill capacity-ok";
+            meterBadge.innerText = `🛵 Motorcycle Courier Capacity OK (${weight} kg / 25 kg max)`;
+        }
+        if (meterNotice) meterNotice.style.display = "none";
+        if (submitBtn) submitBtn.disabled = false;
+    }
+
+    // 3. ESTIMATED DELIVERY DATE (EDD) CALCULATION
+    const eddRes = calculateEstimatedDeliveryDate(new Date(), city, bgy);
+    const eddTextEl = document.getElementById("calcEstimatedDeliveryDate");
+    const eddSlaEl = document.getElementById("calcEstimatedDeliverySla");
+
+    if (eddTextEl) eddTextEl.innerText = eddRes.formattedDate;
+    if (eddSlaEl) eddSlaEl.innerText = eddRes.slaText;
+}
+
 // OPEN BOOKING MODAL FOR INTAKE OF NEW SHIPMENTS
 function openBookParcelModal() {
     const m = document.getElementById("bookParcelModal");
-    if (m) {
-        m.style.display = "flex";
-        m.classList.remove("hidden");
-    }
+    if (!m) return;
+
+    // AUTO-FILL USER PROFILE DATA UPON MODAL OPEN
+    autoFillUserProfileInBookingForm();
+    updateBookingCalculations();
+
+    m.style.display = "flex";
+    m.classList.remove("hidden");
+    const firstInput = document.getElementById("newRecipName");
+    if (firstInput) setTimeout(() => firstInput.focus(), 100);
 }
 
 // CLOSE BOOKING MODAL
@@ -1854,31 +2159,422 @@ function closeBookParcelModal() {
 // ============================================================================
 // SUBMIT NEW CONSIGNMENT BOOKING FROM MODAL
 // PURPOSE:  Reads user inputs, geocodes destination, generates tracking number,
-//           and registers shipment in both local cache and Cloud Firestore.
+//           transfers sender/operator credentials dynamically, and registers shipment.
 // ============================================================================
 async function handleBookParcelSubmit(e) {
-    // STEP 1: PREVENT DEFAULT FORM RELOAD
     e.preventDefault();
 
-    // STEP 2: HARVEST INPUT VALUES FROM MODAL FORM
+    // 1. CAPACITY LIMIT CHECK
+    const weight = parseFloat(document.getElementById("newWeightKg")?.value || 2.0);
+    const items = parseInt(document.getElementById("newItemCount")?.value || 1, 10);
+    if (weight > 50 || items > 15) {
+        showToast("Cannot book: Cargo weight exceeds 50 kg maximum capacity limit.", "warning");
+        return;
+    }
+
+    // 2. TERMS AND CONDITIONS ENFORCEMENT
+    const agreeTerms = document.getElementById("newAgreeTerms")?.checked;
+    if (!agreeTerms) {
+        showToast("Please agree to the SwiftLogistics Terms & Conditions before booking.", "warning");
+        return;
+    }
+
+    // 3. DYNAMIC DATA TRANSFER: LOGGED-IN OPERATOR & SENDER CREDENTIALS
+    const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
+    const bookedByUid = session?.uid || "usr_jeff";
+    const bookedByName = session?.name || "Bossing Jeff";
+    const bookedByEmail = session?.email || "jeffrey.delacruz@ub.edu.ph";
+    const senderName = document.getElementById("newSenderName")?.value.trim() || bookedByName;
+    const senderEmail = document.getElementById("newSenderEmail")?.value.trim() || bookedByEmail;
+    const senderPhone = document.getElementById("newSenderPhone")?.value.trim() || "0917-555-0199";
+    const originHub = document.getElementById("newSenderHub")?.value.trim() || "Branch #04 Lipa Central Hub";
+
+    // 4. HARVEST RECIPIENT & CONSIGNMENT VALUES
     const name = document.getElementById("newRecipName")?.value.trim();
     const phone = document.getElementById("newRecipPhone")?.value.trim();
-    const city = document.getElementById("newRecipCity")?.value.trim();
-    const pkg = document.getElementById("newPackageDesc")?.value.trim();
-    const cod = document.getElementById("newCodAmount")?.value.trim();
+    const city = document.getElementById("newRecipCity")?.value.trim() || "Lipa City, Batangas";
+    const barangay = document.getElementById("newRecipBarangay")?.value.trim() || "";
+    const addressDetails = document.getElementById("newRecipAddress")?.value.trim() || "";
+    const landmarks = document.getElementById("newRecipLandmarks")?.value.trim() || "";
+    const pkg = document.getElementById("newPackageDesc")?.value.trim() || "General Merchandise Parcel";
+    const cod = document.getElementById("newCodAmount")?.value.trim() || "₱0.00";
+    const isFragile = document.getElementById("newIsFragile")?.checked === true;
+    const vehicleRequirement = weight > 25 ? "Cargo Van / Light Truck" : "Motorcycle (Express 2-Wheeler)";
 
-    // STEP 3: SANITY CHECK (RECIPIENT NAME IS REQUIRED)
-    if (!name) return;
+    if (!name) {
+        showToast("Recipient Consignee name is required.", "warning");
+        return;
+    }
 
-    // STEP 4: PERSIST NEW RECORD VIA ADDPARCELRECORD ENGINE
-    const newRec = await addParcelRecord({ name, phone, city, package: pkg, cod });
+    // 5. COMPUTE ESTIMATED DELIVERY DATE (EDD)
+    const edd = calculateEstimatedDeliveryDate(new Date(), city, barangay);
 
-    // STEP 5: CLOSE MODAL, NOTIFY OPERATOR, AND RE-RENDER MANIFEST TABLE
+    // 6. PERSIST NEW RECORD VIA ADDPARCELRECORD ENGINE
+    const newRec = await addParcelRecord({
+        name,
+        phone,
+        city,
+        barangay,
+        addressDetails,
+        landmarks,
+        package: pkg,
+        cod,
+        isFragile,
+        fragileSurcharge: isFragile ? 75.00 : 0.00,
+        baseShippingFee: 120.00,
+        weightKg: weight,
+        itemCount: items,
+        vehicleRequirement,
+        estimatedDeliveryDate: edd.formattedDate,
+        estimatedDeliverySla: edd.slaText,
+        bookedByUid,
+        bookedByName,
+        bookedByEmail,
+        senderName,
+        senderEmail,
+        senderPhone,
+        originHub,
+        termsAccepted: true
+    });
+
+    // 7. CLOSE MODAL, NOTIFY OPERATOR, AND RE-RENDER MANIFEST TABLE
     closeBookParcelModal();
-    showToast(`Parcel ${newRec.trackingNo} registered for ${name}.`);
+    showToast(`✓ Waybill ${newRec.trackingNo} created! Est. Delivery: ${edd.formattedDate}`);
     renderManifestTable();
     quickLookup(newRec.trackingNo);
     e.target.reset();
+}
+
+// ============================================================================
+// USER ORDER TRACKING & SUMMARY MODAL
+// PURPOSE:  Presents interactive order history, lifecycle progress, and item
+//           summaries for all consignments booked or linked to the active user.
+// ============================================================================
+function openUserOrderTrackingModal() {
+    renderUserOrderTracking();
+    const m = document.getElementById("userOrderTrackingModal");
+    if (m) {
+        m.style.display = "flex";
+        m.classList.remove("hidden");
+    }
+}
+
+function closeUserOrderTrackingModal() {
+    const m = document.getElementById("userOrderTrackingModal");
+    if (m) {
+        m.style.display = "none";
+        m.classList.add("hidden");
+    }
+}
+
+function renderUserOrderTracking() {
+    const listEl = document.getElementById("userOrderTrackingList");
+    const countEl = document.getElementById("userOrderTotalCount");
+    const kpiOutEl = document.getElementById("userOrderKpiOut");
+    const kpiDelEl = document.getElementById("userOrderKpiDel");
+    const kpiCodEl = document.getElementById("userOrderKpiCod");
+    if (!listEl) return;
+
+    const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
+    const all = parcelsList || [];
+
+    // COMPUTE SUMMARY STATS
+    const totalOrders = all.length;
+    const outCount = all.filter(p => (p.status || "").includes("Out for Delivery")).length;
+    const delCount = all.filter(p => (p.status || "").includes("Delivered")).length;
+    let totalCodVal = 0;
+    all.forEach(p => {
+        const num = parseFloat((p.cod || "").replace(/[^0-9.]/g, "")) || 0;
+        totalCodVal += num;
+    });
+
+    if (countEl) countEl.innerText = `${totalOrders} Consignment${totalOrders === 1 ? '' : 's'}`;
+    if (kpiOutEl) kpiOutEl.innerText = outCount;
+    if (kpiDelEl) kpiDelEl.innerText = delCount;
+    if (kpiCodEl) kpiCodEl.innerText = `₱${totalCodVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+    if (all.length === 0) {
+        listEl.innerHTML = `
+            <div style="padding: 32px 16px; text-align: center; color: var(--text-muted);">
+                <div style="font-size: 32px; margin-bottom: 8px;">📦</div>
+                <strong style="color: var(--text-title); font-size: 14px;">No Orders Booked Yet</strong>
+                <p style="font-size: 12px; margin-top: 4px;">Click "Manifest New Shipment" to create your first consignment waybill.</p>
+            </div>
+        `;
+        return;
+    }
+
+    listEl.innerHTML = all.map(p => {
+        const isDelivered = (p.status || "").includes("Delivered");
+        const isOut = (p.status || "").includes("Out for Delivery");
+        const statusBg = isDelivered ? "#ECFDF5" : (isOut ? "#EFF6FF" : "#FEF3C7");
+        const statusColor = isDelivered ? "#047857" : (isOut ? "#1D4ED8" : "#B45309");
+        const statusBorder = isDelivered ? "#A7F3D0" : (isOut ? "#BFDBFE" : "#FDE68A");
+
+        const fragileTag = p.isFragile 
+            ? `<span class="fragile-badge-pill">⚠️ FRAGILE (+₱75)</span>` 
+            : '';
+        const eddDisplay = p.estimatedDeliveryDate || "Next-Day Delivery";
+
+        return `
+            <div class="order-tracking-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <strong class="font-mono" style="font-size: 14px; color: var(--courier-orange);">${p.trackingNo}</strong>
+                            <span style="font-size: 10.5px; font-weight: 700; background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusBorder}; padding: 2px 7px; border-radius: 12px;">
+                                ${p.status}
+                            </span>
+                            ${fragileTag}
+                        </div>
+                        <div style="font-size: 13px; font-weight: 700; color: var(--text-title); margin-top: 4px;">
+                            👤 ${p.name} &bull; <span style="font-weight: 500; color: var(--text-muted);">${p.city}${p.barangay ? `, ${p.barangay}` : ''}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                            📦 ${p.package} &bull; <strong>${p.weightKg || 2.0} kg</strong> (${p.itemCount || 1} pc)
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 13.5px; font-weight: 800; color: #0F172A;">
+                            ${p.paymentMethod || 'COD'}: ${p.cod || '₱0.00'}
+                        </div>
+                        <div style="font-size: 11px; font-weight: 700; color: #059669; margin-top: 2px;">
+                            📅 Est: ${eddDisplay}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-subtle); flex-wrap: wrap; gap: 8px;">
+                    <div style="font-size: 11px; color: var(--text-muted);">
+                        <span>Origin: <strong>${p.originHub || 'Branch #04 Lipa Central Hub'}</strong></span>
+                        ${p.assignedDriver ? ` &bull; Courier: <span style="font-weight: 700; color: #1E40AF;">🛵 ${p.assignedDriver}</span>` : ''}
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" class="btn-courier-sm btn-courier-outline" onclick="openDeliveryQrModal('${p.trackingNo}')" style="display: inline-flex; align-items: center; gap: 4px;">
+                            📱 View Verification QR
+                        </button>
+                        <button type="button" class="btn-courier-sm btn-courier-primary" onclick="closeUserOrderTrackingModal(); quickLookup('${p.trackingNo}', true);">
+                            🔍 Inspect Waybill
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+// ============================================================================
+// DELIVERY VERIFICATION QR CODE MODAL
+// PURPOSE:  Generates and displays scannable QR verification code and security
+//           pass token to authenticate order handover at customer's doorstep.
+// ============================================================================
+function openDeliveryQrModal(trackingNo) {
+    const parcel = parcelsList.find(p => p.trackingNo === trackingNo);
+    if (!parcel) {
+        showToast("Consignment waybill not found.");
+        return;
+    }
+
+    const vCode = parcel.verificationCode || generateDeliveryVerificationCode(parcel.trackingNo);
+    parcel.verificationCode = vCode;
+
+    const qrPayload = `SWIFT_VERIFY|${parcel.trackingNo}|${parcel.name}|${vCode}|${parcel.cod || '₱0.00'}|UB_LIPA_HUB`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrPayload)}`;
+
+    const trackEl = document.getElementById("qrModalTrackingNo");
+    const nameEl = document.getElementById("qrModalCustomerName");
+    const codEl = document.getElementById("qrModalCodAmount");
+    const tokenEl = document.getElementById("qrModalTokenCode");
+    const imgEl = document.getElementById("qrModalImage");
+    const eddEl = document.getElementById("qrModalEddText");
+
+    if (trackEl) trackEl.innerText = parcel.trackingNo;
+    if (nameEl) nameEl.innerText = `${parcel.name} (${parcel.city})`;
+    if (codEl) codEl.innerText = parcel.cod || "₱0.00";
+    if (tokenEl) tokenEl.innerText = vCode;
+    if (eddEl) eddEl.innerText = `Est. Delivery: ${parcel.estimatedDeliveryDate || 'Within 24 Hours'}`;
+    if (imgEl) {
+        imgEl.src = qrUrl;
+        imgEl.alt = `Delivery Verification QR for ${parcel.trackingNo}`;
+    }
+
+    const m = document.getElementById("deliveryQrModal");
+    if (m) {
+        m.style.display = "flex";
+        m.classList.remove("hidden");
+    }
+}
+
+function closeDeliveryQrModal() {
+    const m = document.getElementById("deliveryQrModal");
+    if (m) {
+        m.style.display = "none";
+        m.classList.add("hidden");
+    }
+}
+
+// ============================================================================
+// TERMS AND CONDITIONS MODAL
+// PURPOSE:  Presents comprehensive freight terms, handling guidelines for COD,
+//           fragile surcharges, capacity thresholds, and liability policies.
+// ============================================================================
+function openTermsModal(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const m = document.getElementById("termsAndConditionsModal");
+    if (m) {
+        m.style.display = "flex";
+        m.classList.remove("hidden");
+    }
+}
+
+function closeTermsModal() {
+    const m = document.getElementById("termsAndConditionsModal");
+    if (m) {
+        m.style.display = "none";
+        m.classList.add("hidden");
+    }
+}
+
+// ============================================================================
+// REGIONAL TRANSIT TERMINAL NAVIGATION & ROUTING
+// PURPOSE:  Displays directory of major Batangas transport terminals and sorting
+//           centers, plotting real OSRM road routes from UB Lipa Central Hub.
+// ============================================================================
+let activeTerminalMarker = null;
+let activeTerminalPolyline = null;
+
+function openTransitTerminalModal() {
+    renderTransitTerminalsList();
+    const m = document.getElementById("transitTerminalModal");
+    if (m) {
+        m.style.display = "flex";
+        m.classList.remove("hidden");
+    }
+}
+
+function closeTransitTerminalModal() {
+    const m = document.getElementById("transitTerminalModal");
+    if (m) {
+        m.style.display = "none";
+        m.classList.add("hidden");
+    }
+}
+
+function renderTransitTerminalsList() {
+    const container = document.getElementById("transitTerminalsGrid");
+    if (!container) return;
+
+    container.innerHTML = TRANSIT_TERMINALS.map(term => {
+        const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=13.9692,121.1594&destination=${term.lat},${term.lng}&travelmode=driving`;
+        return `
+            <div class="transit-card">
+                <div>
+                    <div class="transit-card-title">
+                        <span>🏢</span>
+                        <span>${term.name}</span>
+                    </div>
+                    <div style="font-size: 11px; font-weight: 700; color: #2563EB; margin-top: 2px;">
+                        ${term.category}
+                    </div>
+                    <div class="transit-card-desc">
+                        ${term.description}
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); background: #F8FAFC; border: 1px solid #E2E8F0; padding: 6px 10px; border-radius: 6px;">
+                        <div>📍 <strong>${term.location}</strong></div>
+                        <div style="margin-top: 2px; color: #047857; font-weight: 700;">
+                            🛣️ <strong>${term.distanceKm} km</strong> from Hub &bull; ⏱️ ~${term.estDriveTime} drive
+                        </div>
+                    </div>
+                </div>
+                <div class="transit-card-actions">
+                    <button type="button" class="btn-courier-sm btn-courier-primary" onclick="closeTransitTerminalModal(); plotTransitTerminalOnMap('${term.id}');" style="flex: 1; justify-content: center;">
+                        🗺️ View on Radar Map
+                    </button>
+                    <a href="${gmapsUrl}" target="_blank" class="btn-courier-sm btn-courier-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px;">
+                        🧭 Navigation
+                    </a>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+// PLOT TRANSIT TERMINAL AND ROAD CORRIDOR ON LEAFLET FLEET RADAR MAP
+async function plotTransitTerminalOnMap(termId) {
+    const term = TRANSIT_TERMINALS.find(t => t.id === termId);
+    if (!term || !fleetRadarMap || typeof L === "undefined") return;
+
+    // SCROLL RADAR MAP INTO VIEW
+    const radarCard = document.getElementById("fleetRadarCard");
+    if (radarCard) radarCard.scrollIntoView({ behavior: "smooth" });
+
+    // REMOVE PREVIOUS TERMINAL MARKER/POLYLINE IF ANY
+    if (activeTerminalMarker) {
+        try { fleetRadarMap.removeLayer(activeTerminalMarker); } catch(e) {}
+        activeTerminalMarker = null;
+    }
+    if (activeTerminalPolyline) {
+        try { fleetRadarMap.removeLayer(activeTerminalPolyline); } catch(e) {}
+        activeTerminalPolyline = null;
+    }
+
+    // CREATE CUSTOM TERMINAL ICON
+    const terminalIcon = L.divIcon({
+        className: 'terminal-map-pin',
+        html: `
+            <div style="background: #2563EB; color: #FFFFFF; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 3px solid #FFFFFF; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45); cursor: pointer;">
+                🏢
+            </div>
+        `,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+    });
+
+    activeTerminalMarker = L.marker([term.lat, term.lng], { icon: terminalIcon }).addTo(fleetRadarMap);
+    activeTerminalMarker.bindPopup(`
+        <div style="font-size: 12px; font-weight: 800; color: #1E40AF; text-transform: uppercase;">
+            🏢 TRANSIT TERMINAL
+        </div>
+        <div style="font-size: 13.5px; font-weight: 800; color: #0F172A; margin: 3px 0;">
+            ${term.name}
+        </div>
+        <div style="font-size: 11.5px; color: #475569;">
+            📍 ${term.location}
+        </div>
+        <div style="font-size: 11px; color: #047857; font-weight: 700; margin-top: 4px; background: #ECFDF5; padding: 4px 8px; border-radius: 4px;">
+            🛣️ ${term.distanceKm} km from Central Hub &bull; ~${term.estDriveTime} Transit Time
+        </div>
+        <div style="margin-top: 8px;">
+            <a href="https://www.google.com/maps/dir/?api=1&origin=13.9692,121.1594&destination=${term.lat},${term.lng}&travelmode=driving" target="_blank" style="display: block; text-align: center; background: #2563EB; color: #FFFFFF; padding: 5px; border-radius: 4px; text-decoration: none; font-size: 11px; font-weight: 700;">
+                🧭 Open Google Maps Navigation
+            </a>
+        </div>
+    `).openPopup();
+
+    // FETCH REAL ROAD CORRIDOR FROM CENTRAL HUB TO TERMINAL
+    const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
+    const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
+
+    try {
+        if (typeof fetchRoadRoute === "function") {
+            const waypoints = [{ lat: hubLat, lng: hubLng }, { lat: term.lat, lng: term.lng }];
+            const routeRes = await fetchRoadRoute(waypoints);
+            if (routeRes && routeRes.coordinates && routeRes.coordinates.length > 0) {
+                activeTerminalPolyline = L.polyline(routeRes.coordinates, {
+                    color: "#2563EB",
+                    weight: 4.5,
+                    dashArray: "8, 6",
+                    opacity: 0.85
+                }).addTo(fleetRadarMap);
+            }
+        }
+    } catch (e) {
+        console.warn("Could not fetch road route to terminal:", e);
+    }
+
+    // AUTO-ZOOM FIT
+    fleetRadarMap.fitBounds([[hubLat, hubLng], [term.lat, term.lng]], { padding: [60, 60], maxZoom: 14 });
+    showToast(`Routing to ${term.name} (${term.distanceKm} km, ~${term.estDriveTime})`);
 }
 
 // ============================================================================

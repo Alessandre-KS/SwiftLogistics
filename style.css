@@ -2587,3 +2587,253 @@ body.courier-body {
     align-items: center;
     gap: 3px;
 }
+
+/* =============================================================================
+   STANDARDIZED BUTTON SYSTEM & ACTION CONTROLS
+   ============================================================================= */
+.btn-courier-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #0F172A;
+    color: #FFFFFF;
+    border: 1px solid #334155;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-courier-secondary:hover {
+    background: #1E293B;
+    border-color: #475569;
+    transform: translateY(-1px);
+}
+
+.btn-courier-success {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #059669;
+    color: #FFFFFF;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.25);
+}
+
+.btn-courier-success:hover {
+    background: #047857;
+    transform: translateY(-1px);
+}
+
+.btn-courier-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #DC2626;
+    color: #FFFFFF;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.25);
+}
+
+.btn-courier-danger:hover {
+    background: #B91C1C;
+    transform: translateY(-1px);
+}
+
+.btn-courier-md {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.btn-courier-lg {
+    padding: 11px 22px;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+/* =============================================================================
+   FRAGILE SURCHARGE & CAPACITY LIMITS UI BADGES
+   ============================================================================= */
+.fragile-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    color: #B91C1C;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 12px;
+    letter-spacing: 0.3px;
+}
+
+.fragile-notice-box {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    color: #92400E;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    margin-top: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.45;
+}
+
+.capacity-meter-box {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 8px;
+}
+
+.capacity-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.capacity-ok {
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    color: #065F46;
+}
+
+.capacity-heavy {
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #1E40AF;
+}
+
+.capacity-error {
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    color: #991B1B;
+}
+
+/* =============================================================================
+   USER ORDER TRACKING & HISTORY MODAL
+   ============================================================================= */
+.order-tracking-table-wrap {
+    max-height: 480px;
+    overflow-y: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: #FFFFFF;
+}
+
+.order-tracking-card {
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 14px 16px;
+    transition: background 0.15s ease;
+}
+
+.order-tracking-card:last-child {
+    border-bottom: none;
+}
+
+.order-tracking-card:hover {
+    background: #F8FAFC;
+}
+
+/* =============================================================================
+   DELIVERY VERIFICATION QR MODAL STYLES
+   ============================================================================= */
+.qr-modal-card {
+    text-align: center;
+    padding: 20px 24px;
+}
+
+.qr-code-img-frame {
+    display: inline-block;
+    padding: 12px;
+    background: #FFFFFF;
+    border: 2px solid #E2E8F0;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    margin: 14px 0;
+}
+
+.qr-token-pill {
+    display: inline-block;
+    background: #F1F5F9;
+    border: 1px dashed #94A3B8;
+    color: #0F172A;
+    font-family: monospace;
+    font-size: 16px;
+    font-weight: 800;
+    padding: 6px 14px;
+    border-radius: 6px;
+    letter-spacing: 1.5px;
+    margin: 8px 0;
+}
+
+/* =============================================================================
+   TRANSIT TERMINAL DIRECTORY & ROUTING
+   ============================================================================= */
+.transit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.transit-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px 14px;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.transit-card:hover {
+    border-color: #3B82F6;
+    box-shadow: 0 3px 10px rgba(59, 130, 246, 0.12);
+}
+
+.transit-card-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--text-title);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.transit-card-desc {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin: 4px 0 8px 0;
+    line-height: 1.4;
+}
+
+.transit-card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+}

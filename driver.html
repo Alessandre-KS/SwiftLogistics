@@ -269,6 +269,14 @@
                 </div>
 
                 <div class="form-group-row">
+                    <label class="form-label-custom">Delivery Verification QR Code / Pass Token</label>
+                    <input type="text" id="proofVerificationCode" class="form-input-custom font-mono" placeholder="e.g. SL-1001-A9F2 (from customer QR pass)" style="text-transform: uppercase;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+                        🔑 Ask recipient for their Delivery Verification Pass token or scan their QR code.
+                    </div>
+                </div>
+
+                <div class="form-group-row">
                     <label class="form-label-custom">Received By (Recipient / Representative) *</label>
                     <input type="text" id="proofModalReceivedBy" class="form-input-custom" placeholder="Name of person who received package..." required>
                 </div>
@@ -942,6 +950,11 @@
                                         ⚡ Recommended Stop #1
                                     </span>
                                 ` : ''}
+                                ${p.isFragile ? `
+                                    <span class="fragile-badge-pill" style="margin-left: 4px;" title="Handle with extra care - Fragile breakable contents">
+                                        ⚠️ FRAGILE
+                                    </span>
+                                ` : ''}
                                 ${isInRoute ? `
                                     <span style="font-size: 10.5px; background: #EA580C; color: #FFFFFF; padding: 2px 8px; border-radius: 12px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
                                         🛵 In Route Now
@@ -998,7 +1011,7 @@
                                     </button>
                                 </div>
                                 <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                                    📦 ${p.package || 'Standard Courier Package'}
+                                    📦 ${p.package || 'Standard Courier Package'} &bull; <strong>${p.weightKg || 2.0} kg</strong> (${p.itemCount || 1} pc) &bull; <span style="color: #047857; font-weight: 700;">📅 Est: ${p.estimatedDeliveryDate || 'Today'}</span>
                                 </div>
 
                                 <div class="card-landmark-tag">
@@ -1083,6 +1096,8 @@
             document.getElementById("proofModalAddress").innerText = `📍 ${fullProofAddr}`;
             document.getElementById("proofModalCodDisplay").value = parcel.cod || "₱0.00";
             document.getElementById("proofModalReceivedBy").value = parcel.name;
+            const tokenInput = document.getElementById("proofVerificationCode");
+            if (tokenInput) tokenInput.value = "";
 
             // STEP 4: DISPLAY MODAL OVERLAY
             const m = document.getElementById("driverProofModal");
@@ -1116,6 +1131,14 @@
 
             const tracking = pendingDeliverTracking;
             const parcel = parcelsList.find(p => p.trackingNo === tracking);
+            const enteredCode = (document.getElementById("proofVerificationCode")?.value || "").trim().toUpperCase();
+            let isVerifiedByQr = false;
+            if (enteredCode && parcel && parcel.verificationCode) {
+                const expected = parcel.verificationCode.trim().toUpperCase();
+                if (expected.includes(enteredCode) || enteredCode.includes(expected)) {
+                    isVerifiedByQr = true;
+                }
+            }
 
             // STEP 2: UPDATE STATUS IN CLOUD FIRESTORE & LOCAL DATABASE VIA APP.JS
             await updateParcelStatusRecord(
@@ -1132,7 +1155,9 @@
             closeDriverProofModal();
 
             // STEP 4: DISPLAY CONFIRMATION TOAST AND RE-RENDER RUNSHEET
-            showToast(`Consignment ${tracking} marked as Delivered! COD collected: ${parcel?.cod || '₱0.00'}`);
+            showToast(isVerifiedByQr 
+                ? `✓ Verified via Customer QR Pass! Consignment ${tracking} marked as Delivered.` 
+                : `Consignment ${tracking} marked as Delivered! COD collected: ${parcel?.cod || '₱0.00'}`);
             renderDriverRunSheet();
 
             // STEP 5: BROADCAST UPDATED REMAINING STOPS TO FLEET RADAR
