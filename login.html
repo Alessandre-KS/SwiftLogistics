@@ -719,8 +719,9 @@
             } catch (err) {
                 console.warn("Google Registration Error:", err);
                 if (err.code !== "auth/popup-closed-by-user") {
-                    if (err.code === "auth/configuration-not-found" || err.code === "auth/operation-not-allowed") {
-                        showRegError("Google Sign-In is not enabled in Firebase Console yet. Please enable <strong>Google</strong> under <a href='https://console.firebase.google.com/project/swiftlogistics-hub-9821/authentication/providers' target='_blank' style='color:#1D4ED8; text-decoration:underline; font-weight:700;'>Authentication &gt; Sign-in method</a> or fill out the registration fields manually below.");
+                    const errStr = ((err.code || "") + " " + (err.message || "")).toLowerCase();
+                    if (errStr.includes("configuration-not-found") || errStr.includes("operation-not-allowed")) {
+                        showRegError("Google Sign-In is being activated in Firebase Console. If you recently enabled it, please wait a moment and try again, or fill out the registration fields manually below.");
                     } else {
                         showRegError("Google Authentication: " + (err.message || err.code));
                     }

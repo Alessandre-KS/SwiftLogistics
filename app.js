@@ -636,6 +636,36 @@ function focusDriverLocationByParcel(trackingNo) {
     }
 }
 
+// RETRIEVE ASSIGNED CONSIGNMENTS FOR A SPECIFIC COURIER
+function getParcelsForDriver(driverId, driverName) {
+    if (!parcelsList || parcelsList.length === 0) {
+        parcelsList = (typeof getLocalParcels === "function") ? getLocalParcels() : [];
+    }
+    const cleanId = (driverId || "").toLowerCase().trim();
+    const cleanName = (driverName || "").toLowerCase().trim();
+
+    return parcelsList.filter(p => {
+        if (!p.assignedDriver && !p.assignedDriverId && !p.assignedDriverUid) return false;
+        const assigned = (p.assignedDriver || "").toLowerCase().trim();
+        const assignedId = (p.assignedDriverId || p.assignedDriverUid || "").toLowerCase().trim();
+
+        const idMatch = cleanId && (assignedId === cleanId);
+        const nameMatch = cleanName && (assigned.includes(cleanName) || cleanName.includes(assigned));
+        const aliasMatch = (cleanName.includes("tom") || cleanId.includes("maewsenpai")) && 
+                           (assigned.includes("tom") || assigned.includes("cruise") || assignedId.includes("maewsenpai"));
+
+        return idMatch || nameMatch || aliasMatch;
+    });
+}
+
+// EXPORT TO WINDOW FOR GLOBAL REUSE ACROSS DISPATCH TERMINALS
+if (typeof window !== "undefined") {
+    window.DEFAULT_DRIVER_LOCATIONS = DEFAULT_DRIVER_LOCATIONS;
+    window.getLocalDriverLocations = getLocalDriverLocations;
+    window.getRegisteredDrivers = getRegisteredDrivers;
+    window.getParcelsForDriver = getParcelsForDriver;
+}
+
 // ============================================================================
 // SECTION 4: BASELINE CONSIGNMENT MANIFEST (SEED DATASET)
 // ============================================================================

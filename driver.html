@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SwiftLogistics Hub — Driver Transit Terminal & Run-Sheet</title>
+    <title>SwiftLogistics Hub — Courier Fleet Monitor & Run-Sheet</title>
     <link rel="stylesheet" href="style.css?v=6.4.0">
     <!-- ====================================================================
          LEAFLET.JS V1.9.4 MAP STYLESHEET
@@ -12,12 +12,12 @@
          ==================================================================== -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <!-- DEDICATED DRIVER TRANSIT TERMINAL STYLESHEET -->
-    <link rel="stylesheet" href="driver.css?v=2.2.0">
+    <link rel="stylesheet" href="driver.css?v=2.3.0">
 </head>
 <body class="courier-body" style="background: var(--bg-canvas);">
 
     <!-- ====================================================================
-         TOP APP BAR (DRIVER RUN-SHEET HEADER)
+         TOP APP BAR (COURIER FLEET MONITOR & RUN-SHEET HEADER)
          ==================================================================== -->
     <header class="courier-topbar driver-topbar" style="position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
         <div class="topbar-info" style="display: flex; align-items: center; gap: 10px;">
@@ -28,10 +28,10 @@
                 <div class="topbar-crumb" style="margin: 0;">
                     <span class="crumb-lead" style="font-weight: 800; color: var(--text-title);">SwiftLogistics</span>
                     <span class="crumb-slash">/</span>
-                    <span class="crumb-active" style="color: var(--courier-orange);">Transit Terminal</span>
+                    <span class="crumb-active" id="topbarCrumbActive" style="color: var(--courier-orange);">Courier Fleet Monitor</span>
                 </div>
-                <div class="driver-topbar-subtitle" style="font-size: 11px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    Branch #04 • Lipa City Sorting Dock
+                <div class="driver-topbar-subtitle" id="topbarSubtitle" style="font-size: 11px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    Branch #04 • Field Operations Dispatch & Live Run-Sheet Monitor
                 </div>
             </div>
         </div>
@@ -61,6 +61,32 @@
          ==================================================================== -->
     <main class="driver-workspace">
 
+        <!-- MANAGEMENT COURIER FLEET MONITOR BAR (VISIBLE TO DISPATCHERS & OWNERS) -->
+        <div id="managementFleetControlBar" class="management-fleet-control-bar" style="display: none;">
+            <div class="mgt-bar-header">
+                <div class="mgt-bar-title">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span class="mgt-badge">👨‍💼 Dispatcher Fleet Monitor</span>
+                        <span class="mgt-live-indicator">
+                            <span class="pulse-dot" style="background: #10B981; width: 6px; height: 6px;"></span> Real-Time Courier Telemetry
+                        </span>
+                    </div>
+                    <span class="mgt-subtitle">Select any field courier below to inspect their live parcel run-sheet, GPS route corridor, and doorstep waypoints</span>
+                </div>
+                <div class="mgt-bar-actions">
+                    <label for="managementDriverSelect" class="mgt-select-label">Inspected Courier:</label>
+                    <div class="mgt-select-wrap">
+                        <select id="managementDriverSelect" onchange="switchInspectedDriver(this.value)">
+                            <option value="">Loading couriers...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="mgt-driver-pills" id="managementDriverPills">
+                <!-- Populated dynamically with 1-click courier selector pills -->
+            </div>
+        </div>
+
         <!-- DRIVER HERO BANNER -->
         <div class="driver-hero-card">
             <div class="driver-hero-left">
@@ -70,6 +96,9 @@
                         <span id="driverHeroName">Driver Courier</span>
                         <span class="driver-vehicle-badge" id="driverHeroVehicle">
                             🏍️ Motorcycle (Express 2-Wheeler)
+                        </span>
+                        <span class="mgt-hero-badge" id="mgtHeroBadge" style="display: none;">
+                            👁️ Management Monitor
                         </span>
                     </h2>
                     <p class="driver-hero-sub">
@@ -490,8 +519,15 @@
         let driverMap = null;
         let driverHubMarker = null;
         let driverStopMarkers = [];
+        let driverCourierMarker = null;
         let driverRoutePolyline = null;
         let activeDriverRouteReqId = 0;
+
+        // MANAGEMENT FLEET MONITOR STATE
+        let isManagementMode = false;
+        let activeInspectedDriverId = null;
+        let activeInspectedDriver = null;
+        let cachedFleetCouriers = [];
 
         document.addEventListener("DOMContentLoaded", async () => {
             driverSession = getStaffSession();
@@ -524,12 +560,19 @@
                 vehicleEl.innerText = `${emoji} ${vType}`;
             }
 
+            // Detect if logged-in user has management / dispatcher privileges
+            const roleLower = (driverSession.role || "").toLowerCase();
+            isManagementMode = !!(
+                roleLower.includes("management") ||
+                roleLower.includes("dispatcher") ||
+                roleLower.includes("admin") ||
+                roleLower.includes("owner") ||
+                driverSession.email === "jeff@swiftlogistics.ph"
+            );
+
             // If user is owner or dispatcher, show link to dispatch counter desk
-            const isBossOrDispatcher = (driverSession.role && driverSession.role.toLowerCase().includes("management")) ||
-                                       (driverSession.role && driverSession.role.toLowerCase().includes("owner")) ||
-                                       driverSession.email === "jeff@swiftlogistics.ph";
             const deskBtn = document.getElementById("btnReturnToDesk");
-            if (deskBtn && isBossOrDispatcher) {
+            if (deskBtn && isManagementMode) {
                 deskBtn.style.display = "inline-flex";
             }
 
@@ -546,14 +589,260 @@
 
             initDriverRouteMap();
             await loadParcels();
-            renderDriverRunSheet();
+
+            if (isManagementMode) {
+                await setupManagementFleetMonitor();
+            } else {
+                renderDriverRunSheet();
+            }
             startDriverLocationBroadcasting();
 
-            // Real-time listener for cross-device parcel assignment and status updates
+            // Real-time listeners for cross-device parcel updates & telemetry
             window.addEventListener("swift_parcels_cloud_synced", () => {
+                if (isManagementMode) refreshManagementCouriersList();
+                renderDriverRunSheet();
+            });
+            window.addEventListener("swift_parcels_updated", () => {
+                if (isManagementMode) refreshManagementCouriersList();
                 renderDriverRunSheet();
             });
         });
+
+        // ============================================================================
+        // MANAGEMENT FLEET MONITOR CONTROLLER
+        // PURPOSE: Allows dispatchers and managers to inspect any courier's active
+        //          deliveries, live GPS corridor, waypoints, and COD collections.
+        // ============================================================================
+        async function setupManagementFleetMonitor() {
+            const bar = document.getElementById("managementFleetControlBar");
+            if (bar) bar.style.display = "block";
+
+            const crumbActive = document.getElementById("topbarCrumbActive");
+            if (crumbActive) crumbActive.innerText = "Courier Fleet Monitor";
+
+            const heroBadge = document.getElementById("mgtHeroBadge");
+            if (heroBadge) heroBadge.style.display = "inline-flex";
+
+            await refreshManagementCouriersList();
+        }
+
+        async function getAllFleetDrivers() {
+            const driversMap = {};
+
+            // 1. Seeded default couriers from app.js telemetry
+            if (typeof DEFAULT_DRIVER_LOCATIONS !== "undefined") {
+                for (const id in DEFAULT_DRIVER_LOCATIONS) {
+                    const d = DEFAULT_DRIVER_LOCATIONS[id];
+                    driversMap[id] = {
+                        id: d.driverId || id,
+                        name: d.driverName,
+                        vehicleType: d.vehicleType || "Motorcycle (Express 2-Wheeler)",
+                        lat: d.lat,
+                        lng: d.lng,
+                        currentStreet: d.currentStreet,
+                        status: d.status
+                    };
+                }
+            }
+
+            // 2. Query registered couriers from Firestore / staff directory
+            if (typeof getRegisteredDrivers === "function") {
+                try {
+                    const regList = await getRegisteredDrivers();
+                    regList.forEach(r => {
+                        const id = r.id || r.uid || r.name;
+                        if (!driversMap[id]) {
+                            driversMap[id] = {
+                                id: id,
+                                name: r.name,
+                                vehicleType: r.vehicleType || "Motorcycle (Express 2-Wheeler)",
+                                email: r.email,
+                                role: r.role
+                            };
+                        }
+                    });
+                } catch (e) {}
+            }
+
+            // 3. Scan parcelsList for any assigned courier names
+            if (Array.isArray(parcelsList)) {
+                parcelsList.forEach(p => {
+                    if (p.assignedDriver) {
+                        const dName = p.assignedDriver.trim();
+                        const dId = p.assignedDriverId || p.assignedDriverUid || ("usr_" + dName.toLowerCase().replace(/[^a-z0-9]/g, "_"));
+                        const existing = Object.values(driversMap).find(d => 
+                            d.name.toLowerCase() === dName.toLowerCase() || d.id === dId
+                        );
+                        if (!existing) {
+                            driversMap[dId] = {
+                                id: dId,
+                                name: dName,
+                                vehicleType: p.driverVehicle || "Motorcycle (Express 2-Wheeler)"
+                            };
+                        }
+                    }
+                });
+            }
+
+            // 4. Retrieve local driver locations cache
+            if (typeof getLocalDriverLocations === "function") {
+                try {
+                    const locs = getLocalDriverLocations();
+                    for (const id in locs) {
+                        const d = locs[id];
+                        if (driversMap[id]) {
+                            driversMap[id].lat = d.lat;
+                            driversMap[id].lng = d.lng;
+                            driversMap[id].currentStreet = d.currentStreet;
+                            if (d.vehicleType) driversMap[id].vehicleType = d.vehicleType;
+                        } else {
+                            driversMap[id] = {
+                                id: d.driverId || id,
+                                name: d.driverName,
+                                vehicleType: d.vehicleType || "Motorcycle",
+                                lat: d.lat,
+                                lng: d.lng,
+                                currentStreet: d.currentStreet
+                            };
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            return Object.values(driversMap);
+        }
+
+        async function refreshManagementCouriersList() {
+            cachedFleetCouriers = await getAllFleetDrivers();
+
+            // Calculate active stop counts for each courier
+            cachedFleetCouriers.forEach(c => {
+                const stops = (typeof getParcelsForDriver === "function") 
+                    ? getParcelsForDriver(c.id, c.name).filter(p => (p.status || "").includes("Out for Delivery"))
+                    : parcelsList.filter(p => (p.assignedDriver || "").includes(c.name) && (p.status || "").includes("Out for Delivery"));
+                c.activeStopsCount = stops.length;
+            });
+
+            // Total active across entire fleet
+            const totalFleetActive = parcelsList.filter(p => (p.status || "").includes("Out for Delivery")).length;
+
+            // Determine activeInspectedDriverId
+            const storedId = localStorage.getItem("swift_inspected_driver_id");
+            if (storedId && (storedId === "all" || cachedFleetCouriers.some(c => c.id === storedId))) {
+                activeInspectedDriverId = storedId;
+            } else {
+                // Default to courier with active stops (e.g. Tom Cruise)
+                const withStops = cachedFleetCouriers.filter(c => c.activeStopsCount > 0);
+                if (withStops.length > 0) {
+                    activeInspectedDriverId = withStops[0].id;
+                } else if (cachedFleetCouriers.length > 0) {
+                    activeInspectedDriverId = cachedFleetCouriers[0].id;
+                } else {
+                    activeInspectedDriverId = "all";
+                }
+            }
+
+            if (activeInspectedDriverId === "all") {
+                activeInspectedDriver = { id: "all", name: "All Fleet Couriers", vehicleType: "Multi-Vehicle Fleet" };
+            } else {
+                activeInspectedDriver = cachedFleetCouriers.find(c => c.id === activeInspectedDriverId) || cachedFleetCouriers[0] || null;
+            }
+
+            // Populate Dropdown
+            const selectEl = document.getElementById("managementDriverSelect");
+            if (selectEl) {
+                let optionsHtml = `<option value="all" ${activeInspectedDriverId === 'all' ? 'selected' : ''}>🌐 All Couriers Combined (${totalFleetActive} Active Stops Across Fleet)</option>`;
+                cachedFleetCouriers.forEach(c => {
+                    const isTruck = (c.vehicleType || "").toLowerCase().includes("truck");
+                    const emoji = isTruck ? "🚛" : "🛵";
+                    const isSelected = c.id === activeInspectedDriverId ? "selected" : "";
+                    optionsHtml += `<option value="${c.id}" ${isSelected}>${emoji} ${c.name} — ${c.activeStopsCount} Active Stop(s) (${c.vehicleType || 'Motorcycle'})</option>`;
+                });
+                selectEl.innerHTML = optionsHtml;
+            }
+
+            // Populate Quick Pills
+            const pillsEl = document.getElementById("managementDriverPills");
+            if (pillsEl) {
+                let pillsHtml = `
+                    <button type="button" class="mgt-driver-pill-btn ${activeInspectedDriverId === 'all' ? 'active' : ''}" data-driver-id="all" onclick="switchInspectedDriver('all')">
+                        <span>🌐 All Fleet</span>
+                        <span class="mgt-driver-pill-count">${totalFleetActive}</span>
+                    </button>
+                `;
+                cachedFleetCouriers.forEach(c => {
+                    const isTruck = (c.vehicleType || "").toLowerCase().includes("truck");
+                    const emoji = isTruck ? "🚛" : "🛵";
+                    const isActive = c.id === activeInspectedDriverId ? "active" : "";
+                    const shortName = c.name.split(" ")[0];
+                    pillsHtml += `
+                        <button type="button" class="mgt-driver-pill-btn ${isActive}" data-driver-id="${c.id}" onclick="switchInspectedDriver('${c.id}')" title="${c.name} (${c.vehicleType || 'Motorcycle'})">
+                            <span>${emoji} ${shortName}</span>
+                            <span class="mgt-driver-pill-count">${c.activeStopsCount}</span>
+                        </button>
+                    `;
+                });
+                pillsEl.innerHTML = pillsHtml;
+            }
+
+            updateInspectedHeroBanner();
+            renderDriverRunSheet();
+        }
+
+        function updateInspectedHeroBanner() {
+            if (!isManagementMode || !activeInspectedDriver) return;
+
+            const nameEl = document.getElementById("driverHeroName");
+            const avatarEl = document.getElementById("driverHeroAvatar");
+            const vehicleEl = document.getElementById("driverHeroVehicle");
+            const roleEl = document.getElementById("driverHeroRole");
+
+            if (activeInspectedDriver.id === "all") {
+                if (nameEl) nameEl.innerText = "Entire Courier Fleet";
+                if (avatarEl) avatarEl.innerText = "🌐";
+                if (vehicleEl) vehicleEl.innerText = "🚛🛵 Combined Fleet Dispatch";
+                if (roleEl) roleEl.innerText = `All Active Couriers • Supervised by ${driverSession.name} (${driverSession.role})`;
+            } else {
+                if (nameEl) nameEl.innerText = activeInspectedDriver.name;
+                const initials = activeInspectedDriver.name.trim().split(/\s+/).map(n => n[0]).join("").toUpperCase().slice(0, 2);
+                if (avatarEl) avatarEl.innerText = initials || "DR";
+                const vType = activeInspectedDriver.vehicleType || "Motorcycle (Express 2-Wheeler)";
+                const emoji = getVehicleEmoji(vType);
+                if (vehicleEl) vehicleEl.innerText = `${emoji} ${vType}`;
+                if (roleEl) roleEl.innerText = `Active Field Courier • Inspected by ${driverSession.name} (${driverSession.role})`;
+            }
+
+            const gpsBadge = document.getElementById("driverGpsLiveBadge");
+            if (gpsBadge) {
+                gpsBadge.style.display = "inline-flex";
+                gpsBadge.innerHTML = `<span class="pulse-dot" style="background: #38BDF8; width: 6px; height: 6px;"></span> Courier GPS Live`;
+            }
+        }
+
+        window.switchInspectedDriver = function(driverId) {
+            activeInspectedDriverId = driverId;
+            localStorage.setItem("swift_inspected_driver_id", driverId);
+
+            if (driverId === "all") {
+                activeInspectedDriver = { id: "all", name: "All Fleet Couriers", vehicleType: "Multi-Vehicle Fleet" };
+            } else {
+                activeInspectedDriver = cachedFleetCouriers.find(c => c.id === driverId) || { id: driverId, name: driverId };
+            }
+
+            const selectEl = document.getElementById("managementDriverSelect");
+            if (selectEl) selectEl.value = driverId;
+
+            document.querySelectorAll(".mgt-driver-pill-btn").forEach(btn => {
+                btn.classList.toggle("active", btn.dataset.driverId === driverId);
+            });
+
+            updateInspectedHeroBanner();
+            renderDriverRunSheet();
+
+            if (typeof showToast === "function") {
+                showToast(`Inspecting run-sheet for ${activeInspectedDriver.name}`);
+            }
+        };
 
         // ============================================================================
         // SECTION: COURIER TRANSIT ROUTE MAP CONTROLLER (POWERED BY LEAFLET.JS V1.9.4)
@@ -640,12 +929,72 @@
                 driverMap.removeLayer(driverRoutePolyline);
                 driverRoutePolyline = null;
             }
+            if (driverCourierMarker) {
+                driverMap.removeLayer(driverCourierMarker);
+                driverCourierMarker = null;
+            }
 
             // STEP 2: ESTABLISH ORIGIN STARTING POINT AT UB LIPA HUB
             const hubLat = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lat : 13.9692;
             const hubLng = (typeof UB_LIPA_HUB !== "undefined") ? UB_LIPA_HUB.lng : 121.1594;
             const routeCoords = [[hubLat, hubLng]];
             const bounds = [[hubLat, hubLng]];
+
+            // STEP 2B: PLOT COURIER LIVE LOCATION PIN (IF AVAILABLE)
+            let courierLat = null;
+            let courierLng = null;
+            let courierName = "";
+            let courierVehicle = "";
+            let courierStreet = "";
+
+            if (isManagementMode && activeInspectedDriver && activeInspectedDriver.id !== "all") {
+                courierLat = activeInspectedDriver.lat || (typeof DEFAULT_DRIVER_LOCATIONS !== "undefined" && DEFAULT_DRIVER_LOCATIONS[activeInspectedDriver.id]?.lat);
+                courierLng = activeInspectedDriver.lng || (typeof DEFAULT_DRIVER_LOCATIONS !== "undefined" && DEFAULT_DRIVER_LOCATIONS[activeInspectedDriver.id]?.lng);
+                courierName = activeInspectedDriver.name;
+                courierVehicle = activeInspectedDriver.vehicleType || "Motorcycle (Express 2-Wheeler)";
+                courierStreet = activeInspectedDriver.currentStreet || "Brgy. Inosloban, Lipa City, Batangas";
+            } else if (!isManagementMode && typeof lastKnownCoords !== "undefined" && lastKnownCoords && lastKnownCoords.lat) {
+                courierLat = lastKnownCoords.lat;
+                courierLng = lastKnownCoords.lng;
+                courierName = driverSession ? driverSession.name : "Field Courier";
+                courierVehicle = driverSession ? (driverSession.vehicleType || "Motorcycle") : "Motorcycle";
+                courierStreet = "Field En-Route";
+            }
+
+            if (courierLat && courierLng) {
+                const isTruck = courierVehicle.toLowerCase().includes("truck");
+                const emoji = isTruck ? "🚛" : "🛵";
+                const customIcon = L.divIcon({
+                    className: "leaflet-driver-pin",
+                    html: `
+                        <div class="driver-marker-pin ${isTruck ? 'truck' : ''}" title="${courierName}">
+                            <span class="driver-radar-ring"></span>
+                            <span>${emoji}</span>
+                            <span class="driver-label-pill">${courierName.split(' ')[0]}</span>
+                        </div>
+                    `,
+                    iconSize: [38, 38],
+                    iconAnchor: [19, 19],
+                    popupAnchor: [0, -18]
+                });
+
+                driverCourierMarker = L.marker([courierLat, courierLng], { icon: customIcon }).addTo(driverMap);
+                driverCourierMarker.bindPopup(`
+                    <div style="font-weight: 800; font-size: 13px; color: #0F172A; display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
+                        <span>${emoji}</span> <span>${courierName}</span>
+                    </div>
+                    <div style="font-size: 11px; color: #475569; margin-bottom: 2px;">
+                        <strong>Vehicle:</strong> ${courierVehicle}
+                    </div>
+                    <div style="font-size: 11px; color: #0369A1; font-weight: 700; margin-bottom: 2px;">
+                        📍 ${courierStreet}
+                    </div>
+                    <div style="font-size: 10px; color: #059669; font-weight: 700; background: #ECFDF5; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+                        ${activeDeliveries.length} active delivery stop(s)
+                    </div>
+                `);
+                bounds.push([courierLat, courierLng]);
+            }
 
             // STEP 3: LOOP THROUGH ASSIGNED DELIVERIES AND PLOT NUMBERED PINS
             activeDeliveries.forEach((p, idx) => {
@@ -731,8 +1080,12 @@
                     }).catch(() => {});
                 }
             } else {
-                // If all packages delivered, center camera back onto UB Lipa Central Hub
-                driverMap.setView([hubLat, hubLng], 13);
+                if (courierLat && courierLng) {
+                    driverMap.setView([courierLat, courierLng], 14);
+                    if (driverCourierMarker) driverCourierMarker.openPopup();
+                } else {
+                    driverMap.setView([hubLat, hubLng], 13);
+                }
             }
         }
 
@@ -743,27 +1096,52 @@
         async function refreshDriverParcels() {
             showToast("Syncing driver run-sheet with branch database...");
             await loadParcels();
+            if (isManagementMode) refreshManagementCouriersList();
             renderDriverRunSheet();
         }
 
         // ============================================================================
-        // FILTER PARCELS EXCLUSIVELY ASSIGNED TO THIS ACTIVE DRIVER
-        // PURPOSE:  Checks logged-in courier's name, UID, and email against consignment records.
+        // FILTER PARCELS FOR THE ACTIVE INSPECTED COURIER (OR LOGGED-IN COURIER)
+        // PURPOSE: In Management Mode, filters parcels by currently inspected driver.
+        //          In normal mode, checks logged-in courier's name and credentials.
         // ============================================================================
         function getAssignedDriverParcels() {
-            // STEP 1: VERIFY ACTIVE DRIVER SESSION EXISTS
             if (!driverSession) return [];
+
+            // IF IN MANAGEMENT MONITOR MODE:
+            if (isManagementMode) {
+                if (!activeInspectedDriverId || activeInspectedDriverId === "all") {
+                    return parcelsList.filter(p => !!p.assignedDriver || (p.status || "").includes("Out for Delivery"));
+                }
+                const d = activeInspectedDriver || { id: activeInspectedDriverId, name: activeInspectedDriverId };
+                if (typeof getParcelsForDriver === "function") {
+                    return getParcelsForDriver(d.id, d.name);
+                }
+                const cleanId = (d.id || "").toLowerCase().trim();
+                const cleanName = (d.name || "").toLowerCase().trim();
+                return parcelsList.filter(p => {
+                    if (!p.assignedDriver && !p.assignedDriverId && !p.assignedDriverUid) return false;
+                    const assigned = (p.assignedDriver || "").toLowerCase().trim();
+                    const assignedId = (p.assignedDriverId || p.assignedDriverUid || "").toLowerCase().trim();
+                    return (cleanId && assignedId === cleanId) ||
+                           (cleanName && (assigned.includes(cleanName) || cleanName.includes(assigned))) ||
+                           ((cleanName.includes("tom") || cleanId.includes("maewsenpai")) && (assigned.includes("tom") || assigned.includes("cruise") || assignedId.includes("maewsenpai")));
+                });
+            }
+
+            // NORMAL COURIER SESSION:
+            if (typeof getParcelsForDriver === "function") {
+                return getParcelsForDriver(driverSession.uid, driverSession.name);
+            }
             const dName = (driverSession.name || "").toLowerCase().trim();
             const dUid = (driverSession.uid || "").toLowerCase().trim();
             const dEmail = (driverSession.email || "").toLowerCase().trim();
 
-            // STEP 2: FILTER GLOBAL PARCEL LIST BY ASSIGNED DRIVER CREDENTIALS
             return parcelsList.filter(p => {
                 if (!p.assignedDriver && !p.assignedDriverId && !p.assignedDriverUid) return false;
                 const assigned = (p.assignedDriver || "").toLowerCase().trim();
                 const assignedId = (p.assignedDriverId || p.assignedDriverUid || "").toLowerCase().trim();
 
-                // MATCH BY DRIVER FULL NAME OR UNIQUE SYSTEM IDENTIFIER (UID / EMAIL)
                 return (assigned && (assigned.includes(dName) || dName.includes(assigned))) || 
                        (assignedId && (assignedId === dUid || assignedId === dEmail));
             });
@@ -833,10 +1211,14 @@
 
             // RUN ROUTE OPTIMIZATION ENGINE (TRAVELING SALESPERSON CORRIDOR)
             if (typeof optimizeDeliveryRoute === "function" && activeDeliveries.length > 1) {
-                const driverPos = (lastKnownCoords && lastKnownCoords.lat)
-                    ? lastKnownCoords
-                    : (typeof UB_LIPA_HUB !== "undefined" ? UB_LIPA_HUB : { lat: 13.9692, lng: 121.1594 });
-                optRes = optimizeDeliveryRoute(driverPos, activeDeliveries);
+                let startPos = (typeof lastKnownCoords !== "undefined" && lastKnownCoords && lastKnownCoords.lat) ? lastKnownCoords : null;
+                if (!startPos && isManagementMode && activeInspectedDriver && activeInspectedDriver.lat) {
+                    startPos = { lat: activeInspectedDriver.lat, lng: activeInspectedDriver.lng };
+                }
+                if (!startPos) {
+                    startPos = (typeof UB_LIPA_HUB !== "undefined" ? UB_LIPA_HUB : { lat: 13.9692, lng: 121.1594 });
+                }
+                optRes = optimizeDeliveryRoute(startPos, activeDeliveries);
                 if (courierRouteOptimized) {
                     sequencedDeliveries = optRes.optimizedStops;
                 }
@@ -898,14 +1280,20 @@
 
             // Empty state if no parcels
             if (totalAssigned === 0) {
+                const emptyTitle = isManagementMode 
+                    ? `No Assigned Deliveries for ${activeInspectedDriver?.name || 'Courier'}` 
+                    : 'No Consignments Assigned to Your Run-Sheet Yet';
+                const emptyMsg = isManagementMode
+                    ? `No consignments currently assigned to ${activeInspectedDriver?.name || 'this courier'}. Use the selector above to switch to another active field courier or choose "All Fleet".`
+                    : `Consignments are assigned by the Branch Dispatcher during sorting at the Lipa City Hub.`;
                 container.innerHTML = `
                     <div class="empty-runsheet-box">
                         <div style="font-size: 42px; margin-bottom: 12px;">📋</div>
                         <h3 style="font-size: 16px; font-weight: 800; color: var(--text-title); margin-bottom: 6px;">
-                            No Consignments Assigned to Your Run-Sheet Yet
+                            ${emptyTitle}
                         </h3>
                         <p style="font-size: 12.5px; color: var(--text-muted); max-width: 460px; margin: 0 auto; line-height: 1.5;">
-                            Consignments are assigned by the Branch Dispatcher during sorting at the Lipa City Hub.
+                            ${emptyMsg}
                         </p>
                     </div>
                 `;
@@ -1141,12 +1529,13 @@
             }
 
             // STEP 2: UPDATE STATUS IN CLOUD FIRESTORE & LOCAL DATABASE VIA APP.JS
+            const driverToUse = (isManagementMode && activeInspectedDriver && activeInspectedDriver.id !== "all") ? activeInspectedDriver : driverSession;
             await updateParcelStatusRecord(
                 tracking, 
                 "Delivered", 
-                driverSession.name, 
-                driverSession.vehicleType, 
-                driverSession.uid
+                driverToUse.name, 
+                driverToUse.vehicleType, 
+                driverToUse.uid || driverToUse.id
             );
 
             // STEP 3: RESET BUTTON AND CLOSE MODAL DIALOG
@@ -1212,8 +1601,9 @@
             const reason = document.getElementById("attemptModalReason").value;
             const notes = document.getElementById("attemptModalNotes").value.trim();
 
+            const driverToUse = (isManagementMode && activeInspectedDriver && activeInspectedDriver.id !== "all") ? activeInspectedDriver : driverSession;
             if (typeof logParcelDeliveryAttempt === "function") {
-                await logParcelDeliveryAttempt(tracking, reason, notes, driverSession);
+                await logParcelDeliveryAttempt(tracking, reason, notes, driverToUse);
             }
 
             btn.disabled = false;
@@ -1234,10 +1624,11 @@
             const parcel = parcelsList.find(p => p.trackingNo === trackingNo);
             if (!parcel) return;
 
+            const driverToUse = (isManagementMode && activeInspectedDriver && activeInspectedDriver.id !== "all") ? activeInspectedDriver : driverSession;
             if (typeof startParcelDelivery === "function") {
-                await startParcelDelivery(trackingNo, driverSession);
+                await startParcelDelivery(trackingNo, driverToUse);
             } else if (typeof updateParcelStatusRecord === "function") {
-                await updateParcelStatusRecord(trackingNo, "Out for Delivery", driverSession?.name, driverSession?.vehicleType, driverSession?.uid);
+                await updateParcelStatusRecord(trackingNo, "Out for Delivery", driverToUse?.name, driverToUse?.vehicleType, driverToUse?.uid || driverToUse?.id);
             }
 
             activeInRouteTracking = trackingNo;
