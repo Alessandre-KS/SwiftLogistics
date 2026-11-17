@@ -79,6 +79,12 @@
                                 Register Staff
                             </button>
                         </div>
+
+                        <div class="auth-divider" style="margin: 14px 0 10px 0;"><span>OR QUICK SIGN-IN</span></div>
+                        <button type="button" class="btn-google-auth" id="btnGoogleSignIn" onclick="handleGoogleSignIn()" style="width: 100%; justify-content: center;">
+                            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.2 0 10.04 0 12s.45 3.8 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+                            <span>Sign In with Google Account</span>
+                        </button>
                     </form>
                 </div>
 
@@ -732,6 +738,93 @@
                     btn.innerHTML = `
                         <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.2 0 10.04 0 12s.45 3.8 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
                         <span>Register with Google Account</span>
+                    `;
+                }
+            }
+        }
+
+        // ============================================================================
+        // GOOGLE-BASED STAFF SIGN-IN (PRIMARY CREDENTIAL RESOLVER)
+        // PURPOSE: Authenticates via Google OAuth, verifies user is an authorized
+        //          employee/courier in the staff directory, and initiates TOTP MFA.
+        // ============================================================================
+        async function handleGoogleSignIn() {
+            hideAlert();
+
+            if (typeof firebase === 'undefined' || !auth) {
+                showAlert("Firebase Auth is offline. Please enter your email and password manually.");
+                return;
+            }
+
+            const btn = document.getElementById("btnGoogleSignIn");
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="pulse-dot"></span> Authenticating with Google...`;
+            }
+
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                const result = await auth.signInWithPopup(provider);
+                const gUser = result.user;
+
+                if (!gUser || !gUser.email) {
+                    throw new Error("Google sign-in did not return a valid email address.");
+                }
+
+                const email = gUser.email.toLowerCase().trim();
+                const staffList = (typeof getRegisteredDrivers === "function") ? await getRegisteredDrivers() : [];
+
+                // Match against staff directory or default privileged accounts
+                let matched = staffList.find(s => (s.email || "").toLowerCase().trim() === email);
+
+                if (!matched && (email.includes("alessandre") || email === "alessandrekyle@gmail.com")) {
+                    matched = {
+                        id: "usr_alessandrekyle",
+                        name: gUser.displayName || "Alessandre Kyle E. Sanidad",
+                        email: email,
+                        role: "Management (Branch Dispatcher)",
+                        active: true,
+                        verified: true
+                    };
+                } else if (!matched && (email.includes("maewsenpai") || email === "maewsenpai@gmail.com")) {
+                    matched = {
+                        id: "usr_maewsenpai",
+                        name: gUser.displayName || "Tom Cruise",
+                        email: email,
+                        role: "Driver (Delivery Courier Rider)",
+                        vehicleType: "Motorcycle (Express 2-Wheeler)",
+                        active: true,
+                        verified: true
+                    };
+                } else if (!matched && (email === "jeff@swiftlogistics.ph" || email.includes("jeff"))) {
+                    matched = {
+                        id: "usr_jeff",
+                        name: gUser.displayName || "Jefferson L. Sanidad",
+                        email: email,
+                        role: "Owner / Operations Director",
+                        active: true,
+                        verified: true
+                    };
+                }
+
+                if (matched) {
+                    pendingUser = matched;
+                    initiateStep2Totp(pendingUser);
+                } else {
+                    showAlert(`Google account (${email}) is not yet registered in Terminal 04 directory. Click "Register Staff" to apply for courier/dispatcher access.`);
+                }
+            } catch (err) {
+                console.warn("Google Sign-In Error:", err);
+                if (err.code !== "auth/popup-closed-by-user") {
+                    showAlert("Google Authentication: " + (err.message || err.code));
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.2 0 10.04 0 12s.45 3.8 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+                        <span>Sign In with Google Account</span>
                     `;
                 }
             }

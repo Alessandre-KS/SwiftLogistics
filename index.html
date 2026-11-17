@@ -1570,13 +1570,16 @@
                         ${currentParcelHtml}
                         ${routeStopsHtml}
 
-                        ${activeStops.length > 0 ? `
-                            <div style="margin-top: 7px; padding-top: 5px; border-top: 1px solid #E2E8F0;">
+                        <div style="margin-top: 7px; padding-top: 5px; border-top: 1px solid #E2E8F0; display: flex; flex-direction: column; gap: 4px;">
+                            ${activeStops.length > 0 ? `
                                 <button type="button" onclick="event.stopPropagation(); window.drawDriverRouteOnRadar('${id}');" style="width: 100%; font-size: 10.5px; font-weight: 800; color: #FFFFFF; background: #1E40AF; border: none; padding: 5px 8px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
                                     🛣️ Trace Delivery Route on Map
                                 </button>
-                            </div>
-                        ` : ''}
+                            ` : ''}
+                            <a href="driver.html?driverId=${id}" style="width: 100%; box-sizing: border-box; font-size: 10.5px; font-weight: 800; color: #EA580C; background: #FFF7ED; border: 1px solid #FED7AA; padding: 5px 8px; border-radius: 5px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                🚚 View Courier Run-Sheet
+                            </a>
+                        </div>
                     </div>
                 `;
 

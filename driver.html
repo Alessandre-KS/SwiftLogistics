@@ -176,16 +176,8 @@
                 </button>
             </div>
 
-            <div style="display: flex; gap: 8px; flex: 1; max-width: 480px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
-                <select id="driverStatusSortSelect" class="driver-status-select" onchange="handleDriverStatusFilter(this.value)" title="Sort or filter by transit status">
-                    <option value="ALL">All Statuses</option>
-                    <option value="Out for Delivery">🛵 Out for Delivery</option>
-                    <option value="Delivered">✓ Completed & Signed</option>
-                    <option value="Waiting to be Assigned to Driver">⏳ Pending Assignment</option>
-                    <option value="SORT_STATUS_GROUP">↕️ Sort: Active First</option>
-                    <option value="SORT_DELIVERED_FIRST">↕️ Sort: Completed First</option>
-                </select>
-                <input type="text" id="driverSearchInput" class="form-input-custom" style="flex: 1; min-width: 170px; max-width: 250px;" placeholder="Search recipient, tracking #..." oninput="handleDriverSearch(this.value)">
+            <div style="flex: 1; max-width: 320px; min-width: 200px;">
+                <input type="text" id="driverSearchInput" class="form-input-custom" placeholder="Search recipient, tracking #, address..." oninput="handleDriverSearch(this.value)">
             </div>
         </div>
 
@@ -735,8 +727,15 @@
             const totalFleetActive = parcelsList.filter(p => (p.status || "").includes("Out for Delivery")).length;
 
             // Determine activeInspectedDriverId
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlDriverId = urlParams.get("driverId") || urlParams.get("driver");
             const storedId = localStorage.getItem("swift_inspected_driver_id");
-            if (storedId && (storedId === "all" || cachedFleetCouriers.some(c => c.id === storedId))) {
+            
+            if (urlDriverId && (urlDriverId === "all" || cachedFleetCouriers.some(c => c.id === urlDriverId || (c.name || "").toLowerCase() === urlDriverId.toLowerCase()))) {
+                const matched = cachedFleetCouriers.find(c => c.id === urlDriverId || (c.name || "").toLowerCase() === urlDriverId.toLowerCase());
+                activeInspectedDriverId = matched ? matched.id : urlDriverId;
+                localStorage.setItem("swift_inspected_driver_id", activeInspectedDriverId);
+            } else if (storedId && (storedId === "all" || cachedFleetCouriers.some(c => c.id === storedId))) {
                 activeInspectedDriverId = storedId;
             } else {
                 // Default to courier with active stops (e.g. Tom Cruise)
@@ -1269,24 +1268,10 @@
 
             // Filter logic
             let displayList = assignedParcels;
-            if (currentFilter === "OUT" || currentFilter === "Out for Delivery") {
+            if (currentFilter === "OUT") {
                 displayList = courierRouteOptimized ? sequencedDeliveries : activeDeliveries;
-            } else if (currentFilter === "DELIVERED" || currentFilter === "Delivered") {
+            } else if (currentFilter === "DELIVERED") {
                 displayList = displayList.filter(p => (p.status || "").includes("Delivered"));
-            } else if (currentFilter === "Waiting to be Assigned to Driver") {
-                displayList = displayList.filter(p => (p.status || "").includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId));
-            } else if (currentFilter === "SORT_STATUS_GROUP") {
-                displayList = [...displayList].sort((a, b) => {
-                    const aOut = (a.status || "").includes("Out for Delivery") ? 0 : 1;
-                    const bOut = (b.status || "").includes("Out for Delivery") ? 0 : 1;
-                    return aOut - bOut;
-                });
-            } else if (currentFilter === "SORT_DELIVERED_FIRST") {
-                displayList = [...displayList].sort((a, b) => {
-                    const aDel = (a.status || "").includes("Delivered") ? 0 : 1;
-                    const bDel = (b.status || "").includes("Delivered") ? 0 : 1;
-                    return aDel - bDel;
-                });
             }
 
             // Search query filter
@@ -1450,6 +1435,15 @@
                                     <span style="font-size: 12px; font-weight: 700; color: #DC2626; display: inline-flex; align-items: center; gap: 6px;">
                                         📦 Consignment Flagged: Return to Lipa Hub
                                     </span>
+                                ` : isManagementMode ? `
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
+                                        <button type="button" class="btn-house-directions" onclick="openHouseDirections('${p.trackingNo}')" title="View turn-by-turn directions and landmarks for this house">
+                                            <span>🏠 View Route & Directions</span>
+                                        </button>
+                                        <span style="font-size: 11px; font-weight: 700; color: #0284C7; background: #F0F9FF; border: 1px solid #BAE6FD; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                            👁️ Monitoring Run (Courier Field Delivery)
+                                        </span>
+                                    </div>
                                 ` : `
                                     <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
                                         <button type="button" class="btn-start-delivery" onclick="handleStartDelivery('${p.trackingNo}')" title="Start delivery and open turn-by-turn directions to house">
@@ -1478,32 +1472,8 @@
             currentFilter = filter;
             document.querySelectorAll(".driver-tab-btn").forEach(b => b.classList.remove("active"));
             if (btn) btn.classList.add("active");
-
-            const sel = document.getElementById("driverStatusSortSelect");
-            if (sel) {
-                if (filter === "ALL") sel.value = "ALL";
-                else if (filter === "OUT") sel.value = "Out for Delivery";
-                else if (filter === "DELIVERED") sel.value = "Delivered";
-            }
             renderDriverRunSheet();
         }
-
-        window.handleDriverStatusFilter = function(val) {
-            currentFilter = val;
-
-            const tabs = document.querySelectorAll(".driver-tab-btn");
-            tabs.forEach(b => b.classList.remove("active"));
-
-            if (val === "ALL") {
-                if (tabs[0]) tabs[0].classList.add("active");
-            } else if (val === "Out for Delivery") {
-                if (tabs[1]) tabs[1].classList.add("active");
-            } else if (val === "Delivered") {
-                if (tabs[2]) tabs[2].classList.add("active");
-            }
-
-            renderDriverRunSheet();
-        };
 
         function handleDriverSearch(val) {
             searchQuery = val;
@@ -1779,20 +1749,27 @@
                 `;
             }
 
-            // Quick modal action callbacks
+            // Quick modal action callbacks (hidden for management view-only mode)
             const btnDeliver = document.getElementById("dirModalDeliverBtn");
-            if (btnDeliver) {
-                btnDeliver.onclick = () => {
-                    closeHouseDirectionsModal();
-                    openDeliveryProofModal(parcel.trackingNo);
-                };
-            }
             const btnAttempt = document.getElementById("dirModalAttemptBtn");
-            if (btnAttempt) {
-                btnAttempt.onclick = () => {
-                    closeHouseDirectionsModal();
-                    openDriverAttemptModal(parcel.trackingNo);
-                };
+            if (isManagementMode) {
+                if (btnDeliver) btnDeliver.style.display = "none";
+                if (btnAttempt) btnAttempt.style.display = "none";
+            } else {
+                if (btnDeliver) {
+                    btnDeliver.style.display = "inline-flex";
+                    btnDeliver.onclick = () => {
+                        closeHouseDirectionsModal();
+                        openDeliveryProofModal(parcel.trackingNo);
+                    };
+                }
+                if (btnAttempt) {
+                    btnAttempt.style.display = "inline-flex";
+                    btnAttempt.onclick = () => {
+                        closeHouseDirectionsModal();
+                        openDriverAttemptModal(parcel.trackingNo);
+                    };
+                }
             }
 
             // Display modal
