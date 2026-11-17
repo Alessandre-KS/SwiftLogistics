@@ -176,8 +176,16 @@
                 </button>
             </div>
 
-            <div style="flex: 1; max-width: 320px; min-width: 200px;">
-                <input type="text" id="driverSearchInput" class="form-input-custom" placeholder="Search recipient, tracking #, address..." oninput="handleDriverSearch(this.value)">
+            <div style="display: flex; gap: 8px; flex: 1; max-width: 480px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
+                <select id="driverStatusSortSelect" class="driver-status-select" onchange="handleDriverStatusFilter(this.value)" title="Sort or filter by transit status">
+                    <option value="ALL">All Statuses</option>
+                    <option value="Out for Delivery">🛵 Out for Delivery</option>
+                    <option value="Delivered">✓ Completed & Signed</option>
+                    <option value="Waiting to be Assigned to Driver">⏳ Pending Assignment</option>
+                    <option value="SORT_STATUS_GROUP">↕️ Sort: Active First</option>
+                    <option value="SORT_DELIVERED_FIRST">↕️ Sort: Completed First</option>
+                </select>
+                <input type="text" id="driverSearchInput" class="form-input-custom" style="flex: 1; min-width: 170px; max-width: 250px;" placeholder="Search recipient, tracking #..." oninput="handleDriverSearch(this.value)">
             </div>
         </div>
 
@@ -1261,10 +1269,24 @@
 
             // Filter logic
             let displayList = assignedParcels;
-            if (currentFilter === "OUT") {
+            if (currentFilter === "OUT" || currentFilter === "Out for Delivery") {
                 displayList = courierRouteOptimized ? sequencedDeliveries : activeDeliveries;
-            } else if (currentFilter === "DELIVERED") {
+            } else if (currentFilter === "DELIVERED" || currentFilter === "Delivered") {
                 displayList = displayList.filter(p => (p.status || "").includes("Delivered"));
+            } else if (currentFilter === "Waiting to be Assigned to Driver") {
+                displayList = displayList.filter(p => (p.status || "").includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId));
+            } else if (currentFilter === "SORT_STATUS_GROUP") {
+                displayList = [...displayList].sort((a, b) => {
+                    const aOut = (a.status || "").includes("Out for Delivery") ? 0 : 1;
+                    const bOut = (b.status || "").includes("Out for Delivery") ? 0 : 1;
+                    return aOut - bOut;
+                });
+            } else if (currentFilter === "SORT_DELIVERED_FIRST") {
+                displayList = [...displayList].sort((a, b) => {
+                    const aDel = (a.status || "").includes("Delivered") ? 0 : 1;
+                    const bDel = (b.status || "").includes("Delivered") ? 0 : 1;
+                    return aDel - bDel;
+                });
             }
 
             // Search query filter
@@ -1456,8 +1478,32 @@
             currentFilter = filter;
             document.querySelectorAll(".driver-tab-btn").forEach(b => b.classList.remove("active"));
             if (btn) btn.classList.add("active");
+
+            const sel = document.getElementById("driverStatusSortSelect");
+            if (sel) {
+                if (filter === "ALL") sel.value = "ALL";
+                else if (filter === "OUT") sel.value = "Out for Delivery";
+                else if (filter === "DELIVERED") sel.value = "Delivered";
+            }
             renderDriverRunSheet();
         }
+
+        window.handleDriverStatusFilter = function(val) {
+            currentFilter = val;
+
+            const tabs = document.querySelectorAll(".driver-tab-btn");
+            tabs.forEach(b => b.classList.remove("active"));
+
+            if (val === "ALL") {
+                if (tabs[0]) tabs[0].classList.add("active");
+            } else if (val === "Out for Delivery") {
+                if (tabs[1]) tabs[1].classList.add("active");
+            } else if (val === "Delivered") {
+                if (tabs[2]) tabs[2].classList.add("active");
+            }
+
+            renderDriverRunSheet();
+        };
 
         function handleDriverSearch(val) {
             searchQuery = val;

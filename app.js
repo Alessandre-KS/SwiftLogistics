@@ -979,6 +979,7 @@ INITIAL_PARCELS.forEach(p => {
 let parcelsList = [];
 let currentSelectedTracking = null;
 let activeTabFilter = "ALL";
+let selectedStatusFilter = "ALL";
 let editingTrackingNo = null;
 
 // ============================================================================
@@ -1726,15 +1727,42 @@ function renderManifestTable() {
     updateKPIs();
 
     const filterText = (document.getElementById("tableFilterInput")?.value || "").trim().toUpperCase();
+    const statusDropdownVal = (document.getElementById("manifestStatusSelect")?.value || selectedStatusFilter || "ALL");
     let filtered = parcelsList;
 
-    // 1. FILTER ACCORDING TO ACTIVE NAVIGATION TAB
-    if (activeTabFilter === "OUT") {
-        filtered = filtered.filter(p => p.status.includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId));
-    } else if (activeTabFilter === "HUB") {
-        filtered = filtered.filter(p => p.status.includes("Hub") || p.status.includes("Transit") || p.status.includes("Pickup") || p.status.includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId && !p.status.includes("Delivered")));
-    } else if (activeTabFilter === "DELIVERED") {
-        filtered = filtered.filter(p => p.status.includes("Delivered"));
+    // 1. FILTER ACCORDING TO SELECTED STATUS DROPDOWN OR TAB
+    if (statusDropdownVal && !statusDropdownVal.startsWith("SORT_")) {
+        if (statusDropdownVal === "ALL") {
+            if (activeTabFilter === "OUT") {
+                filtered = filtered.filter(p => (p.status || "").includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId));
+            } else if (activeTabFilter === "HUB") {
+                filtered = filtered.filter(p => (p.status || "").includes("Hub") || (p.status || "").includes("Transit") || (p.status || "").includes("Pickup") || (p.status || "").includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId && !(p.status || "").includes("Delivered")));
+            } else if (activeTabFilter === "DELIVERED") {
+                filtered = filtered.filter(p => (p.status || "").includes("Delivered"));
+            }
+        } else if (statusDropdownVal === "Out for Delivery") {
+            filtered = filtered.filter(p => (p.status || "").includes("Out for Delivery"));
+        } else if (statusDropdownVal === "Delivered") {
+            filtered = filtered.filter(p => (p.status || "").includes("Delivered"));
+        } else if (statusDropdownVal === "Waiting to be Assigned to Driver") {
+            filtered = filtered.filter(p => (p.status || "").includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId && !(p.status || "").includes("Delivered")));
+        } else if (statusDropdownVal === "Arrived at Hub #04") {
+            filtered = filtered.filter(p => (p.status || "").includes("Hub"));
+        } else if (statusDropdownVal === "In Transit from Sorting Center") {
+            filtered = filtered.filter(p => (p.status || "").includes("Transit") || (p.status || "").includes("Sorting"));
+        } else if (statusDropdownVal === "Ready for Branch Pickup") {
+            filtered = filtered.filter(p => (p.status || "").includes("Pickup"));
+        } else {
+            filtered = filtered.filter(p => (p.status || "").toLowerCase().includes(statusDropdownVal.toLowerCase()));
+        }
+    } else {
+        if (activeTabFilter === "OUT") {
+            filtered = filtered.filter(p => (p.status || "").includes("Out for Delivery") && (p.assignedDriver || p.assignedDriverId));
+        } else if (activeTabFilter === "HUB") {
+            filtered = filtered.filter(p => (p.status || "").includes("Hub") || (p.status || "").includes("Transit") || (p.status || "").includes("Pickup") || (p.status || "").includes("Waiting") || (!p.assignedDriver && !p.assignedDriverId && !(p.status || "").includes("Delivered")));
+        } else if (activeTabFilter === "DELIVERED") {
+            filtered = filtered.filter(p => (p.status || "").includes("Delivered"));
+        }
     }
 
     // 2. FILTER ACCORDING TO LIVE KEYWORD SEARCH INPUT
@@ -1743,8 +1771,44 @@ function renderManifestTable() {
             p.trackingNo.toUpperCase().includes(filterText) ||
             p.name.toUpperCase().includes(filterText) ||
             p.city.toUpperCase().includes(filterText) ||
-            p.package.toUpperCase().includes(filterText)
+            p.package.toUpperCase().includes(filterText) ||
+            (p.status && p.status.toUpperCase().includes(filterText))
         );
+    }
+
+    // 3. SORTING ACCORDING TO STATUS SORT OPTION
+    if (statusDropdownVal && statusDropdownVal.startsWith("SORT_")) {
+        if (statusDropdownVal === "SORT_STATUS_GROUP") {
+            const rank = (status) => {
+                const s = (status || "").toLowerCase();
+                if (s.includes("out for delivery")) return 1;
+                if (s.includes("hub") || s.includes("transit") || s.includes("pickup")) return 2;
+                if (s.includes("waiting")) return 3;
+                if (s.includes("delivered")) return 4;
+                return 5;
+            };
+            filtered = [...filtered].sort((a, b) => rank(a.status) - rank(b.status));
+        } else if (statusDropdownVal === "SORT_ACTIVE_FIRST") {
+            filtered = [...filtered].sort((a, b) => {
+                const aOut = (a.status || "").includes("Out for Delivery") ? 0 : 1;
+                const bOut = (b.status || "").includes("Out for Delivery") ? 0 : 1;
+                return aOut - bOut;
+            });
+        } else if (statusDropdownVal === "SORT_DELIVERED_FIRST") {
+            filtered = [...filtered].sort((a, b) => {
+                const aDel = (a.status || "").includes("Delivered") ? 0 : 1;
+                const bDel = (b.status || "").includes("Delivered") ? 0 : 1;
+                return aDel - bDel;
+            });
+        } else if (statusDropdownVal === "SORT_TRACKING_ASC") {
+            filtered = [...filtered].sort((a, b) => (a.trackingNo || "").localeCompare(b.trackingNo || ""));
+        } else if (statusDropdownVal === "SORT_COD_DESC") {
+            filtered = [...filtered].sort((a, b) => {
+                const aNum = parseFloat((a.cod || "").replace(/[^0-9.]/g, "")) || 0;
+                const bNum = parseFloat((b.cod || "").replace(/[^0-9.]/g, "")) || 0;
+                return bNum - aNum;
+            });
+        }
     }
 
     tbody.innerHTML = "";
@@ -1956,11 +2020,50 @@ function updateKPIs() {
     if (sPill) sPill.innerText = total;
 }
 
+// TRANSIT STATUS DROPDOWN SELECTION HANDLER (FILTERING & SORTING)
+function handleStatusFilterChange(val) {
+    selectedStatusFilter = val || "ALL";
+
+    // Synchronize tab buttons
+    const tabs = document.querySelectorAll(".tab-btn");
+    tabs.forEach(b => b.classList.remove("active"));
+
+    if (val === "ALL" || val.startsWith("SORT_")) {
+        if (tabs[0]) tabs[0].classList.add("active");
+        activeTabFilter = "ALL";
+    } else if (val === "Out for Delivery") {
+        if (tabs[1]) tabs[1].classList.add("active");
+        activeTabFilter = "OUT";
+    } else if (val.includes("Hub") || val.includes("Waiting") || val.includes("Transit") || val.includes("Pickup")) {
+        if (tabs[2]) tabs[2].classList.add("active");
+        activeTabFilter = "HUB";
+    } else if (val.includes("Delivered")) {
+        if (tabs[3]) tabs[3].classList.add("active");
+        activeTabFilter = "DELIVERED";
+    } else {
+        activeTabFilter = "CUSTOM";
+    }
+
+    renderManifestTable();
+}
+
 // TAB FILTER SWITCHER (ALL, OUT FOR DELIVERY, AT HUB / SORTING, DELIVERED)
 function filterManifest(tab, btn) {
     activeTabFilter = tab;
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
     if (btn) btn.classList.add("active");
+
+    const sel = document.getElementById("manifestStatusSelect");
+    if (sel) {
+        if (tab === "ALL") sel.value = "ALL";
+        else if (tab === "OUT") sel.value = "Out for Delivery";
+        else if (tab === "HUB") sel.value = "Arrived at Hub #04";
+        else if (tab === "DELIVERED") sel.value = "Delivered";
+        selectedStatusFilter = sel.value;
+    } else {
+        selectedStatusFilter = tab;
+    }
+
     renderManifestTable();
 }
 

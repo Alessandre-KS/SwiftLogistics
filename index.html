@@ -391,6 +391,32 @@
                         </div>
 
                         <div class="toolbar-right-group">
+                            <div class="status-dropdown-wrapper">
+                                <label for="manifestStatusSelect" class="status-dropdown-label">Transit Status:</label>
+                                <select 
+                                    id="manifestStatusSelect" 
+                                    class="manifest-status-select" 
+                                    onchange="handleStatusFilterChange(this.value)"
+                                    title="Filter or sort consignments by transit status"
+                                >
+                                    <optgroup label="Filter by Transit Status">
+                                        <option value="ALL">All Transit Statuses</option>
+                                        <option value="Out for Delivery">🛵 Out for Delivery</option>
+                                        <option value="Waiting to be Assigned to Driver">⏳ Waiting for Assignment</option>
+                                        <option value="Arrived at Hub #04">🏢 Arrived at Hub #04</option>
+                                        <option value="In Transit from Sorting Center">🚛 In Transit from Sorting</option>
+                                        <option value="Ready for Branch Pickup">📦 Ready for Branch Pickup</option>
+                                        <option value="Delivered">✓ Delivered & Signed</option>
+                                    </optgroup>
+                                    <optgroup label="Sort Manifest by Status">
+                                        <option value="SORT_STATUS_GROUP">↕️ Sort: Group by Transit Status</option>
+                                        <option value="SORT_ACTIVE_FIRST">↕️ Sort: Out for Delivery First</option>
+                                        <option value="SORT_DELIVERED_FIRST">↕️ Sort: Delivered First</option>
+                                        <option value="SORT_TRACKING_ASC">↕️ Sort: Waybill Tracking (A-Z)</option>
+                                        <option value="SORT_COD_DESC">↕️ Sort: COD Value (High → Low)</option>
+                                    </optgroup>
+                                </select>
+                            </div>
                             <input 
                                 type="text" 
                                 id="tableFilterInput" 

@@ -869,7 +869,41 @@ body.courier-body {
 .toolbar-right-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.status-dropdown-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dropdown-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.manifest-status-select {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0F172A;
+    background: #FFFFFF;
+    border: 1.5px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    outline: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    height: 33px;
+    max-width: 250px;
+}
+
+.manifest-status-select:focus {
+    border-color: var(--courier-orange);
+    box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.15);
 }
 
 .table-filter-input {

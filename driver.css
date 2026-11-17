@@ -1292,3 +1292,23 @@
     align-items: center;
     gap: 4px;
 }
+
+.driver-status-select {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0F172A;
+    background: #FFFFFF;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    height: 38px;
+    max-width: 220px;
+}
+
+.driver-status-select:focus {
+    border-color: var(--courier-orange);
+    box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.15);
+}
