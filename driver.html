@@ -299,9 +299,14 @@
 
                 <div class="form-group-row">
                     <label class="form-label-custom">Delivery Verification QR Code / Pass Token</label>
-                    <input type="text" id="proofVerificationCode" class="form-input-custom font-mono" placeholder="e.g. SL-1001-A9F2 (from customer QR pass)" style="text-transform: uppercase;">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="proofVerificationCode" class="form-input-custom font-mono" placeholder="e.g. SL-1001-A9F2 (from customer QR pass)" style="text-transform: uppercase; flex: 1;">
+                        <button type="button" class="btn-courier-sm btn-courier-outline" onclick="startCameraQrScanner()" style="display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-weight: 700;">
+                            📷 Scan QR
+                        </button>
+                    </div>
                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
-                        🔑 Ask recipient for their Delivery Verification Pass token or scan their QR code.
+                        🔑 Ask recipient for their Delivery Verification Pass token or tap "Scan QR" with camera.
                     </div>
                 </div>
 
@@ -326,7 +331,25 @@
     </div>
 
     <!-- ====================================================================
-         DELIVERY ATTEMPT MODAL (FOR REPORTING FAILED DELIVERY / RE-DISPATCH)
+         CAMERA QR CODE SCANNER MODAL (FOR SMARTPHONE CAMERAS)
+         ==================================================================== -->
+    <div id="driverCameraScannerModal" class="modal-overlay hidden" style="display: none; z-index: 9999;" onclick="if(event.target===this) stopCameraQrScanner();">
+        <div class="modal-content-card" style="max-width: 380px; text-align: center;">
+            <div class="modal-header-bar">
+                <h3 style="font-size: 15px; margin: 0; font-weight: 800; color: var(--text-title);">📷 Scan Customer QR Pass</h3>
+                <button type="button" class="btn-courier-sm btn-courier-outline" onclick="stopCameraQrScanner()">&times;</button>
+            </div>
+            <div class="modal-body-pad" style="padding: 14px;">
+                <div style="position: relative; width: 100%; height: 260px; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <video id="cameraScannerVideo" playsinline autoplay muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                    <div style="position: absolute; border: 2px solid #EA580C; width: 180px; height: 180px; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);"></div>
+                    <div style="position: absolute; bottom: 8px; font-size: 11px; color: #FFF; background: rgba(0,0,0,0.65); padding: 3px 10px; border-radius: 4px; font-weight: 600;">Point camera at recipient's QR pass</div>
+                </div>
+                <div id="cameraScannerStatus" style="font-size: 12px; margin-top: 10px; color: #475569; font-weight: 600;">Requesting camera sensor access...</div>
+                <button type="button" class="btn-courier-secondary" style="margin-top: 12px; width: 100%; justify-content: center;" onclick="stopCameraQrScanner()">Cancel Camera</button>
+            </div>
+        </div>
+    </div>
          ==================================================================== -->
     <div id="driverAttemptModal" class="modal-overlay hidden" style="display: none;">
         <div class="modal-content-card" style="max-width: 480px;">
@@ -1513,12 +1536,101 @@
 
         // CLOSE DELIVERY PROOF MODAL AND RESET PENDING STATE
         function closeDriverProofModal() {
+            stopCameraQrScanner();
             const m = document.getElementById("driverProofModal");
             if (m) {
                 m.style.display = "none";
                 m.classList.add("hidden");
             }
             pendingDeliverTracking = null;
+        }
+
+        // ============================================================================
+        // SMARTPHONE CAMERA QR CODE SCANNER (POWERED BY NATIVE BROWSER APIS)
+        // PURPOSE: Allows field couriers to scan customer QR passes directly
+        // ============================================================================
+        let cameraStream = null;
+        let cameraScanInterval = null;
+
+        async function startCameraQrScanner() {
+            const modal = document.getElementById("driverCameraScannerModal");
+            const video = document.getElementById("cameraScannerVideo");
+            const statusEl = document.getElementById("cameraScannerStatus");
+            if (modal) {
+                modal.style.display = "flex";
+                modal.classList.remove("hidden");
+            }
+            if (statusEl) statusEl.innerText = "Accessing camera sensor...";
+
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error("Camera API not supported on this browser.");
+                }
+
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: "environment" } },
+                    audio: false
+                });
+                video.srcObject = cameraStream;
+                await video.play();
+
+                if (statusEl) statusEl.innerText = "Camera active. Align customer QR pass inside target square.";
+
+                // Check for native BarcodeDetector API
+                if ("BarcodeDetector" in window) {
+                    const detector = new BarcodeDetector({ formats: ["qr_code"] });
+                    cameraScanInterval = setInterval(async () => {
+                        try {
+                            const barcodes = await detector.detect(video);
+                            if (barcodes.length > 0) {
+                                const rawValue = barcodes[0].rawValue || "";
+                                onQrCodeScanned(rawValue);
+                            }
+                        } catch (e) {}
+                    }, 400);
+                } else {
+                    if (statusEl) statusEl.innerText = "Camera active. If auto-detection is not supported in this browser, please enter token manually.";
+                }
+            } catch (err) {
+                console.warn("Camera Scanner Error:", err);
+                if (statusEl) statusEl.innerText = `Camera notice: ${err.message || 'Permission denied'}. Please enter token manually.`;
+            }
+        }
+
+        function stopCameraQrScanner() {
+            if (cameraScanInterval) {
+                clearInterval(cameraScanInterval);
+                cameraScanInterval = null;
+            }
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+            const video = document.getElementById("cameraScannerVideo");
+            if (video) video.srcObject = null;
+            const modal = document.getElementById("driverCameraScannerModal");
+            if (modal) {
+                modal.style.display = "none";
+                modal.classList.add("hidden");
+            }
+        }
+
+        function onQrCodeScanned(qrData) {
+            stopCameraQrScanner();
+            const tokenInput = document.getElementById("proofVerificationCode");
+            if (tokenInput) {
+                let token = qrData.trim().toUpperCase();
+                if (token.includes("|")) {
+                    const parts = token.split("|");
+                    token = parts[1] || parts[0];
+                }
+                tokenInput.value = token;
+                tokenInput.style.borderColor = "#10B981";
+                tokenInput.style.background = "#ECFDF5";
+            }
+            if (typeof showToast === "function") {
+                showToast(`✓ QR Pass Captured: ${qrData.slice(0, 18)}...`);
+            }
         }
 
         // ============================================================================

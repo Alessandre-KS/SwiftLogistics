@@ -2081,6 +2081,8 @@ function handleTableFilter() {
 // ============================================================================
 
 // AUTO-FILL LOGGED-IN USER PROFILE DETAILS INTO BOOKING FORM
+let isSelfRecipientActive = false;
+
 function autoFillUserProfileInBookingForm() {
     const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
     const nameInput = document.getElementById("newSenderName");
@@ -2106,6 +2108,79 @@ function autoFillUserProfileInBookingForm() {
     if (typeof showToast === "function") {
         showToast(`User profile auto-filled: ${senderName} (${originHub})`);
     }
+}
+
+// TOGGLE: USER AS RECIPIENT (SELF-RECEIVING ORDERS)
+function toggleSelfRecipientMode() {
+    const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
+    const btn = document.getElementById("btnToggleSelfRecipient");
+    const customFields = document.getElementById("senderCustomFields");
+    const badgeEl = document.getElementById("senderProfileBadge");
+    const recipNameInput = document.getElementById("newRecipName");
+    const recipPhoneInput = document.getElementById("newRecipPhone");
+
+    isSelfRecipientActive = !isSelfRecipientActive;
+
+    const userName = session?.name || "Customer User";
+    const userEmail = session?.email || "customer@example.com";
+    const userPhone = session?.phone || "0917-000-0000";
+
+    if (isSelfRecipientActive) {
+        if (recipNameInput) recipNameInput.value = userName;
+        if (recipPhoneInput) recipPhoneInput.value = userPhone;
+        if (customFields) customFields.style.display = "grid";
+        if (badgeEl) {
+            badgeEl.innerHTML = `👤 Recipient: <strong>${userName}</strong> (Self-Delivery) &bull; Enter Origin Merchant below:`;
+        }
+        if (btn) {
+            btn.className = "btn-courier-sm btn-courier-primary";
+            btn.innerText = "✓ Self-Recipient Active";
+        }
+        if (typeof showToast === "function") {
+            showToast("Self-Recipient activated: Your info copied to destination!");
+        }
+    } else {
+        autoFillUserProfileInBookingForm();
+        if (customFields) customFields.style.display = "none";
+        if (btn) {
+            btn.className = "btn-courier-sm btn-courier-outline";
+            btn.innerText = "🔄 Ship to Myself (I'm Recipient)";
+        }
+        if (typeof showToast === "function") {
+            showToast("Restored to standard sender mode.");
+        }
+    }
+}
+
+function updateCustomSenderData() {
+    const customName = document.getElementById("newSenderNameCustom")?.value.trim();
+    const customEmail = document.getElementById("newSenderEmailCustom")?.value.trim();
+    if (customName) document.getElementById("newSenderName").value = customName;
+    if (customEmail) document.getElementById("newSenderEmail").value = customEmail;
+}
+
+// PAYMENT METHOD SELECTION (COD VS PREPAID)
+function handlePaymentMethodChange(val) {
+    const codInput = document.getElementById("newCodAmount");
+    const lblCod = document.getElementById("lblCodAmount");
+    if (!codInput) return;
+
+    if (val === "PREPAID") {
+        codInput.value = "₱0.00";
+        codInput.disabled = true;
+        codInput.style.background = "#F1F5F9";
+        codInput.style.color = "#059669";
+        codInput.style.fontWeight = "700";
+        if (lblCod) lblCod.innerText = "COD Amount (Prepaid Online ✓)";
+    } else {
+        codInput.disabled = false;
+        codInput.style.background = "";
+        codInput.style.color = "";
+        codInput.style.fontWeight = "";
+        if (codInput.value === "₱0.00") codInput.value = "₱850.00";
+        if (lblCod) lblCod.innerText = "COD Amount to Collect *";
+    }
+    updateBookingCalculations();
 }
 
 // QUICK-FILL DESTINATION PRESETS FOR RAPID BOOKING
@@ -2262,7 +2337,10 @@ async function handleBookParcelSubmit(e) {
     const addressDetails = document.getElementById("newRecipAddress")?.value.trim() || "";
     const landmarks = document.getElementById("newRecipLandmarks")?.value.trim() || "";
     const pkg = document.getElementById("newPackageDesc")?.value.trim() || "General Merchandise Parcel";
-    const cod = document.getElementById("newCodAmount")?.value.trim() || "₱0.00";
+    const paymentMethod = document.getElementById("newPaymentMethod")?.value || "COD";
+    const isPrepaid = paymentMethod === "PREPAID";
+    const rawCod = document.getElementById("newCodAmount")?.value.trim() || "₱0.00";
+    const cod = isPrepaid ? "₱0.00" : rawCod;
     const isFragile = document.getElementById("newIsFragile")?.checked === true;
     const vehicleRequirement = weight > 25 ? "Cargo Van / Light Truck" : "Motorcycle (Express 2-Wheeler)";
 
@@ -2283,6 +2361,8 @@ async function handleBookParcelSubmit(e) {
         addressDetails,
         landmarks,
         package: pkg,
+        paymentMethod,
+        isPrepaid,
         cod,
         isFragile,
         fragileSurcharge: isFragile ? 75.00 : 0.00,
@@ -2315,6 +2395,24 @@ async function handleBookParcelSubmit(e) {
 // PURPOSE:  Presents interactive order history, lifecycle progress, and item
 //           summaries for all consignments booked or linked to the active user.
 // ============================================================================
+let userOrderTrackingScope = "MINE";
+
+function setUserOrderTrackingScope(scope) {
+    userOrderTrackingScope = scope;
+    const btnMine = document.getElementById("btnScopeMyOrders");
+    const btnAll = document.getElementById("btnScopeAllOrders");
+    if (btnMine && btnAll) {
+        if (scope === "MINE") {
+            btnMine.className = "btn-courier-sm btn-courier-primary";
+            btnAll.className = "btn-courier-sm btn-courier-outline";
+        } else {
+            btnMine.className = "btn-courier-sm btn-courier-outline";
+            btnAll.className = "btn-courier-sm btn-courier-primary";
+        }
+    }
+    renderUserOrderTracking();
+}
+
 function openUserOrderTrackingModal() {
     renderUserOrderTracking();
     const m = document.getElementById("userOrderTrackingModal");
@@ -2341,14 +2439,56 @@ function renderUserOrderTracking() {
     if (!listEl) return;
 
     const session = (typeof getStaffSession === "function") ? getStaffSession() : null;
+    const roleLower = (session?.role || "").toLowerCase();
+    const isManagement = !!(
+        roleLower.includes("management") ||
+        roleLower.includes("dispatcher") ||
+        roleLower.includes("admin") ||
+        roleLower.includes("owner") ||
+        session?.email === "jeff@swiftlogistics.ph" ||
+        session?.email === "jeffrey.delacruz@ub.edu.ph"
+    );
+
+    const filterRow = document.getElementById("userOrderTrackingFilterRow");
+    const custNotice = document.getElementById("userOrderCustomerNotice");
+    const custEmail = document.getElementById("userOrderCustomerEmail");
+
+    if (isManagement) {
+        if (filterRow) filterRow.style.display = "flex";
+        if (custNotice) custNotice.style.display = "none";
+    } else {
+        if (filterRow) filterRow.style.display = "none";
+        if (custNotice && session?.email) {
+            custNotice.style.display = "block";
+            if (custEmail) custEmail.innerText = session.email;
+        }
+    }
+
     const all = parcelsList || [];
+    let displayList = all;
+
+    if (!isManagement || userOrderTrackingScope === "MINE") {
+        const userEmail = (session?.email || "").toLowerCase().trim();
+        const userPhone = (session?.phone || "").replace(/[^0-9]/g, "");
+        const userName = (session?.name || "").toLowerCase().trim();
+
+        displayList = all.filter(p => {
+            const pEmail = (p.bookedByEmail || p.senderEmail || "").toLowerCase();
+            const pPhone = (p.phone || "").replace(/[^0-9]/g, "");
+            const pName = (p.name || "").toLowerCase();
+            return (userEmail && pEmail.includes(userEmail)) ||
+                   (userPhone && pPhone && (userPhone.includes(pPhone) || pPhone.includes(userPhone))) ||
+                   (userName && pName.includes(userName)) ||
+                   (p.bookedByUid && session?.uid && p.bookedByUid === session.uid);
+        });
+    }
 
     // COMPUTE SUMMARY STATS
-    const totalOrders = all.length;
-    const outCount = all.filter(p => (p.status || "").includes("Out for Delivery")).length;
-    const delCount = all.filter(p => (p.status || "").includes("Delivered")).length;
+    const totalOrders = displayList.length;
+    const outCount = displayList.filter(p => (p.status || "").includes("Out for Delivery")).length;
+    const delCount = displayList.filter(p => (p.status || "").includes("Delivered")).length;
     let totalCodVal = 0;
-    all.forEach(p => {
+    displayList.forEach(p => {
         const num = parseFloat((p.cod || "").replace(/[^0-9.]/g, "")) || 0;
         totalCodVal += num;
     });
@@ -2358,18 +2498,18 @@ function renderUserOrderTracking() {
     if (kpiDelEl) kpiDelEl.innerText = delCount;
     if (kpiCodEl) kpiCodEl.innerText = `₱${totalCodVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
-    if (all.length === 0) {
+    if (displayList.length === 0) {
         listEl.innerHTML = `
             <div style="padding: 32px 16px; text-align: center; color: var(--text-muted);">
                 <div style="font-size: 32px; margin-bottom: 8px;">📦</div>
-                <strong style="color: var(--text-title); font-size: 14px;">No Orders Booked Yet</strong>
-                <p style="font-size: 12px; margin-top: 4px;">Click "Manifest New Shipment" to create your first consignment waybill.</p>
+                <strong style="color: var(--text-title); font-size: 14px;">No Orders Found in This Scope</strong>
+                <p style="font-size: 12px; margin-top: 4px;">Click "Manifest New Shipment" to create your consignment waybill.</p>
             </div>
         `;
         return;
     }
 
-    listEl.innerHTML = all.map(p => {
+    listEl.innerHTML = displayList.map(p => {
         const isDelivered = (p.status || "").includes("Delivered");
         const isOut = (p.status || "").includes("Out for Delivery");
         const statusBg = isDelivered ? "#ECFDF5" : (isOut ? "#EFF6FF" : "#FEF3C7");

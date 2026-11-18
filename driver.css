@@ -364,7 +364,7 @@
 .btn-deliver-action {
     background: #059669;
     color: #FFFFFF;
-    border: none;
+    border: 1.5px solid #047857;
     padding: 9px 18px;
     border-radius: 6px;
     font-size: 13px;
@@ -374,13 +374,14 @@
     align-items: center;
     gap: 8px;
     transition: all 0.15s ease;
-    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
 }
 
 .btn-deliver-action:hover {
     background: #047857;
+    border-color: #065F46;
     transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.35);
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.4);
 }
 
 /* EMPTY STATE WHEN NO PARCELS ARE IN ACTIVE RUNSHEET */
@@ -620,19 +621,20 @@
     padding: 9px 15px;
     background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
     color: #FFFFFF;
-    border: none;
+    border: 1.5px solid #9A3412;
     border-radius: 6px;
     font-size: 13px;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);
     transition: all 0.15s ease-in-out;
 }
 
 .btn-start-delivery:hover {
     background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+    border-color: #7C2D12;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.45);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.5);
 }
 
 /* HOUSE DIRECTIONS BUTTON */
