@@ -28,10 +28,10 @@
                 <div class="topbar-crumb" style="margin: 0;">
                     <span class="crumb-lead" style="font-weight: 800; color: var(--text-title);">SwiftLogistics</span>
                     <span class="crumb-slash">/</span>
-                    <span class="crumb-active" id="topbarCrumbActive" style="color: var(--courier-orange);">Courier Fleet Monitor</span>
+                    <span class="crumb-active" id="topbarCrumbActive" style="color: var(--courier-orange);">Courier Run-Sheet</span>
                 </div>
                 <div class="driver-topbar-subtitle" id="topbarSubtitle" style="font-size: 11px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    Branch #04 • Field Operations Dispatch & Live Run-Sheet Monitor
+                    Branch #04 • Field Courier Route & Deliveries
                 </div>
             </div>
         </div>
@@ -642,6 +642,9 @@
 
             const crumbActive = document.getElementById("topbarCrumbActive");
             if (crumbActive) crumbActive.innerText = "Courier Fleet Monitor";
+
+            const subtitle = document.getElementById("topbarSubtitle");
+            if (subtitle) subtitle.innerText = "Branch #04 • Field Operations Dispatch & Live Run-Sheet Monitor";
 
             const heroBadge = document.getElementById("mgtHeroBadge");
             if (heroBadge) heroBadge.style.display = "inline-flex";
@@ -1352,7 +1355,8 @@
                 const isAttemptWarning = currentAttempt > 1;
                 const isFailedMax = (p.attempts > 3) || (p.status || "").includes("Failed Delivery") || (p.status || "").includes("Max Attempts Exceeded");
                 const cleanPhone = (p.phone || "").replace(/[^0-9+]/g, "");
-                const isInRoute = activeInRouteTracking === p.trackingNo;
+                const isStarted = !!(p.deliveryStarted || p.deliveryStartedAt || activeInRouteTracking === p.trackingNo);
+                const isInRoute = isStarted;
                 const isBestStop = idx === 0 && courierRouteOptimized && optRes && optRes.isReordered && currentFilter === "OUT";
 
                 return `
@@ -1467,11 +1471,20 @@
                                             👁️ Monitoring Run (Courier Field Delivery)
                                         </span>
                                     </div>
-                                ` : `
+                                ` : !isStarted ? `
                                     <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
-                                        <button type="button" class="btn-start-delivery" onclick="handleStartDelivery('${p.trackingNo}')" title="Start delivery and open turn-by-turn directions to house">
+                                        <button type="button" class="btn-start-delivery" onclick="handleStartDelivery('${p.trackingNo}')" title="Start delivery transit to customer destination">
                                             <span>🚀 START DELIVERY</span>
                                         </button>
+                                        <button type="button" class="btn-house-directions" onclick="openHouseDirections('${p.trackingNo}')" title="View turn-by-turn directions and landmarks for this house">
+                                            <span>🏠 Directions</span>
+                                        </button>
+                                    </div>
+                                ` : `
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
+                                        <span style="font-size: 11px; font-weight: 800; background: #EA580C; color: #FFFFFF; padding: 5px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                            ⚡ In Progress
+                                        </span>
                                         <button type="button" class="btn-house-directions" onclick="openHouseDirections('${p.trackingNo}')" title="View turn-by-turn directions and landmarks for this house">
                                             <span>🏠 Directions</span>
                                         </button>
@@ -1512,6 +1525,13 @@
             // STEP 1: LOCATE PARCEL RECORD IN RUNTIME ARRAY
             const parcel = parcelsList.find(p => p.trackingNo === trackingNo);
             if (!parcel) return;
+
+            // GUARD: Delivery must be started before logging proof of delivery
+            const isStarted = !!(parcel.deliveryStarted || parcel.deliveryStartedAt || activeInRouteTracking === trackingNo);
+            if (!isStarted) {
+                showToast("Please tap 'START DELIVERY' first before marking consignment as delivered.", "warning");
+                return;
+            }
 
             // STEP 2: STORE TRACKING NUMBER IN PENDING VARIABLE FOR SUBMISSION
             pendingDeliverTracking = trackingNo;
@@ -1690,6 +1710,13 @@
             const parcel = parcelsList.find(p => p.trackingNo === trackingNo);
             if (!parcel) return;
 
+            // GUARD: Delivery must be started before logging a delivery attempt
+            const isStarted = !!(parcel.deliveryStarted || parcel.deliveryStartedAt || activeInRouteTracking === trackingNo);
+            if (!isStarted) {
+                showToast("Please tap 'START DELIVERY' first before recording a delivery attempt.", "warning");
+                return;
+            }
+
             pendingAttemptTracking = trackingNo;
             const currentAttempt = parcel.attempts || 1;
 
@@ -1752,6 +1779,10 @@
             const parcel = parcelsList.find(p => p.trackingNo === trackingNo);
             if (!parcel) return;
 
+            parcel.deliveryStarted = true;
+            parcel.deliveryStartedAt = new Date().toISOString();
+            activeInRouteTracking = trackingNo;
+
             const driverToUse = (isManagementMode && activeInspectedDriver && activeInspectedDriver.id !== "all") ? activeInspectedDriver : driverSession;
             if (typeof startParcelDelivery === "function") {
                 await startParcelDelivery(trackingNo, driverToUse);
@@ -1759,7 +1790,6 @@
                 await updateParcelStatusRecord(trackingNo, "Out for Delivery", driverToUse?.name, driverToUse?.vehicleType, driverToUse?.uid || driverToUse?.id);
             }
 
-            activeInRouteTracking = trackingNo;
             showToast(`🚀 Delivery started for ${trackingNo}! Showing directions to ${parcel.name}'s house...`);
             renderDriverRunSheet();
             openHouseDirections(trackingNo);
@@ -1864,12 +1894,26 @@
             // Quick modal action callbacks (hidden for management view-only mode)
             const btnDeliver = document.getElementById("dirModalDeliverBtn");
             const btnAttempt = document.getElementById("dirModalAttemptBtn");
+            const isStarted = !!(parcel.deliveryStarted || parcel.deliveryStartedAt || activeInRouteTracking === parcel.trackingNo);
+
             if (isManagementMode) {
                 if (btnDeliver) btnDeliver.style.display = "none";
                 if (btnAttempt) btnAttempt.style.display = "none";
+            } else if (!isStarted) {
+                if (btnAttempt) btnAttempt.style.display = "none";
+                if (btnDeliver) {
+                    btnDeliver.style.display = "inline-flex";
+                    btnDeliver.style.background = "#EA580C";
+                    btnDeliver.innerText = "🚀 Start Delivery Now";
+                    btnDeliver.onclick = async () => {
+                        await handleStartDelivery(parcel.trackingNo);
+                    };
+                }
             } else {
                 if (btnDeliver) {
                     btnDeliver.style.display = "inline-flex";
+                    btnDeliver.style.background = "#059669";
+                    btnDeliver.innerText = "✓ Consignment Delivered";
                     btnDeliver.onclick = () => {
                         closeHouseDirectionsModal();
                         openDeliveryProofModal(parcel.trackingNo);

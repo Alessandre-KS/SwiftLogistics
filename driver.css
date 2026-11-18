@@ -817,55 +817,102 @@
 
 /* SMARTPHONE VIEWPORT (<= 640px) */
 @media (max-width: 640px) {
-    /* TOPBAR COMPACT SINGLE-ROW LAYOUT (PREVENTS SPILLING INTO HERO CARD) */
+    html, body.courier-body {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+    }
+
+    /* TOPBAR COMPACT SINGLE-ROW LAYOUT (PREVENTS SPILLING OR CUT-OFF BUTTONS) */
     .courier-topbar.driver-topbar {
         padding: 8px 12px !important;
         min-height: 52px !important;
         height: auto !important;
-        gap: 8px !important;
+        gap: 6px !important;
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
         justify-content: space-between !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        overflow: hidden !important;
+    }
+
+    .topbar-info {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        margin-right: 4px !important;
+        gap: 6px !important;
     }
 
     .driver-topbar-icon {
         width: 28px !important;
         height: 28px !important;
-        font-size: 15px !important;
+        font-size: 14px !important;
         border-radius: 6px !important;
+        flex-shrink: 0 !important;
     }
 
     .topbar-crumb {
-        font-size: 12px !important;
-        gap: 4px !important;
+        font-size: 12.5px !important;
+        gap: 2px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
-    .topbar-crumb .crumb-lead {
-        font-size: 12px !important;
+    .topbar-crumb .crumb-lead,
+    .topbar-crumb .crumb-slash {
+        display: none !important;
     }
 
     .topbar-crumb .crumb-active {
-        font-size: 12px !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     .driver-topbar-subtitle {
-        font-size: 10px !important;
+        display: none !important;
+    }
+
+    .topbar-actions {
+        flex: 0 0 auto !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+    }
+
+    #btnReturnToDesk .desk-btn-label {
+        display: none !important;
+    }
+
+    #btnReturnToDesk {
+        padding: 5px 8px !important;
+        flex-shrink: 0 !important;
     }
 
     .driver-topbar-tripwire {
-        padding: 3px 6px !important;
-        font-size: 10px !important;
+        display: none !important;
     }
 
     .driver-topbar .btn-sign-out {
-        padding: 4px 8px !important;
-        font-size: 11px !important;
+        padding: 5px 10px !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
     }
 
     /* COMPACT MAIN WORKSPACE PADDING */
     .driver-workspace {
         padding: 10px 10px 48px 10px !important;
+        box-sizing: border-box !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
     }
 
     /* COMPACT DRIVER HERO CARD */
@@ -1125,7 +1172,7 @@
         display: none !important;
     }
 
-    .driver-topbar-tripwire .tripwire-text {
+    .driver-topbar-tripwire {
         display: none !important;
     }
 }

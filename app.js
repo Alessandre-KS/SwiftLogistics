@@ -1335,6 +1335,7 @@ async function startParcelDelivery(trackingNo, driverSession = null) {
     if (!item) return false;
 
     item.status = "Out for Delivery";
+    item.deliveryStarted = true;
     item.deliveryStartedAt = new Date().toISOString();
     if (driverSession) {
         if (!item.assignedDriver) item.assignedDriver = driverSession.name;
