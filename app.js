@@ -1241,6 +1241,9 @@ async function updateParcelStatusRecord(trackingNo, newStatus, assignedDriver = 
     const item = parcelsList.find(p => p.trackingNo === trackingNo);            // FIND MATCHING CONSIGNMENT IN RUNTIME CACHE
     if (item) {
         item.status = newStatus;                                                // ASSIGN NEW TRANSIT LIFECYCLE STATUS
+        if (newStatus.includes("Delivered")) {
+            item.deliveryStarted = false;
+        }
         if (assignedDriver) {
             item.assignedDriver = assignedDriver;                               // ASSIGN DESIGNATED FIELD COURIER NAME
             item.driverVehicle = driverVehicle;                                 // RECORD ASSIGNED TRANSPORT VEHICLE

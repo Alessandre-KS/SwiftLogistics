@@ -1324,7 +1324,7 @@
                 const isAttemptWarning = currentAttempt > 1;
                 const isFailedMax = (p.attempts > 3) || (p.status || "").includes("Failed Delivery") || (p.status || "").includes("Max Attempts Exceeded");
                 const cleanPhone = (p.phone || "").replace(/[^0-9+]/g, "");
-                const isStarted = !!(p.deliveryStarted || p.deliveryStartedAt || activeInRouteTracking === p.trackingNo);
+                const isStarted = !isDelivered && !isFailedMax && !!(p.deliveryStarted || p.deliveryStartedAt || activeInRouteTracking === p.trackingNo);
                 const isInRoute = isStarted;
                 const isBestStop = idx === 0 && courierRouteOptimized && optRes && optRes.isReordered && currentFilter === "OUT";
 
@@ -1545,6 +1545,13 @@
 
             const tracking = pendingDeliverTracking;
             const parcel = parcelsList.find(p => p.trackingNo === tracking);
+            if (parcel) {
+                parcel.status = "Delivered";
+                parcel.deliveryStarted = false;
+            }
+            if (activeInRouteTracking === tracking) {
+                activeInRouteTracking = null;
+            }
 
             // STEP 2: UPDATE STATUS IN CLOUD FIRESTORE & LOCAL DATABASE VIA APP.JS
             const driverToUse = (isManagementMode && activeInspectedDriver && activeInspectedDriver.id !== "all") ? activeInspectedDriver : driverSession;
