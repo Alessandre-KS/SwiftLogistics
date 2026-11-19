@@ -154,11 +154,6 @@
                         Manifest New Shipment
                     </button>
 
-                    <button type="button" class="btn-courier-secondary" onclick="openUserOrderTrackingModal()" style="display: inline-flex; align-items: center; gap: 6px;">
-                        <span>📋</span>
-                        <span>My Orders & Tracking</span>
-                    </button>
-
                     <button type="button" class="btn-courier-outline btn-courier-sm" onclick="openTermsModal(event)" style="display: inline-flex; align-items: center; gap: 5px;">
                         <span>📜</span>
                         <span>Terms & Conditions</span>
@@ -502,20 +497,15 @@
             <div class="modal-body-pad">
                 <form id="bookParcelForm" onsubmit="handleBookParcelSubmit(event)">
 
-                    <!-- 1. SENDER & DISPATCH ACCOUNT (AUTO-FILLED & TRANSFERRED DYNAMICALLY) -->
+                    <!-- 1. SENDER & DISPATCH ACCOUNT (AUTHENTICATED STAFF INTAKE) -->
                     <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
                             <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 0.5px;">
-                                🔒 Dispatching Sender Account (Dynamic Transfer)
+                                🔒 Dispatching Counter Clerk Account
                             </span>
-                            <div style="display: flex; gap: 6px; align-items: center;">
-                                <button type="button" class="btn-courier-sm btn-courier-outline" id="btnToggleSelfRecipient" onclick="toggleSelfRecipientMode()" style="padding: 2px 7px; font-size: 10.5px;" title="Copy user details to recipient fields for self-receiving">
-                                    🔄 Ship to Myself (I'm Recipient)
-                                </button>
-                                <span style="font-size: 10px; font-weight: 700; background: #EFF6FF; color: #1D4ED8; padding: 1px 6px; border-radius: 4px; border: 1px solid #BFDBFE;">
-                                    Authenticated
-                                </span>
-                            </div>
+                            <span style="font-size: 10px; font-weight: 700; background: #EFF6FF; color: #1D4ED8; padding: 1px 6px; border-radius: 4px; border: 1px solid #BFDBFE;">
+                                Authenticated Staff
+                            </span>
                         </div>
                         <div id="senderProfileBadge" style="font-size: 11.5px; color: #1E293B; font-weight: 600;">
                             🔒 Authenticated Session: <strong>Bossing Jeff</strong> (jeffrey.delacruz@ub.edu.ph) &bull; Branch #04 Lipa Hub
@@ -690,126 +680,7 @@
     </div>
 
     <!-- ====================================================================
-         MODAL 2: USER ORDER TRACKING & SUMMARY
-         FEATURES: Complete user order history, status progress, fee summary,
-                   direct delivery verification QR code launcher
-         ==================================================================== -->
-    <div id="userOrderTrackingModal" class="modal-overlay hidden" style="display: none;" onclick="if(event.target===this) closeUserOrderTrackingModal();">
-        <div class="modal-content-card" style="max-width: 780px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header-bar" style="position: sticky; top: 0; background: #FFFFFF; z-index: 10;">
-                <div>
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-title);">My Orders & Consignment Tracking</h3>
-                    <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted);" id="userOrderTotalCount">0 Consignments</p>
-                </div>
-                <button class="btn-courier-sm btn-courier-outline" onclick="closeUserOrderTrackingModal()">&times;</button>
-            </div>
-
-            <div class="modal-body-pad">
-                <!-- MANAGEMENT / DISPATCHER ORDER FILTER TOGGLE -->
-                <div id="userOrderTrackingFilterRow" style="display: none; align-items: center; justify-content: space-between; margin-bottom: 12px; background: #F8FAFC; border: 1.5px solid #E2E8F0; padding: 7px 12px; border-radius: 8px; flex-wrap: wrap; gap: 8px;">
-                    <span style="font-size: 11.5px; font-weight: 700; color: #334155;" id="userOrderScopeText">Order History Scope:</span>
-                    <div style="display: flex; gap: 6px;">
-                        <button type="button" class="btn-courier-sm btn-courier-primary" id="btnScopeMyOrders" onclick="setUserOrderTrackingScope('MINE')" style="padding: 4px 10px; font-size: 11px;">
-                            👤 My Orders
-                        </button>
-                        <button type="button" class="btn-courier-sm btn-courier-outline" id="btnScopeAllOrders" onclick="setUserOrderTrackingScope('ALL')" style="padding: 4px 10px; font-size: 11px;">
-                            🌐 All Fleet Shipments
-                        </button>
-                    </div>
-                </div>
-
-                <!-- CUSTOMER IDENTITY NOTICE (FOR REGULAR CUSTOMERS) -->
-                <div id="userOrderCustomerNotice" style="display: none; font-size: 11.5px; color: #475569; background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px 12px; margin-bottom: 12px;">
-                    Displaying active bookings and delivery orders linked to: <strong id="userOrderCustomerEmail" class="font-mono" style="color: #0F172A;"></strong>
-                </div>
-
-                <!-- TELEMETRY KPI SUMMARY -->
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;">
-                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 10px 12px;">
-                        <span style="font-size: 10.5px; font-weight: 700; color: #1E40AF; text-transform: uppercase;">Out for Delivery</span>
-                        <div style="font-size: 20px; font-weight: 800; color: #1D4ED8; margin-top: 2px;" id="userOrderKpiOut">0</div>
-                    </div>
-                    <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 10px 12px;">
-                        <span style="font-size: 10.5px; font-weight: 700; color: #065F46; text-transform: uppercase;">Delivered & Signed</span>
-                        <div style="font-size: 20px; font-weight: 800; color: #047857; margin-top: 2px;" id="userOrderKpiDel">0</div>
-                    </div>
-                    <div style="background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 8px; padding: 10px 12px;">
-                        <span style="font-size: 10.5px; font-weight: 700; color: #9A3412; text-transform: uppercase;">Total COD Value</span>
-                        <div style="font-size: 20px; font-weight: 800; color: #C2410C; margin-top: 2px;" id="userOrderKpiCod">₱0.00</div>
-                    </div>
-                </div>
-
-                <!-- ORDERS LIST -->
-                <div class="order-tracking-table-wrap" id="userOrderTrackingList">
-                    <!-- Populated dynamically via renderUserOrderTracking() -->
-                </div>
-
-                <div class="modal-footer-bar" style="margin-top: 14px; display: flex; justify-content: flex-end;">
-                    <button type="button" class="btn-courier-secondary" onclick="closeUserOrderTrackingModal()">Close Tracking</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ====================================================================
-         MODAL 3: DELIVERY VERIFICATION QR CODE PASS
-         FEATURES: Scannable QR code, security verification token, waybill pass
-         ==================================================================== -->
-    <div id="deliveryQrModal" class="modal-overlay hidden" style="display: none;" onclick="if(event.target===this) closeDeliveryQrModal();">
-        <div class="modal-content-card qr-modal-card" style="max-width: 440px;">
-            <div class="modal-header-bar">
-                <div style="text-align: left;">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-title);">Delivery Verification Pass</h3>
-                    <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted);">Present to courier upon doorstep arrival</p>
-                </div>
-                <button class="btn-courier-sm btn-courier-outline" onclick="closeDeliveryQrModal()">&times;</button>
-            </div>
-
-            <div class="modal-body-pad" style="text-align: center;">
-                <div style="font-size: 12px; font-weight: 800; color: var(--courier-orange); font-family: monospace;" id="qrModalTrackingNo">
-                    TRK-0000
-                </div>
-                <div style="font-size: 14px; font-weight: 700; color: var(--text-title); margin-top: 2px;" id="qrModalCustomerName">
-                    Customer Name
-                </div>
-
-                <!-- SCANNABLE QR CODE FRAME -->
-                <div class="qr-code-img-frame">
-                    <img id="qrModalImage" src="" alt="Delivery Verification QR" style="width: 200px; height: 200px; display: block; margin: 0 auto;">
-                </div>
-
-                <!-- 6-CHARACTER VERIFICATION PASS TOKEN -->
-                <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px;">
-                    Doorstep Verification Token
-                </div>
-                <div class="qr-token-pill" id="qrModalTokenCode">
-                    SL-0000-XXXX
-                </div>
-
-                <div style="display: flex; justify-content: space-around; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 12px;">
-                    <div>
-                        <span style="color: var(--text-muted);">Amount Due:</span>
-                        <strong id="qrModalCodAmount" style="color: #EA580C; margin-left: 4px;">₱0.00</strong>
-                    </div>
-                    <div>
-                        <strong id="qrModalEddText" style="color: #047857;">Est: Tomorrow</strong>
-                    </div>
-                </div>
-
-                <p style="font-size: 11px; color: var(--text-muted); line-height: 1.45; margin-top: 12px;">
-                    The courier will scan this QR code or input the verification token into their mobile terminal to log proof of delivery (POD).
-                </p>
-
-                <div class="modal-footer-bar" style="margin-top: 14px; display: flex; justify-content: center; gap: 8px;">
-                    <button type="button" class="btn-courier-primary" onclick="window.print()">🖨️ Print / Save Pass</button>
-                    <button type="button" class="btn-courier-outline" onclick="closeDeliveryQrModal()">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ====================================================================
-         MODAL 4: SWIFTLOGISTICS TERMS AND CONDITIONS
+         MODAL 2: SWIFTLOGISTICS TERMS AND CONDITIONS
          FEATURES: Complete terms covering Standard, COD, Fragile, Capacity,
                    Delivery Attempts (max 3), and Claim Policies
          ==================================================================== -->
@@ -968,8 +839,6 @@
             document.addEventListener("keydown", (e) => {
                 if (e.key === "Escape") {
                     if (typeof closeBookParcelModal === "function") closeBookParcelModal();
-                    if (typeof closeUserOrderTrackingModal === "function") closeUserOrderTrackingModal();
-                    if (typeof closeDeliveryQrModal === "function") closeDeliveryQrModal();
                     if (typeof closeTermsModal === "function") closeTermsModal();
                     if (typeof closeUpdateStatusModal === "function") closeUpdateStatusModal();
                 }
